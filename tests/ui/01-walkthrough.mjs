@@ -11,6 +11,7 @@ function stubCanvas(win) {
       scale(){}, beginPath(){}, arc(){}, fill(){}, stroke(){}, fillRect(){}, strokeRect(){},
       moveTo(){}, lineTo(){}, fillText(){}, setLineDash(){}, putImageData(){},
       createImageData: (w,h)=>({ width:w, height:h, data:new Uint8ClampedArray(w*h*4) }),
+      measureText: (t)=>({ width:String(t).length*6 }), closePath(){}, save(){}, restore(){}, clearRect(){}, rect(){}, translate(){},
       set fillStyle(v){}, set strokeStyle(v){}, set lineWidth(v){}, set font(v){},
       set textAlign(v){}, set textBaseline(v){}, set globalAlpha(v){}
     };
@@ -90,6 +91,33 @@ const fillCounts = (want) => {
 await step('fill in the blank counts', () => fillCounts([4,4,150,8,1100,150,4,372]));
 await step('pin board draws', () => { if (!$('#board')) throw new Error('no board canvas'); });
 await step('board zoom buttons', () => { $$('[data-bzoom]').forEach(b => click(b)); });
+await step('the board explains itself', () => {
+  const t = $('#boardRead').textContent;
+  if (!/point at a group/i.test(t)) throw new Error('no guidance: ' + t);
+});
+await step('every group appears in the legend', () => {
+  const keys = $$('#boardLegend .legkey').map(e => e.textContent.trim());
+  ['Achu','Box','Left border','Locking','Body','Right border','Empty'].forEach(k => {
+    if (!keys.includes(k)) throw new Error('legend missing ' + k + ': ' + keys.join(', '));
+  });
+});
+await step('the legend keeps machine order, not alphabetical', () => {
+  const keys = $$('#boardLegend .legkey').map(e => e.textContent.trim());
+  if (keys[0] !== 'Achu' || keys[1] !== 'Box') throw new Error(keys.join(', '));
+});
+await step('hovering the legend picks out a group without throwing', () => {
+  const k = $('#boardLegend .legkey');
+  k.dispatchEvent(new window.MouseEvent('mouseover', { bubbles: true }));
+  $('#boardLegend').dispatchEvent(new window.MouseEvent('mouseleave', { bubbles: true }));
+});
+await step('a tiny group is still reachable on the board', () => {
+  // achu is 4 pins in 1792; it must still be listed and clickable
+  const rows = $$('#segTable .seg-row');
+  const achu = rows.find(r => (r.querySelector('select[data-act=kind]')||{}).value === 'achu');
+  if (!achu) throw new Error('no achu row');
+  const n = achu.querySelector('input[type=number]').value;
+  if (n !== '4') throw new Error('achu count is ' + n);
+});
 await step('weave library panel present', () => {
   if (!$('#weaveList').textContent.trim()) throw new Error('no weave library');
   if (!$('#addWeave')) throw new Error('no add-weave button');
