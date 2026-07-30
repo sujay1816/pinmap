@@ -48,12 +48,28 @@ see *What sign-in does and does not do* below.
    - `http://localhost:3000` for local work
 5. Copy the client ID.
 
-Then either:
+**Authorised redirect URIs: leave this empty.** This app uses Google's
+JavaScript sign-in, which hands the token straight back to the page. Redirect
+URIs are for server-side flows and are not used here. Only the origins matter.
 
-- paste it into the **Google client ID** box on the sign-in screen (it is
-  remembered on that device), or
-- set it once for everybody by editing `index.html` and putting it in
-  `DEFAULT_CLIENT_ID` near the top of the script.
+Then set the client ID **once**, in the `<meta>` tag at the very top of
+`index.html`:
+
+```html
+<meta name="pinmap-google-client-id" content="000000-xxxx.apps.googleusercontent.com">
+```
+
+That is all anyone using the app ever needs — they open it and press *Sign in
+with Google*. The settings box disappears once the tag is filled in, and only
+comes back if sign-in fails, so whoever runs the site can see what went wrong.
+
+Leave the tag empty and each person is asked for a client ID themselves, which
+is fine for one weaver and hopeless for twenty.
+
+**Is it safe to publish the client ID?** Yes. Client IDs for web apps are public
+by design — every site using Google sign-in has one in its page source. What
+stops someone else using yours is the authorised origins list: a page served
+from anywhere else is refused. There is no secret here to leak.
 
 Preview deployments get a new URL each time, and those URLs will not be
 authorised. Test sign-in on production or on a fixed alias.

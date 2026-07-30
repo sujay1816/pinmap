@@ -1,5 +1,16 @@
 <meta charset="utf-8">
+
+<!-- ─────────────────────────────────────────────────────────────
+     SET THIS ONCE and nobody using the app has to touch Google.
+     Paste the OAuth client ID from the Google console between the
+     quotes below. It is meant to be public — every site using Google
+     sign-in has one in its page source. What keeps it safe is the
+     list of authorised origins in the console, not secrecy.
+     Leave it empty and each person is asked for one instead.
+     ───────────────────────────────────────────────────────────── -->
 <meta name="pinmap-google-client-id" content="858656439666-2kti6bhpdoq6kpb0jp82ho3mk619nffo.apps.googleusercontent.com">
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pinmap — jacquard file builder</title>
 <style>
   :root {
@@ -1536,7 +1547,12 @@ function scheduleSave() {
    drawer, not a key to it.
    ============================================================ */
 
-const DEFAULT_CLIENT_ID = "";   // put your own Google client ID here to skip the settings box
+// Set once in the <meta> tag at the top of this file.
+const DEFAULT_CLIENT_ID = (() => {
+  const m = document.querySelector('meta[name="pinmap-google-client-id"]');
+  return (m && m.content || "").trim();
+})();
+const CLIENT_ID_IS_BUILT_IN = !!DEFAULT_CLIENT_ID;
 
 async function loadAccount() {
   let saved = memAccount;
@@ -1561,7 +1577,7 @@ async function saveAccount() {
 }
 
 async function savedClientId() {
-  if (DEFAULT_CLIENT_ID) return DEFAULT_CLIENT_ID;
+  if (CLIENT_ID_IS_BUILT_IN) return DEFAULT_CLIENT_ID;
   let doc = memAccount;
   if (hasStore) {
     try { const r = await window.storage.get(ACCOUNT_KEY); doc = r && r.value ? JSON.parse(r.value) : null; } catch {}
@@ -1612,8 +1628,11 @@ async function onGoogleCredential(resp) {
 // Put Google's own button on the screen. Called on load, and again whenever the
 // client ID changes.
 async function setUpGoogle() {
-  const clientId = (el("#clientId").value || "").trim() || DEFAULT_CLIENT_ID;
+  const clientId = CLIENT_ID_IS_BUILT_IN ? DEFAULT_CLIENT_ID : ((el("#clientId").value || "").trim());
   el("#gsiButton").innerHTML = "";
+
+  // Nobody needs the settings box once the app carries its own client ID.
+  el("#gateAdv").hidden = CLIENT_ID_IS_BUILT_IN;
 
   if (!clientId) {
     gateMsg("Add a Google client ID below to sign in, or use this device only.", true);
@@ -1644,7 +1663,10 @@ async function setUpGoogle() {
   } catch (err) {
     el("#gateWait").hidden = true;
     gsiReady = false;
-    gateMsg(`Google sign-in could not start — ${err.message}. Check the client ID and that this address is an authorised origin, or use this device only.`);
+    gateMsg(CLIENT_ID_IS_BUILT_IN
+      ? `Google sign-in could not start — ${err.message}. You can carry on with this device only; everything works the same.`
+      : `Google sign-in could not start — ${err.message}. Check the client ID and that this address is an authorised origin, or use this device only.`);
+    el("#gateAdv").hidden = false;
     el("#gateAdv").open = true;
   }
 }

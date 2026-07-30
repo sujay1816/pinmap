@@ -46,7 +46,11 @@ function boot(html, { store = new Map(), online = true, googleWorks = false, ori
   return dom.window;
 }
 
-const html = fs.readFileSync(process.argv[2],'utf8');
+const rawHtml = fs.readFileSync(process.argv[2],'utf8');
+// the shipped file carries a real client ID; each case sets its own
+const withClientId = (id) => rawHtml.replace(
+  /(<meta name="pinmap-google-client-id" content=")[^"]*(">)/, `$1${id}$2`);
+const html = withClientId('');
 const q = w => s => w.document.querySelector(s);
 const clickOn = w => e => e.dispatchEvent(new w.MouseEvent('click',{bubbles:true}));
 const typeIn = w => (e,v) => { e.value=v; e.dispatchEvent(new w.Event('input',{bubbles:true})); };
@@ -117,6 +121,37 @@ console.log('\n== pasting a client ID and retrying ==');
   await wait(400);
   ok('the button appears after saving', !!$('#fakeGoogleBtn'));
   ok('the new ID was used', w.__gsiCfg.client_id === '555-zzz.apps.googleusercontent.com', (w.__gsiCfg||{}).client_id);
+}
+
+console.log('\n== a client ID baked into the file ==');
+{
+  const baked = withClientId('777-baked.apps.googleusercontent.com');
+  const store = new Map();
+  let w = boot(baked, { store, googleWorks: true }); await wait(400);
+  const $ = q(w);
+  ok('Google\u2019s button appears with nothing to configure', !!$('#fakeGoogleBtn'));
+  ok('the built-in ID is the one used', w.__gsiCfg.client_id === '777-baked.apps.googleusercontent.com',
+     (w.__gsiCfg||{}).client_id);
+  ok('the settings box is out of the way', $('#gateAdv').hidden === true);
+  ok('no message needed', $('#gateMsg').textContent.trim() === '', $('#gateMsg').textContent);
+}
+{
+  const baked = withClientId('777-baked.apps.googleusercontent.com');
+  let w = boot(baked, { googleWorks: false }); await wait(400);
+  const $ = q(w);
+  ok('if Google fails it points at the device option, not at setup',
+     /this device only/i.test($('#gateMsg').textContent), $('#gateMsg').textContent);
+  ok('and the settings come back for whoever runs the site', $('#gateAdv').hidden === false);
+}
+
+console.log('\n== the client ID the app actually ships with ==');
+{
+  const m = rawHtml.match(/<meta name="pinmap-google-client-id" content="([^"]*)">/);
+  ok('the meta tag is present', !!m);
+  const id = m ? m[1] : '';
+  ok('it is filled in, so nobody has to set one up', id.length > 0, '(empty)');
+  ok('it is a Google web client ID', /^[0-9]+-[a-z0-9]+\.apps\.googleusercontent\.com$/.test(id), id);
+  ok('no client secret has crept into the file', !/GOCSPX-/.test(rawHtml));
 }
 
 console.log('\n== result ==');

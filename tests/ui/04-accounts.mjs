@@ -24,7 +24,8 @@ function boot(html){
   dom.window.addEventListener('error',e=>errors.push('uncaught: '+(e.error&&e.error.stack||e.message)));
   return dom.window;
 }
-const html=fs.readFileSync(process.argv[2],'utf8');
+const rawHtml=fs.readFileSync(process.argv[2],'utf8');
+const html = rawHtml.replace(/(<meta name="pinmap-google-client-id" content=")[^"]*(">)/, '$1$2');
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 
 async function makeLoom(w, name) {
