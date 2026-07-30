@@ -35,7 +35,7 @@ const slice = (from, to) => {
 };
 
 const constants = slice("const KINDS", "let uid = 0;");
-const merging  = slice("function newerOf(", BANNER("The shared store"));
+const merging  = slice("function normalBoxMotion(", BANNER("The shared store"));
 const helpers   = slice("const allocated =", BANNER("BMP decoding"));
 const core      = slice(BANNER("BMP decoding"), BANNER("Validation"));
 
@@ -57,7 +57,7 @@ export {
   rotateCCW, fitToPins,
   SATIN_LIBRARY, BUILTIN_WEAVES, allWeaves, weaveById, weaveRow, satinName,
   BOX_TABLE, compose, state, KINDS, DEFAULT_LAYOUT, labelFor,
-  mergeLibraries, newerOf,
+  mergeLibraries, newerOf, normalBoxMotion,
   freshWefts, filledWefts, borderSlots, bodySlots,
   WEFT_SLOTS, WEFT_NAMES, totalPins, allocated
 };

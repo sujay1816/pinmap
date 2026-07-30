@@ -1,5 +1,5 @@
 // Joining two copies of a library that have drifted apart.
-import { mergeLibraries, newerOf } from '../core.mjs';
+import { mergeLibraries, newerOf, normalBoxMotion } from '../core.mjs';
 let pass=0, fail=0;
 const ok=(n,c,e='')=>{ c?(pass++,console.log('  ok   '+n)):(fail++,console.log('  FAIL '+n+(e?'  -> '+e:''))); };
 const head=t=>console.log('\n== '+t+' ==');
@@ -99,6 +99,13 @@ head('merging twice changes nothing more');
 head('picking the newer of two');
 ok('by save time', newerOf({savedAt:'2026-01-01'},{savedAt:'2026-06-01'}).savedAt==='2026-06-01');
 ok('a missing time loses', newerOf({},{savedAt:'2026-01-01'}).savedAt==='2026-01-01');
+
+head('the box motion that got renamed');
+ok('4 by 1 is itself', normalBoxMotion('4x1')==='4x1');
+ok('a loom saved as 2x1 still reads as 4 by 1', normalBoxMotion('2x1')==='4x1');
+ok('4 by 4 is untouched', normalBoxMotion('4x4')==='4x4');
+ok('anything unknown falls back to 4 by 4',
+   normalBoxMotion('')==='4x4' && normalBoxMotion(undefined)==='4x4' && normalBoxMotion('nonsense')==='4x4');
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail?1:0);

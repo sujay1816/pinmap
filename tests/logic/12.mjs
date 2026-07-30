@@ -56,8 +56,8 @@ ok('achu still flips for each weft', achuAt(o,0)!==achuAt(o,2), achuAt(o,0)+' / 
   ok('weft 1 still gets a proper satin', seq.join(',')==='0,3,6,1,4,7,2,5', seq.join(','));
 }
 
-head('on a 2 by 1 loom');
-o = build('2x1');
+head('on a 4 by 1 loom');
+o = build('4x1');
 ok('the locking follows the design line, not the shuttle',
    lockAt(o,0)!==lockAt(o,1) && lockAt(o,0)===lockAt(o,2) && lockAt(o,1)===lockAt(o,3),
    [0,1,2,3].map(y=>lockAt(o,y)).join(','));

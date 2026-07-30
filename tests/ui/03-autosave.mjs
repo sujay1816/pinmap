@@ -45,7 +45,7 @@ if (!$('#gate').hidden) { click($('#signInLocal')); await wait(300); }
 click($('#newLoom'));
 setVal($('#loomName'),'Autosaved Loom');
 setVal($('#totalDeclared'),'1792');
-setSel($('#boxMotion'),'2x1');
+setSel($('#boxMotion'),'4x1');
 [4,4,500,8,720,500,4,52].forEach((v,i)=>{ const el=$$('#segTable input[type=number]')[i]; if(el) setVal(el,String(v)); });
 await wait(900);
 ok('the indicator reports saved', /saved/i.test($('#saveState').textContent), $('#saveState').textContent);
@@ -65,7 +65,7 @@ ok('it goes straight in, no sign-in a second time', $('#gate').hidden === true);
 ok('it reopens on the pin map, not the loom list', !$('#sc-loom').hidden);
 ok('the name came back', $('#loomName').value === 'Autosaved Loom', $('#loomName').value);
 ok('the total came back', $('#totalDeclared').value === '1792', $('#totalDeclared').value);
-ok('the box motion came back', $('#boxMotion').value === '2x1', $('#boxMotion').value);
+ok('the box motion came back', $('#boxMotion').value === '4x1', $('#boxMotion').value);
 ok('all eight groups came back', $$('#segTable .seg-row').length - 1 === 8,
    String($$('#segTable .seg-row').length - 1));
 ok('the counts came back', [...$$('#segTable input[type=number]')].map(e=>e.value).join(',') === '4,4,500,8,720,500,4,52',

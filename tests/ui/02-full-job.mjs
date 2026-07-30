@@ -50,7 +50,7 @@ await step('register the A-5 loom', () => {
   click($('#newLoom'));
   setVal($('#loomName'),'A-5');
   setVal($('#totalDeclared'),'1792');
-  setSel($('#boxMotion'),'2x1');
+  setSel($('#boxMotion'),'4x1');
 });
 await step('set the group counts', () => {
   const want=[4,4,500,8,720,500,4,52];
@@ -118,7 +118,7 @@ await step('combine the files', async () => {
 });
 await step('summary reports the job', () => {
   const t=$('#buildSummary').textContent;
-  ['1,792','2x1','2 lines'].forEach(x=>{ if(!t.includes(x)) throw new Error('summary missing '+x+': '+t.replace(/\s+/g,' ')); });
+  ['1,792','4x1','2 lines'].forEach(x=>{ if(!t.includes(x)) throw new Error('summary missing '+x+': '+t.replace(/\s+/g,' ')); });
 });
 await step('summary labels stay on one line', () => {
   const ks=[...$$('#buildSummary .k')].map(e=>e.textContent);

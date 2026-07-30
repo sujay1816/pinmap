@@ -537,7 +537,7 @@
         <span class="cap">Box motion</span>
         <select id="boxMotion">
           <option value="4x4">4 by 4</option>
-          <option value="2x1">2 by 1</option>
+          <option value="4x1">4 by 1</option>
         </select>
       </label>
     </div>
@@ -637,7 +637,7 @@
         <p>Slot order is shuttle order, so the first loaded weft takes the first pattern. Empty slots are skipped.</p>
         <p>You can change any of it. Click a pin under Box pins to turn it on or off for that weft, or use the all / first / second / none shortcuts. A row you have touched is marked "yours"; the reset button puts every weft back to the standard pattern.</p>
         <p>Each body weft gets its own line, in slot order, so three wefts turn 500 design lines into 1500 picks. That is how the weft is laid, one shuttle at a time — so slot order is shuttle order.</p>
-        <p>On a <strong>4 by 4</strong> box the shuttle changes every pick, so the wefts take one line each in turn. On a <strong>2 by 1</strong> the shuttle must cross and come back, so each weft takes <strong>two</strong> lines before the next one starts. The loom's box motion, set when you register it, decides which.</p>
+        <p>On a <strong>4 by 4</strong> box the shuttle changes every pick, so the wefts take one line each in turn. On a <strong>4 by 1</strong> the shuttle must cross and come back, so each weft takes <strong>two</strong> lines before the next one starts. The loom's box motion, set when you register it, decides which.</p>
         <p>If a design is drawn sideways, with the pins running down the file instead of across, it is turned a quarter turn anticlockwise on loading so it fits the pin count. The slot says so when that happens.</p>
         <p>Each border has a single file. Its lines are used again on every weft pick of a design line, so the border holds still while the body wefts take their turns.</p>
         <p>Borders are optional. Load neither and their pins simply stay blank; the body still carries only what its weft files put there.</p>
@@ -1111,10 +1111,10 @@ function compose() {
   const o = state.opts;
   // Overlay merges the wefts onto one line each; the others give a line per weft.
   const overlay = o.stackMode === "overlay";
-  // A 4 by 4 box changes shuttle on every pick. A 2 by 1 has to send the
+  // A 4 by 4 box changes shuttle on every pick. A 4 by 1 has to send the
   // shuttle across and bring it back, so it weaves two design lines before
   // it can change.
-  const perShuttle = (!overlay && o.stackMode === "interleave" && state.boxMotion === "2x1") ? 2 : 1;
+  const perShuttle = (!overlay && o.stackMode === "interleave" && normalBoxMotion(state.boxMotion) === "4x1") ? 2 : 1;
   const outH = overlay ? H : H * Math.max(1, K);
 
   // A border only takes part if a file was loaded for it. When neither border has
@@ -1351,8 +1351,8 @@ function validateJob() {
       if (clash) warns.push("Two body wefts lift the same pin on the same line. Merged onto one line they cannot be told apart — check the files are meant to be separate wefts.");
     }
   }
-  if (state.boxMotion === "2x1" && H !== null && H % 2)
-    warns.push(`A 2 by 1 box weaves two lines per shuttle, but the designs are ${H} lines — an odd number. The last line will be repeated.`);
+  if (normalBoxMotion(state.boxMotion) === "4x1" && H !== null && H % 2)
+    warns.push(`A 4 by 1 box weaves two lines per shuttle, but the designs are ${H} lines — an odd number. The last line will be repeated.`);
   if (wefts.length > WEFT_SLOTS) errs.push(`${WEFT_SLOTS} body wefts is the maximum.`);
   if (!wefts.length && !bordersLoaded) errs.push("Load at least one file — a border or a body weft.");
   if (!state.segments.some(s => s.kind === "box") && wefts.length > 1)
@@ -1564,7 +1564,7 @@ async function loadSession() {
   if (d && Array.isArray(d.segments) && d.segments.length) {
     state.loomName = d.name || "";
     state.totalDeclared = parseInt(d.totalPins, 10) || 0;
-    state.boxMotion = d.boxMotion === "2x1" ? "2x1" : "4x4";
+    state.boxMotion = normalBoxMotion(d.boxMotion);
     state.editing = d.editing || null;
     state.version = d.version || 1;
     state.segments = d.segments.map(sg => {
@@ -1630,6 +1630,11 @@ function scheduleSave() {
    remembered as well, otherwise a loom deleted on one machine would
    come back from the other the next time they meet.
    ============================================================ */
+
+// Looms saved before this box motion was renamed carry "2x1".
+function normalBoxMotion(v) {
+  return (v === "4x1" || v === "2x1") ? "4x1" : "4x4";
+}
 
 function newerOf(a, b) {
   return ((b && b.savedAt) || "") > ((a && a.savedAt) || "") ? b : a;
@@ -2030,7 +2035,7 @@ function pinMapDoc() {
     format: "pinmap.loom",
     name: state.loomName.trim(),
     totalPins: state.totalDeclared || allocated(),
-    boxMotion: state.boxMotion || "4x4",
+    boxMotion: normalBoxMotion(state.boxMotion),
     version: state.version,
     savedAt: new Date().toISOString(),
     segments: state.segments.map(s => (s.weave ? { kind: s.kind, count: s.count, weave: s.weave } : { kind: s.kind, count: s.count })),
@@ -2062,7 +2067,7 @@ function adoptDoc(doc) {
     return seg;
   });
   state.totalDeclared = parseInt(doc.totalPins, 10) || sumPins(state.segments);
-  state.boxMotion = doc.boxMotion === "2x1" ? "2x1" : "4x4";
+  state.boxMotion = normalBoxMotion(doc.boxMotion);
   Object.assign(state.opts, doc.options || {});
   state.borderFiles = {};
   state.wefts = freshWefts();
@@ -2139,7 +2144,7 @@ function renderLoomList() {
     return `<div class="loomcard ${isActive ? "active" : ""}">
       ${isActive ? `<span class="usetag">in use</span>` : ""}
       <h3>${esc(l.name)}</h3>
-      <div class="meta">${total.toLocaleString()} pins${total > alloc ? ` · ${total - alloc} spare` : ""} · box ${esc(l.boxMotion || "4x4")} · v${l.version}</div>
+      <div class="meta">${total.toLocaleString()} pins${total > alloc ? ` · ${total - alloc} spare` : ""} · box ${esc(normalBoxMotion(l.boxMotion))} · v${l.version}</div>
       <div style="margin-top:11px">${miniRuler(l.segments, total)}</div>
       <div style="margin-top:10px">${pills}</div>
       <div class="when">${whenText(l.lastUsedAt)}</div>
@@ -2588,7 +2593,7 @@ el("#clearSegs").onclick = () => {
 };
 
 el("#boxMotion").addEventListener("change", e => {
-  state.boxMotion = e.target.value;
+  state.boxMotion = normalBoxMotion(e.target.value);
   state.built = null;
 });
 
@@ -2656,7 +2661,7 @@ function renderLoomScreen() {
   el("#loomFormTitle").textContent = state.editing ? `Edit pins — ${state.editing}` : "Register a loom";
   el("#loomName").value = state.loomName;
   el("#totalDeclared").value = state.totalDeclared || "";
-  el("#boxMotion").value = state.boxMotion || "4x4";
+  el("#boxMotion").value = normalBoxMotion(state.boxMotion);
   renderAlloc(); drawBoard(); renderBoardLegend(); renderSegs(); renderWeaveLibrary(); renderLoomChecks(); renderSteps();
 }
 
@@ -2706,7 +2711,7 @@ function banner(hostSel) {
   if (!state.segments.length) { host.innerHTML = `<div class="mt">No loom selected</div>`; return; }
   host.innerHTML = `<div class="top">
       <span class="nm">${esc(state.loomName || "Unsaved loom")}</span>
-      <span class="mt">${totalPins().toLocaleString()} pins · box ${esc(state.boxMotion || "4x4")} · version ${state.version}</span>
+      <span class="mt">${totalPins().toLocaleString()} pins · box ${esc(normalBoxMotion(state.boxMotion))} · version ${state.version}</span>
     </div>${miniRuler(state.segments, state.totalDeclared)}`;
 }
 
@@ -3035,7 +3040,7 @@ function renderSummary() {
   const K = filledWefts().length;
   const ref = anyFile();
   const H = ref ? ref.height : 0;
-  const perShuttle = (state.opts.stackMode === "interleave" && state.boxMotion === "2x1") ? 2 : 1;
+  const perShuttle = (state.opts.stackMode === "interleave" && normalBoxMotion(state.boxMotion) === "4x1") ? 2 : 1;
   const lines = !H ? 0 : (state.opts.stackMode === "overlay" ? H : H * Math.max(1, K));
   const lockSeg = state.segments.find(x => x.kind === "locking");
   const lw = lockSeg ? weaveById(lockSeg.weave) : null;
@@ -3051,7 +3056,7 @@ function renderSummary() {
     ${cell("Pins",        totalPins().toLocaleString())}
     ${cell("Lines",       lines ? lines.toLocaleString() : "—")}
     ${cell("Wefts",       K || "—")}
-    ${cell("Box",         esc(state.boxMotion || "4x4"), true, `${state.boxMotion || "4x4"} box motion`)}
+    ${cell("Box",         esc(normalBoxMotion(state.boxMotion)), true, `${normalBoxMotion(state.boxMotion)} box motion`)}
     ${cell("Per shuttle", perShuttle === 2 ? "2 lines" : "1 line", true)}
     ${cell("Locking",     esc(lockShort), true, lw ? lw.name : "")}
   </div>`;
@@ -3144,7 +3149,7 @@ el("#download").onclick = () => {
   const url = URL.createObjectURL(new Blob([bytes], { type: "image/bmp" }));
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${safe}_${b.width}pins_${b.weftCount}weft_${state.boxMotion || "4x4"}_${b.height}.bmp`;
+  a.download = `${safe}_${b.width}pins_${b.weftCount}weft_${normalBoxMotion(state.boxMotion)}_${b.height}.bmp`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 };

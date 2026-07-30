@@ -167,13 +167,13 @@ cutting a new version of a pin map; ordinary edits are saved without it.
 
 ## How a file gets built
 
-1. **Register a loom** — total pins, box motion (4×4 or 2×1), and the pin groups
+1. **Register a loom** — total pins, box motion (4×4 or 4×1), and the pin groups
    in the order they run: achu, box, left border, locking, body, right border,
    achu, empty.
 2. **Load the weft files** — one per border, and up to four body wefts in shuttle
    order (rani, zari, meena). Designs drawn sideways are turned a quarter turn to
    fit the pin count.
-3. **Combine** — each weft gets its own pick. On a 2×1 loom the shuttle crosses
+3. **Combine** — each weft gets its own pick. On a 4×1 loom the shuttle crosses
    and comes back, so each weft takes two design lines before the next starts.
 
 Generated groups fill themselves in: achu alternates half up and half down,

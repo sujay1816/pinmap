@@ -75,7 +75,7 @@ await step('name it and set total pins', () => {
 });
 await step('box motion selector works', () => {
   const sel = $('#boxMotion'); if (!sel) throw new Error('no box motion field');
-  setSel(sel, '2x1'); setSel(sel, '4x4');
+  setSel(sel, '4x1'); setSel(sel, '4x4');
 });
 await step('default groups are present', () => {
   const rows = $$('#segTable .seg-row').length - 1;

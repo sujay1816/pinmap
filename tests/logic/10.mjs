@@ -34,8 +34,8 @@ let o4 = build('4x4');
 ok('4 by 4 matches its sample, pin for pin', diff(o4.bits, s4.bits)===0, diff(o4.bits,s4.bits)+' differ');
 ok('one line per shuttle', o4.perShuttle===1);
 
-let o21 = build('2x1');
-ok('2 by 1 matches its sample, pin for pin', diff(o21.bits, s21.bits)===0, diff(o21.bits,s21.bits)+' differ');
+let o21 = build('4x1');
+ok('4 by 1 matches its sample, pin for pin', diff(o21.bits, s21.bits)===0, diff(o21.bits,s21.bits)+' differ');
 ok('two lines per shuttle', o21.perShuttle===2);
 
 head('same cloth, different order');
@@ -49,11 +49,11 @@ ok('4 by 4 runs r j m r j m',
    o4.rowWeft[0]===0 && o4.rowWeft[1]===1 && o4.rowWeft[2]===2 && o4.rowWeft[3]===0);
 ok('4 by 4 advances the design line every pick',
    o4.rowDesign[0]===0 && o4.rowDesign[3]===1 && o4.rowDesign[6]===2);
-ok('2 by 1 runs r r j j m m',
+ok('4 by 1 runs r r j j m m',
    o21.rowWeft[0]===0 && o21.rowWeft[1]===0 && o21.rowWeft[2]===1 &&
    o21.rowWeft[3]===1 && o21.rowWeft[4]===2 && o21.rowWeft[5]===2,
    Array.from(o21.rowWeft.slice(0,6)).join(','));
-ok('2 by 1 pairs the design lines',
+ok('4 by 1 pairs the design lines',
    o21.rowDesign[0]===0 && o21.rowDesign[1]===1 && o21.rowDesign[2]===0 &&
    o21.rowDesign[3]===1 && o21.rowDesign[6]===2 && o21.rowDesign[7]===3,
    Array.from(o21.rowDesign.slice(0,8)).join(','));
@@ -65,8 +65,8 @@ ok('every design line appears exactly three times in each', (()=>{
   }
   return true; })());
 
-head('the box on a 2 by 1');
-o21 = build('2x1', 4);
+head('the box on a 4 by 1');
+o21 = build('4x1', 4);
 const boxAt=(o,y)=>[0,1,2,3].map(x=>o.bits[y*o.width+x]).join('');
 ok('holds its value across a shuttle pair',
    boxAt(o21,0)===boxAt(o21,1) && boxAt(o21,2)===boxAt(o21,3) && boxAt(o21,4)===boxAt(o21,5),
