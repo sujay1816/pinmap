@@ -49,7 +49,9 @@ console.log('\n== walking the interface ==');
 await step('sign-in screen is the front door', () => {
   if ($('#gate').hidden) throw new Error('gate not shown');
   if ($('#app').hidden !== true) throw new Error('app should be hidden behind it');
-  if (!$('#signInGoogle') || !$('#signInLocal')) throw new Error('missing sign-in buttons');
+  if (!$('#signInLocal')) throw new Error('missing device button');
+  if (!$('#gsiButton')) throw new Error('missing google button slot');
+  if (!$('#originHere').textContent) throw new Error('origin not shown for setup');
 });
 await step('use this device only opens the app', async () => {
   click($('#signInLocal'));

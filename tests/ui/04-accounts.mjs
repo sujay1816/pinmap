@@ -74,9 +74,10 @@ console.log('\n== no client id configured ==');
 store.clear();
 w=boot(html); await wait(300);
 $=s=>w.document.querySelector(s);
-click($('#signInGoogle')); await wait(200);
-ok('it explains what is missing instead of failing silently',
+await wait(300);
+ok('with no client ID it says so straight away',
    /client ID/i.test($('#gateMsg').textContent), $('#gateMsg').textContent);
+ok('and it opens the settings for you', $('#gateAdv').open === true);
 ok('the device option still works', (()=>{ click($('#signInLocal')); return true; })());
 
 console.log('\n== result ==');

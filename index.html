@@ -194,7 +194,37 @@
   }
   .gate[hidden] { display: none; }
   .gate-card {
-    width: 100%; max-width: 420px; border: 2px solid var(--ink); background: #fff; padding: 32px 28px;
+    width: 100%; max-width: 430px; border: 2px solid var(--ink); background: #fff;
+    padding: 30px 28px 24px; position: relative;
+  }
+  .gate-weave {
+    width: 42px; height: 42px; display: block; color: var(--ink); margin-bottom: 18px;
+    shape-rendering: crispEdges; opacity: 0.9;
+  }
+  .gsi-slot { min-height: 0; }
+  .gsi-slot:not(:empty) { margin-bottom: 2px; }
+  .gate-wait {
+    display: flex; align-items: center; gap: 9px; font-size: 12.5px; color: var(--ink-3);
+    padding: 10px 2px;
+  }
+  .gate-wait[hidden] { display: none; }
+  .spin {
+    width: 11px; height: 11px; border: 2px solid var(--rule); border-top-color: var(--ink);
+    border-radius: 50%; display: inline-block; animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+  .gate-foot {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--ink-3); margin: 22px 0 0; padding-top: 16px; border-top: 1px solid var(--rule-2);
+  }
+  .origin-box {
+    display: flex; align-items: center; gap: 8px; border: 1px solid var(--rule);
+    background: #FBFCFC; padding: 7px 9px; margin-top: 7px;
+  }
+  .origin-box code {
+    font-family: var(--mono); font-size: 11.5px; color: var(--ink); flex: 1;
+    word-break: break-all; user-select: all;
   }
   .gate-mark {
     font-family: var(--mono); font-size: 24px; font-weight: 700; letter-spacing: 0.24em;
@@ -352,28 +382,48 @@
 
 <main class="gate" id="gate">
   <div class="gate-card">
+    <svg class="gate-weave" viewBox="0 0 8 8" aria-hidden="true">
+      <rect width="8" height="8" fill="none"/>
+      <g fill="currentColor">
+        <rect x="0" y="0" width="1" height="1"/><rect x="3" y="1" width="1" height="1"/>
+        <rect x="6" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/>
+        <rect x="4" y="4" width="1" height="1"/><rect x="7" y="5" width="1" height="1"/>
+        <rect x="2" y="6" width="1" height="1"/><rect x="5" y="7" width="1" height="1"/>
+      </g>
+    </svg>
+
     <div class="gate-mark">Pinmap</div>
-    <p class="gate-lede">Register a loom once, then lay weft designs onto its pins and build the file the machine reads.</p>
+    <p class="gate-lede">Register a jacquard loom once. Then lay weft designs onto its pins
+      and build the file the machine reads.</p>
 
     <div class="gate-actions">
-      <div id="gsiButton"></div>
-      <button class="solid gate-btn" id="signInGoogle">Sign in with Google</button>
+      <div id="gsiButton" class="gsi-slot"></div>
+      <div class="gate-wait" id="gateWait" hidden><span class="spin"></span>Reaching Google…</div>
       <button class="ghost gate-btn" id="signInLocal">Use this device only</button>
     </div>
 
     <div class="gate-msg" id="gateMsg"></div>
 
-    <details class="gate-adv">
+    <details class="gate-adv" id="gateAdv">
       <summary>Google sign-in settings</summary>
       <div>
-        <p>Signing in keeps each person's looms apart and lets you carry them between machines. It needs an internet connection and a Google client ID for this app.</p>
+        <p>Signing in keeps each person's looms apart. It needs an internet connection
+          and a Google client ID for this app.</p>
         <label class="field">
           <span class="cap">Google client ID</span>
-          <input type="text" id="clientId" placeholder="000000000000-xxxx.apps.googleusercontent.com">
+          <input type="text" id="clientId" placeholder="000000-xxxx.apps.googleusercontent.com">
         </label>
-        <p style="margin-top:9px">Working in the shed with no internet? Use this device only. Everything works the same; the looms are simply kept on this machine.</p>
+        <div class="btn-row" style="margin-top:10px">
+          <button class="ghost" id="applyClientId">Save and try again</button>
+        </div>
+        <p style="margin-top:14px">In the Google console, add this exact address under
+          <strong>Authorised JavaScript origins</strong>:</p>
+        <div class="origin-box"><code id="originHere"></code>
+          <button class="tiny ghost" id="copyOrigin">Copy</button></div>
       </div>
     </details>
+
+    <p class="gate-foot">Works with the internet down. Designs stay on this machine.</p>
   </div>
 </main>
 
@@ -1498,6 +1548,12 @@ async function loadAccount() {
   return false;
 }
 
+async function saveAccountSettings() {
+  const doc = { key: state.accountKey, account: state.account, clientId: (el("#clientId").value || "").trim() };
+  memAccount = doc;
+  if (hasStore) { try { await window.storage.set(ACCOUNT_KEY, JSON.stringify(doc)); } catch {} }
+}
+
 async function saveAccount() {
   const doc = { key: state.accountKey, account: state.account, clientId: el("#clientId").value.trim() };
   memAccount = doc;
@@ -1538,35 +1594,58 @@ function gateMsg(text, plain) {
   m.textContent = text || "";
 }
 
-async function signInWithGoogle() {
-  const clientId = el("#clientId").value.trim() || DEFAULT_CLIENT_ID;
+let gsiReady = false;
+
+async function onGoogleCredential(resp) {
+  try {
+    const info = readIdToken(resp.credential);
+    state.account = { name: info.name, email: info.email, picture: info.picture, sub: info.sub };
+    state.accountKey = "g" + info.sub;
+    await saveAccount();
+    await enterApp();
+    notify(`Signed in as ${info.email}.`);
+  } catch (err) {
+    gateMsg("Could not read the reply from Google: " + err.message);
+  }
+}
+
+// Put Google's own button on the screen. Called on load, and again whenever the
+// client ID changes.
+async function setUpGoogle() {
+  const clientId = (el("#clientId").value || "").trim() || DEFAULT_CLIENT_ID;
+  el("#gsiButton").innerHTML = "";
+
   if (!clientId) {
-    gateMsg("Add your Google client ID under the settings below first, or use this device only.");
-    el("#signInGoogle").blur();
+    gateMsg("Add a Google client ID below to sign in, or use this device only.", true);
+    el("#gateAdv").open = true;
     return;
   }
-  gateMsg("Contacting Google…", true);
+  if (typeof navigator !== "undefined" && navigator.onLine === false) {
+    gateMsg("No internet, so Google sign-in is unavailable. Use this device only — everything works the same.", true);
+    return;
+  }
+
+  el("#gateWait").hidden = false;
+  gateMsg("");
   try {
     await loadGoogleScript();
     window.google.accounts.id.initialize({
       client_id: clientId,
-      callback: async (resp) => {
-        try {
-          const info = readIdToken(resp.credential);
-          state.account = { name: info.name, email: info.email, picture: info.picture, sub: info.sub };
-          state.accountKey = "g" + info.sub;
-          await saveAccount();
-          await enterApp();
-          notify(`Signed in as ${info.email}.`);
-        } catch (err) { gateMsg("Could not read the reply from Google: " + err.message); }
-      }
+      callback: onGoogleCredential,
+      auto_select: false,
+      cancel_on_tap_outside: true
     });
-    el("#gsiButton").innerHTML = "";
-    window.google.accounts.id.renderButton(el("#gsiButton"), { theme: "outline", size: "large", width: 320 });
-    el("#signInGoogle").hidden = true;
-    gateMsg("Use the Google button above to choose an account.", true);
+    window.google.accounts.id.renderButton(el("#gsiButton"), {
+      theme: "outline", size: "large", width: 340, text: "signin_with", shape: "rectangular"
+    });
+    gsiReady = true;
+    el("#gateWait").hidden = true;
+    gateMsg("");
   } catch (err) {
-    gateMsg(`Google sign-in is not available — ${err.message}. Use this device only, or try again when you are online.`);
+    el("#gateWait").hidden = true;
+    gsiReady = false;
+    gateMsg(`Google sign-in could not start — ${err.message}. Check the client ID and that this address is an authorised origin, or use this device only.`);
+    el("#gateAdv").open = true;
   }
 }
 
@@ -2815,19 +2894,31 @@ async function enterApp() {
   go(state.segments.length && state.loomName.trim() ? "loom" : "looms");
 }
 
-el("#signInGoogle").onclick = signInWithGoogle;
 el("#signInLocal").onclick = signInLocal;
 el("#clientId").addEventListener("input", () => { gateMsg(""); });
+el("#applyClientId").onclick = async () => { await saveAccountSettings(); await setUpGoogle(); };
+el("#clientId").addEventListener("keydown", async e => {
+  if (e.key === "Enter") { e.preventDefault(); await saveAccountSettings(); await setUpGoogle(); }
+});
+el("#copyOrigin").onclick = async () => {
+  const text = el("#originHere").textContent;
+  try { await navigator.clipboard.writeText(text); notify("Address copied."); }
+  catch { notify("Copy it by hand: " + text); }
+};
 
 (async function start() {
-  if (!hasStore) {
-    el("#gateMsg").className = "gate-msg plain";
-    el("#gateMsg").textContent = "Nothing can be kept between visits here, so whichever you choose, back up your work before you close the page.";
-  }
+  el("#originHere").textContent = location.origin || "(open this over http to see the address)";
   el("#clientId").value = await savedClientId();
+
   const known = await loadAccount();
   if (known) { await enterApp(); return; }
+
   el("#gate").hidden = false;
   el("#app").hidden = true;
+
+  if (!hasStore) {
+    gateMsg("Nothing can be kept between visits here, so back up your work before you close the page.", true);
+  }
+  await setUpGoogle();
 })();
 </script>
