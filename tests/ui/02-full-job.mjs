@@ -120,6 +120,21 @@ await step('summary reports the job', () => {
   const t=$('#buildSummary').textContent;
   ['1,792','2x1','2 lines'].forEach(x=>{ if(!t.includes(x)) throw new Error('summary missing '+x+': '+t.replace(/\s+/g,' ')); });
 });
+await step('summary labels stay on one line', () => {
+  const ks=[...$$('#buildSummary .k')].map(e=>e.textContent);
+  const long = ks.filter(k => k.length > 12);
+  if (long.length) throw new Error('labels too long to fit: ' + long.join(', '));
+  if (ks.length !== 6) throw new Error('expected 6 figures, found ' + ks.length);
+});
+await step('the locking weave is shortened with the full name on hover', () => {
+  const cells=[...$$('#buildSummary .cell')];
+  const lock=cells.find(c=>c.querySelector('.k').textContent==='Locking');
+  if (!lock) throw new Error('no locking figure');
+  const v=lock.querySelector('.v');
+  if (/,/.test(v.textContent)) throw new Error('still showing the long form: '+v.textContent);
+  if (v.title && !v.title.includes(v.textContent.trim()))
+    throw new Error('hover text does not match: '+v.title);
+});
 await step('preview appears', () => {
   if ($('#pvWrap').hidden) throw new Error('no preview');
   if (!/1792 pins/.test($('#pvDims').textContent)) throw new Error('dims: '+$('#pvDims').textContent);

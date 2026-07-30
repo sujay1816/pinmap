@@ -294,15 +294,23 @@
     opacity: 0; pointer-events: none; transition: opacity .18s ease, transform .18s ease; z-index: 50;
   }
   #toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
-  .summary { border: 1px solid var(--ink); background: #fff; padding: 13px 14px; margin-bottom: 18px; }
-  .summary .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 12px; }
+  .summary { border: 1px solid var(--ink); background: #fff; padding: 14px; margin-bottom: 18px; }
+  .summary .grid { display: flex; flex-wrap: wrap; gap: 14px 30px; align-items: flex-start; }
+  .summary .cell { min-width: 0; flex: 0 1 auto; }
   .summary .cell .k {
-    font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--ink-3);
+    font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.13em; text-transform: uppercase;
+    color: var(--ink-3); white-space: nowrap; line-height: 1.2;
   }
   .summary .cell .v {
-    font-family: var(--mono); font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 3px;
+    font-family: var(--mono); font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums;
+    margin-top: 4px; line-height: 1.2; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; max-width: 230px;
   }
-  .summary .cell .v.sm { font-size: 12.5px; font-weight: 600; }
+  .summary .cell .v.sm { font-size: 12.5px; font-weight: 600; letter-spacing: 0.01em; }
+  @media (max-width: 560px) {
+    .summary .grid { gap: 12px 20px; }
+    .summary .cell .v { font-size: 14px; max-width: 150px; }
+  }
   .weavelib { border: 1px solid var(--rule); background: #fff; padding: 14px; margin-top: 20px; }
   .wl-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 11px; }
   .wl-note { font-size: 12px; color: var(--ink-3); }
@@ -3031,14 +3039,21 @@ function renderSummary() {
   const lines = !H ? 0 : (state.opts.stackMode === "overlay" ? H : H * Math.max(1, K));
   const lockSeg = state.segments.find(x => x.kind === "locking");
   const lw = lockSeg ? weaveById(lockSeg.weave) : null;
-  const cell = (k, v, sm) => `<div class="cell"><div class="k">${k}</div><div class="v${sm ? " sm" : ""}">${v}</div></div>`;
+  const cell = (k, v, sm, full) =>
+    `<div class="cell"><div class="k">${k}</div>
+     <div class="v${sm ? " sm" : ""}"${full ? ` title="${esc(full)}"` : ""}>${v}</div></div>`;
+
+  // "8-end satin, step 3" will not fit a column, so show the short form and
+  // keep the whole thing on hover.
+  const lockShort = lw ? lw.name.replace(/,.*$/, "") : "—";
+
   host.innerHTML = `<div class="grid">
-    ${cell("Pins",       totalPins().toLocaleString())}
-    ${cell("Lines",      lines ? lines.toLocaleString() : "—")}
-    ${cell("Body wefts", K || "—")}
-    ${cell("Box motion", esc(state.boxMotion || "4x4"), true)}
+    ${cell("Pins",        totalPins().toLocaleString())}
+    ${cell("Lines",       lines ? lines.toLocaleString() : "—")}
+    ${cell("Wefts",       K || "—")}
+    ${cell("Box",         esc(state.boxMotion || "4x4"), true, `${state.boxMotion || "4x4"} box motion`)}
     ${cell("Per shuttle", perShuttle === 2 ? "2 lines" : "1 line", true)}
-    ${cell("Locking",    lw ? esc(lw.name) : "—", true)}
+    ${cell("Locking",     esc(lockShort), true, lw ? lw.name : "")}
   </div>`;
 }
 
