@@ -1,0 +1,2833 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pinmap — jacquard file builder</title>
+<style>
+  :root {
+    --paper:   #EFF1F2;
+    --ink:     #14181C;
+    --ink-2:   #4A555E;
+    --ink-3:   #7C8993;
+    --rule:    #C9D1D5;
+    --rule-2:  #DFE4E7;
+    --meena:   #B3402F;
+    --ok:      #2F6B4F;
+    --c-box:    #2E3A45;
+    --c-lborder: #1F4E6B;
+    --c-rborder: #3E7A8F;
+    --c-achu:   #A07C22;
+    --c-body:   #52737E;
+    --c-empty:  #B9C3C8;
+    --c-lock:   #7A4E86;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: var(--sans); font-size: 15px; line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 0 20px 96px; }
+
+  header { border-bottom: 2px solid var(--ink); padding: 20px 0 0; margin-bottom: 26px; }
+  .brandline { display: flex; align-items: flex-end; gap: 18px; flex-wrap: wrap; }
+  .wordmark { font-family: var(--mono); font-size: 20px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; line-height: 1; }
+  .tagline { font-size: 12.5px; color: var(--ink-2); margin-top: 6px; }
+  .activeloom { margin-left: auto; text-align: right; }
+  .activeloom .nm { font-family: var(--mono); font-size: 13px; font-weight: 700; }
+  .activeloom .sub { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); margin-top: 3px; font-variant-numeric: tabular-nums; }
+
+  nav.steps { display: flex; gap: 2px; margin-top: 18px; overflow-x: auto; }
+  nav.steps button {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.09em; text-transform: uppercase;
+    background: transparent; color: var(--ink-3); border: 0; border-bottom: 2px solid transparent;
+    padding: 8px 13px 9px; cursor: pointer; white-space: nowrap; border-radius: 0;
+  }
+  nav.steps button .no { font-weight: 700; margin-right: 7px; opacity: 0.65; }
+  nav.steps button:hover:not(:disabled) { color: var(--ink); background: transparent; }
+  nav.steps button[aria-current=true] { color: var(--ink); border-bottom-color: var(--ink); }
+  nav.steps button:disabled { opacity: 0.34; cursor: not-allowed; }
+
+  .screen[hidden] { display: none; }
+  .head-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--rule); padding-bottom: 8px; margin-bottom: 18px; }
+  .head-row h2 { font-size: 17px; font-weight: 650; margin: 0; letter-spacing: -0.01em; }
+  .head-row .hint { margin-left: auto; font-size: 12px; color: var(--ink-3); }
+
+  label.field { display: block; }
+  label.field > .cap, .cap {
+    display: block; font-family: var(--mono); font-size: 10px; letter-spacing: 0.13em;
+    text-transform: uppercase; color: var(--ink-3); margin-bottom: 5px;
+  }
+  input[type=text], input[type=number], select {
+    font-family: var(--mono); font-size: 13.5px; color: var(--ink); background: #fff;
+    border: 1px solid var(--rule); border-radius: 0; padding: 7px 8px; width: 100%;
+    font-variant-numeric: tabular-nums;
+  }
+  input[type=number] { text-align: right; }
+  input:focus-visible, select:focus-visible, button:focus-visible, summary:focus-visible, canvas:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+  button {
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.09em; text-transform: uppercase;
+    background: #fff; color: var(--ink); border: 1px solid var(--ink); padding: 8px 13px; cursor: pointer; border-radius: 0;
+  }
+  button:hover:not(:disabled) { background: var(--ink); color: #fff; }
+  button:disabled { opacity: 0.35; cursor: not-allowed; }
+  button.ghost { border-color: var(--rule); color: var(--ink-2); }
+  button.ghost:hover:not(:disabled) { background: var(--ink-2); border-color: var(--ink-2); color: #fff; }
+  button.tiny { padding: 4px 8px; font-size: 10.5px; letter-spacing: 0.05em; }
+  button.solid { background: var(--ink); color: #fff; }
+  button.solid:hover:not(:disabled) { background: #000; }
+  button.danger:hover:not(:disabled) { background: var(--meena); border-color: var(--meena); color: #fff; }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .spacer { margin-left: auto; }
+
+  /* ---------- loom cards ---------- */
+  .loomtools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+  .loomtools input[type=search] {
+    font-family: var(--mono); font-size: 13px; padding: 7px 9px; border: 1px solid var(--rule);
+    background: #fff; width: 240px; border-radius: 0; color: var(--ink);
+  }
+  .loomtools .inline { display: flex; align-items: center; gap: 7px; }
+  .loomtools .inline select { width: auto; }
+  .loomcount {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--ink-3); margin-left: auto;
+  }
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.04em; padding: 2px 7px 2px 5px; border: 1px solid var(--rule-2);
+    margin: 0 4px 4px 0; color: var(--ink-2); white-space: nowrap;
+  }
+  .pill i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .loomcard .when {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ink-3); margin-top: 10px;
+  }
+  .nores { border: 1px dashed var(--rule); background: #fff; padding: 24px; text-align: center;
+           font-size: 13px; color: var(--ink-3); }
+  .looms { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+  .loomcard { border: 1px solid var(--rule); background: #fff; padding: 14px; display: flex; flex-direction: column; }
+  .loomcard.active { border: 2px solid var(--ink); padding: 13px; }
+  .loomcard h3 { margin: 0; font-size: 15.5px; font-weight: 650; }
+  .loomcard .meta { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-3); margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .loomcard .groups { font-size: 12.5px; color: var(--ink-2); margin-top: 9px; line-height: 1.45; }
+  .loomcard .acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 13px; }
+  .usetag { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.13em; text-transform: uppercase; background: var(--ink); color: #fff; padding: 2px 7px; align-self: flex-start; margin-bottom: 7px; }
+  .empty { border: 1px dashed var(--rule); padding: 34px 22px; text-align: center; background: #fff; }
+  .empty p { margin: 0 0 16px; color: var(--ink-2); font-size: 14px; }
+
+  /* ---------- registration form ---------- */
+  .form-top { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 20px; }
+  .form-top label.field { flex: 1 1 220px; max-width: 320px; }
+  .alloc {
+    font-family: var(--mono); font-variant-numeric: tabular-nums;
+    display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; margin-bottom: 16px;
+  }
+  .alloc .n { font-size: 28px; font-weight: 700; line-height: 1; }
+  .alloc .of { font-size: 13px; color: var(--ink-3); }
+  .alloc .tag { font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; padding: 3px 8px; }
+  .alloc .tag.short { background: #FBF3E4; color: #7A5C10; }
+  .alloc .tag.over  { background: #FBEDEA; color: var(--meena); }
+  .alloc .tag.done  { background: #EAF3EE; color: var(--ok); }
+
+  /* ---------- pin board ---------- */
+  .board-wrap { border: 1px solid var(--ink); background: #fff; overflow-x: auto; overflow-y: hidden; padding: 12px 12px 10px; }
+  #board { display: block; }
+  .board-empty { border: 1px dashed var(--rule); background: #fff; padding: 30px; text-align: center; font-size: 13px; color: var(--ink-3); }
+  .board-read {
+    font-family: var(--mono); font-size: 11.5px; color: var(--ink-2);
+    font-variant-numeric: tabular-nums; margin-top: 8px; min-height: 1.5em;
+  }
+  .legend { display: flex; flex-wrap: wrap; gap: 13px; margin-top: 10px; }
+  .legend span {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--ink-2); display: flex; align-items: center; gap: 6px;
+  }
+  .legend i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .legend i.hollow { background: #fff; border: 1px dashed var(--ink-3); }
+
+  /* ---------- segment table ---------- */
+  .seg-row { display: grid; grid-template-columns: 22px minmax(130px,0.9fr) minmax(150px,1.1fr) 118px 92px 108px; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--rule-2); }
+  .seg-row.head { border-bottom: 1px solid var(--rule); padding-bottom: 6px; }
+  .seg-row.head div { font-family: var(--mono); font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--ink-3); }
+  .seg-idx { font-family: var(--mono); font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .seg-range { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .seg-acts { display: flex; gap: 4px; justify-content: flex-end; }
+  .swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: -1px; }
+
+  /* ---------- mini ruler ---------- */
+  .ruler { display: flex; height: 24px; border: 1px solid var(--rule); overflow: hidden; }
+  .ruler-seg { min-width: 2px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .ruler-seg .c { font-family: var(--mono); font-size: 10px; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; }
+  .k-box .c, .k-leftBorder .c, .k-rightBorder .c, .k-achu .c, .k-body .c, .k-locking .c { color: #fff; }
+  .k-empty .c { color: var(--ink-2); }
+  .k-box { background: var(--c-box); }
+  .k-leftBorder { background: var(--c-lborder); }
+  .k-rightBorder { background: var(--c-rborder); }
+  .k-achu { background: var(--c-achu); }
+  .k-body { background: var(--c-body); }
+  .k-empty { background: var(--c-empty); }
+  .k-locking { background: var(--c-lock); }
+  .k-none { background: #fff; }
+
+  /* ---------- layers ---------- */
+  .layer { border: 1px solid var(--rule); background: #fff; padding: 14px; margin-bottom: 12px; }
+  .layer-head { display: flex; align-items: center; gap: 11px; flex-wrap: wrap; margin-bottom: 12px; }
+  .layer-tag { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.13em; text-transform: uppercase; color: #fff; background: var(--ink); padding: 3px 8px; }
+  .layer-head input[type=text] { width: 180px; }
+  .slot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+  .slot { border: 1px dashed var(--rule); padding: 10px; background: #FBFCFC; display: flex; gap: 10px; }
+  .slot.filled { border-style: solid; border-color: var(--ok); }
+  .slot.bad { border-style: solid; border-color: var(--meena); background: #FDF4F2; }
+  .slot .body { flex: 1; min-width: 0; }
+  .slot .name { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); margin-bottom: 6px; }
+  .slot .meta { font-family: var(--mono); font-size: 11px; color: var(--ink-3); margin-top: 6px; font-variant-numeric: tabular-nums; word-break: break-all; }
+  .slot .meta.err { color: var(--meena); }
+  .weftslot { border: 1px solid var(--rule-2); padding: 8px; background: #fff; }
+  .weftname { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .weftname input { flex: 1; }
+  .thumb { width: 58px; flex: 0 0 58px; border: 1px solid var(--rule); background: #fff; align-self: flex-start; }
+  .thumb canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+  input[type=file] { font-size: 11.5px; font-family: var(--mono); width: 100%; }
+
+  .gate {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 28px 20px;
+  }
+  .gate[hidden] { display: none; }
+  .gate-card {
+    width: 100%; max-width: 420px; border: 2px solid var(--ink); background: #fff; padding: 32px 28px;
+  }
+  .gate-mark {
+    font-family: var(--mono); font-size: 24px; font-weight: 700; letter-spacing: 0.24em;
+    text-transform: uppercase; line-height: 1;
+  }
+  .gate-lede { font-size: 13.5px; color: var(--ink-2); line-height: 1.55; margin: 14px 0 26px; }
+  .gate-actions { display: flex; flex-direction: column; gap: 9px; }
+  .gate-btn { width: 100%; padding: 11px; }
+  .gate-msg { font-size: 12.5px; color: var(--meena); margin-top: 14px; line-height: 1.5; min-height: 1em; }
+  .gate-msg.plain { color: var(--ink-3); }
+  .gate-adv { margin-top: 22px; border-top: 1px solid var(--rule-2); padding-top: 14px; }
+  .gate-adv summary {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--ink-3); cursor: pointer;
+  }
+  .gate-adv div { font-size: 12.5px; color: var(--ink-2); margin-top: 11px; line-height: 1.5; }
+  .gate-adv p { margin: 0 0 10px; }
+  .whoami { display: flex; align-items: center; gap: 8px; }
+  .whoami .nm2 { font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
+  .whoami img { width: 20px; height: 20px; border-radius: 50%; }
+  .savestate {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--ink-3); display: flex; align-items: center; gap: 6px; flex-basis: 100%;
+    justify-content: flex-end; padding-bottom: 2px;
+  }
+  .savestate i { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); display: inline-block; }
+  .savestate.pending i { background: var(--c-achu); }
+  .savestate.off i { background: var(--ink-3); }
+  @media (max-width: 780px) { .savestate { justify-content: flex-start; } }
+  #toast {
+    position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%) translateY(8px);
+    background: var(--ink); color: #fff; padding: 10px 16px; font-size: 13px;
+    max-width: min(520px, calc(100vw - 32px)); box-shadow: 0 4px 18px rgba(20,24,28,0.22);
+    opacity: 0; pointer-events: none; transition: opacity .18s ease, transform .18s ease; z-index: 50;
+  }
+  #toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .summary { border: 1px solid var(--ink); background: #fff; padding: 13px 14px; margin-bottom: 18px; }
+  .summary .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 12px; }
+  .summary .cell .k {
+    font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--ink-3);
+  }
+  .summary .cell .v {
+    font-family: var(--mono); font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 3px;
+  }
+  .summary .cell .v.sm { font-size: 12.5px; font-weight: 600; }
+  .weavelib { border: 1px solid var(--rule); background: #fff; padding: 14px; margin-top: 20px; }
+  .wl-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 11px; }
+  .wl-note { font-size: 12px; color: var(--ink-3); }
+  .wl-add { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 13px; }
+  .wl-add input[type=text] { width: 220px; }
+  .wl-add input[type=file] { width: auto; flex: 1 1 200px; }
+  .wl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .wl-item { border: 1px solid var(--rule-2); padding: 9px; display: flex; gap: 9px; align-items: flex-start; }
+  .wl-item canvas { width: 46px; height: auto; image-rendering: pixelated; border: 1px solid var(--rule); }
+  .wl-item .nm { font-size: 12.5px; font-weight: 600; line-height: 1.3; word-break: break-word; }
+  .wl-item .sub { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); margin-top: 3px; }
+  .wl-empty { font-size: 12.5px; color: var(--ink-3); }
+  .weave-cell { display: flex; align-items: center; gap: 7px; }
+  .weave-cell canvas { width: 22px; height: 22px; image-rendering: pixelated; border: 1px solid var(--rule); flex: 0 0 22px; }
+  .content-note { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
+  h3.sec {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink-3); margin: 26px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--rule-2);
+  }
+  h3.sec:first-of-type { margin-top: 20px; }
+  .satin-block { border: 1px solid var(--rule); background: #fff; padding: 14px; margin-top: 18px; }
+  .satin-block .who {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--ink-2); margin-bottom: 4px;
+  }
+  .satin-block .lede { font-size: 12.5px; color: var(--ink-3); margin-bottom: 12px; }
+  .satin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 10px; }
+  .satin-tile {
+    border: 1px solid var(--rule); background: #FBFCFC; padding: 9px; cursor: pointer;
+    text-align: left; display: block; width: 100%; text-transform: none; letter-spacing: 0;
+    font-family: var(--sans); font-size: 12px; color: var(--ink);
+  }
+  .satin-tile:hover { background: #fff; border-color: var(--ink-3); color: var(--ink); }
+  .satin-tile[aria-pressed=true] { border: 2px solid var(--ink); padding: 8px; background: #fff; }
+  .satin-tile .nm { font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+  .satin-tile .pins { font-family: var(--mono); font-size: 10px; color: var(--ink-3); margin-top: 2px; }
+  .satin-cells { display: grid; gap: 1px; margin: 7px 0 6px; }
+  .satin-cells i { width: 100%; aspect-ratio: 1; background: #E7EBED; display: block; }
+  .satin-cells i.up { background: var(--c-lock); }
+  .boxed { border: 1px solid var(--rule); background: #fff; padding: 14px; margin-top: 22px; }
+  .boxed .bh { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .boxed .bn { font-size: 12px; color: var(--ink-3); }
+  .boxrow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 7px 0; border-top: 1px solid var(--rule-2); }
+  .boxrow .who {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ink-2); min-width: 92px;
+  }
+  .pinstrip { display: flex; gap: 3px; }
+  .pinstrip button {
+    width: 22px; height: 22px; padding: 0; border: 1px solid var(--rule);
+    background: #fff; border-radius: 0; cursor: pointer;
+  }
+  .pinstrip button[aria-pressed=true] { background: var(--ink); border-color: var(--ink); }
+  .pinstrip button:hover { border-color: var(--ink); }
+  .presets { display: flex; gap: 4px; }
+  .presets button { padding: 3px 7px; font-size: 10px; letter-spacing: 0.03em; }
+  .boxrow .tag {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 16px; }
+  .chip .cap { margin-bottom: 5px; }
+  .cells { display: flex; gap: 2px; }
+  .cells.stack { flex-direction: column; }
+  .cell { width: 13px; height: 13px; border: 1px solid var(--rule); background: #fff; }
+  .cell.up { background: var(--ink); border-color: var(--ink); }
+
+  .opts { display: grid; grid-template-columns: repeat(auto-fill, minmax(266px, 1fr)); gap: 12px; }
+  .opt { border: 1px solid var(--rule); background: #fff; padding: 11px 12px; }
+  .opt .why { font-size: 11.5px; color: var(--ink-3); margin-top: 7px; line-height: 1.4; }
+  .seg-toggle { display: flex; border: 1px solid var(--ink); }
+  .seg-toggle button { flex: 1; border: 0; padding: 6px 4px; font-size: 10.5px; letter-spacing: 0.04em; }
+  .seg-toggle button[aria-pressed=true] { background: var(--ink); color: #fff; }
+
+  .checks { border-left: 3px solid var(--meena); padding: 2px 0 2px 13px; margin-bottom: 16px; }
+  .checks.clear { border-left-color: var(--ok); }
+  .checks h3 { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.13em; text-transform: uppercase; margin: 0 0 7px; color: var(--ink-2); }
+  .checks ul { margin: 0; padding-left: 17px; font-size: 13px; }
+  .checks li { margin-bottom: 3px; }
+  .checks li.warn { color: #8A6A12; }
+  .checks .fine { font-size: 13px; color: var(--ok); }
+
+  .pv-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+  .pv-dims { font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+  .pv-frame { border: 1px solid var(--ink); background: #fff; overflow: auto; max-height: 540px; }
+  #pv { display: block; image-rendering: pixelated; }
+  .inspector { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; margin-top: 8px; min-height: 1.5em; }
+
+  details.note { margin-top: 18px; }
+  details.note summary { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); cursor: pointer; }
+  details.note div { font-size: 13px; color: var(--ink-2); margin-top: 9px; line-height: 1.55; }
+  details.note p { margin: 0 0 9px; }
+  .saved-note { font-family: var(--mono); font-size: 11px; color: var(--ink-3); margin-top: 10px; }
+  .loombanner { border: 1px solid var(--rule); background: #fff; padding: 12px 13px; margin-bottom: 20px; }
+  .loombanner .top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 9px; }
+  .loombanner .nm { font-size: 14.5px; font-weight: 650; }
+  .loombanner .mt { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+  @media (max-width: 780px) {
+    .seg-row { grid-template-columns: 18px 1fr 1fr; }
+    .seg-row .seg-range, .seg-row .h-range { display: none; }
+    .seg-row .content-cell { grid-column: 2 / 4; }
+    .seg-row .seg-acts { grid-column: 2 / 4; justify-content: flex-start; }
+    .activeloom { margin-left: 0; text-align: left; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<main class="gate" id="gate">
+  <div class="gate-card">
+    <div class="gate-mark">Pinmap</div>
+    <p class="gate-lede">Register a loom once, then lay weft designs onto its pins and build the file the machine reads.</p>
+
+    <div class="gate-actions">
+      <div id="gsiButton"></div>
+      <button class="solid gate-btn" id="signInGoogle">Sign in with Google</button>
+      <button class="ghost gate-btn" id="signInLocal">Use this device only</button>
+    </div>
+
+    <div class="gate-msg" id="gateMsg"></div>
+
+    <details class="gate-adv">
+      <summary>Google sign-in settings</summary>
+      <div>
+        <p>Signing in keeps each person's looms apart and lets you carry them between machines. It needs an internet connection and a Google client ID for this app.</p>
+        <label class="field">
+          <span class="cap">Google client ID</span>
+          <input type="text" id="clientId" placeholder="000000000000-xxxx.apps.googleusercontent.com">
+        </label>
+        <p style="margin-top:9px">Working in the shed with no internet? Use this device only. Everything works the same; the looms are simply kept on this machine.</p>
+      </div>
+    </details>
+  </div>
+</main>
+
+<div class="wrap" id="app" hidden>
+  <header>
+    <div class="brandline">
+      <div>
+        <div class="wordmark">Pinmap</div>
+        <div class="tagline">Register a loom once, then lay weft designs onto its pins.</div>
+      </div>
+      <div class="activeloom" id="activeLoom"></div>
+      <div class="savestate" id="saveState" aria-live="polite"></div>
+      <div class="whoami" id="whoami" style="flex-basis:100%;justify-content:flex-end"></div>
+    </div>
+    <nav class="steps" id="steps">
+      <button data-go="looms"><span class="no">01</span>Looms</button>
+      <button data-go="loom"><span class="no">02</span>Pin map</button>
+      <button data-go="job"><span class="no">03</span>Weft files</button>
+      <button data-go="build"><span class="no">04</span>Build</button>
+    </nav>
+  </header>
+
+  <!-- ========== 01 LOOMS ========== -->
+  <main class="screen" id="sc-looms">
+    <div class="head-row">
+      <h2>Registered looms</h2>
+      <span class="hint">Register each loom once — its pin map is its fingerprint</span>
+    </div>
+    <div class="loomtools" id="loomTools" hidden>
+      <input type="search" id="loomSearch" placeholder="Search looms…" aria-label="Search looms">
+      <label class="inline">
+        <span class="cap" style="margin:0">Order</span>
+        <select id="loomSort">
+          <option value="recent">Recently used</option>
+          <option value="name">Name</option>
+          <option value="pins">Pin count</option>
+        </select>
+      </label>
+      <span class="loomcount" id="loomCount"></span>
+    </div>
+    <div id="loomList"></div>
+    <div class="btn-row">
+      <button class="solid" id="newLoom">Register a loom</button>
+      <button class="ghost" id="importBtn">Import</button>
+      <button class="ghost" id="exportAll">Back up everything</button>
+      <input type="file" id="importFile" accept=".json,application/json" hidden>
+    </div>
+    <div class="saved-note" id="storeNote"></div>
+  </main>
+
+  <!-- ========== 02 PIN MAP ========== -->
+  <main class="screen" id="sc-loom" hidden>
+    <div class="head-row">
+      <h2 id="loomFormTitle">Register a loom</h2>
+      <span class="hint">Name the loom, give its total pins, then enter the count for each group</span>
+    </div>
+
+    <div class="form-top">
+      <label class="field">
+        <span class="cap">Loom number or name</span>
+        <input type="text" id="loomName" placeholder="e.g. Shed 2 — SEJ 2688">
+      </label>
+      <label class="field" style="flex:0 0 170px">
+        <span class="cap">Total pins</span>
+        <input type="number" id="totalDeclared" min="1" step="1" placeholder="e.g. 744">
+      </label>
+      <label class="field" style="flex:0 0 180px">
+        <span class="cap">Box motion</span>
+        <select id="boxMotion">
+          <option value="4x4">4 by 4</option>
+          <option value="2x1">2 by 1</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="alloc" id="alloc"></div>
+
+    <div class="pv-bar" style="margin-bottom:8px">
+      <span class="cap" style="margin:0">Pin board</span>
+      <div class="spacer" style="display:flex;gap:6px">
+        <button class="tiny ghost" data-bzoom="fit">Whole loom</button>
+        <button class="tiny ghost" data-bzoom="6">6 px</button>
+        <button class="tiny ghost" data-bzoom="12">12 px</button>
+        <button class="tiny ghost" data-bzoom="20">20 px</button>
+      </div>
+    </div>
+    <div id="boardHost"><div class="board-empty">Enter the total pins to draw the board</div></div>
+    <div class="board-read" id="boardRead">One ball for each pin, in machine order. The band below each ball is the column that pin controls.</div>
+    <div class="legend" id="boardLegend"></div>
+
+    <div style="margin-top:24px" id="segTable"></div>
+    <div class="weavelib">
+      <div class="wl-head">
+        <span class="cap" style="margin:0">Weave library</span>
+        <span class="wl-note">Upload a small BMP of a weave, name it, and it stays available for every loom.</span>
+      </div>
+      <div class="wl-add">
+        <input type="text" id="weaveName" placeholder="name it, e.g. Murthy lock 8">
+        <input type="file" id="weaveFile" accept=".bmp,image/bmp,image/*">
+        <button class="ghost" id="addWeave">Add to library</button>
+      </div>
+      <div id="weaveList"></div>
+    </div>
+
+    <div class="btn-row">
+      <button data-add="achu">+ Achu</button>
+      <button data-add="box">+ Box</button>
+      <button data-add="leftBorder">+ Left border</button>
+      <button data-add="locking">+ Locking</button>
+      <button data-add="body">+ Body</button>
+      <button data-add="rightBorder">+ Right border</button>
+      <button data-add="empty">+ Empty</button>
+    </div>
+    <div class="btn-row">
+      <button class="ghost" id="starter">Reset to standard order</button>
+      <button class="ghost" id="restToBody">Give the rest to Body</button>
+      <button class="ghost danger" id="clearSegs">Clear groups</button>
+    </div>
+
+    <div id="loomChecks" style="margin-top:22px"></div>
+
+    <div class="btn-row">
+      <button class="solid" id="saveLoom">Save version and continue</button>
+      <button class="ghost" id="cancelLoom">Back to looms</button>
+    </div>
+
+    <details class="note">
+      <summary>What each group does</summary>
+      <div>
+        <p><strong>Left border</strong> and <strong>Right border</strong> take an uploaded BMP each, which must be exactly as wide as the count you enter.</p>
+        <p><strong>Achu pins</strong> are generated here — half up then half down, flipping on the next line. The count must be even.</p>
+        <p><strong>Box pins</strong> are generated from how many weft files you combine.</p>
+        <p><strong>Locking</strong> pins are woven with a weave generated here — a satin by default. Choose it from the dropdown on the Locking row: each weave states the number of pins it needs, and picking one sets that count. Your own uploaded weaves appear there too.</p>
+        <p>The weave steps once per design line, so it is applied in full to every weft file you combine. All three shuttles lay the same locking line, and each file on its own carries the complete weave.</p>
+        <p><strong>Body</strong> takes the uploaded weft files. <strong>Empty</strong> pins stay down.</p>
+        <p>A group's name is simply its group, so there is nothing extra to type. Where the same group appears twice, as achu does, they are numbered Achu 1 and Achu 2.</p>
+        <p>Groups start in the order these pins run on the machine — achu, box, left border, locking, body, right border, achu, empty. Change any count, reorder with the arrows, or add and remove groups as a particular loom needs.</p>
+        <p>Pins you never allocate show as hollow balls and are still written into the file, kept down, at the far end.</p>
+      </div>
+    </details>
+  </main>
+
+  <!-- ========== 03 WEFT FILES ========== -->
+  <main class="screen" id="sc-job" hidden>
+    <div class="head-row">
+      <h2>Weft files</h2>
+      <span class="hint">Borders are optional · up to four body wefts</span>
+    </div>
+    <div class="loombanner" id="jobBanner"></div>
+
+    <h3 class="sec">Borders</h3>
+    <div id="borderHost"></div>
+
+    <h3 class="sec">Body wefts</h3>
+    <div id="bodyHost"></div>
+
+    <div id="boxEditor"></div>
+    <div style="margin-top:22px" class="chips" id="boxChips"></div>
+    <div id="jobChecks" style="margin-top:20px"></div>
+    <div class="btn-row">
+      <button class="solid" id="combine">Combine files</button>
+      <button class="ghost danger" id="clearFiles">Clear all files</button>
+    </div>
+    <details class="note">
+      <summary>Box pins and layer order</summary>
+      <div>
+        <p>The box pattern comes from how many body wefts you load: one lifts nothing, two lift everything, and with three the first shuttle lifts every pin, the second the first half and the third the second half. A fourth lifts nothing.</p>
+        <p>Slot order is shuttle order, so the first loaded weft takes the first pattern. Empty slots are skipped.</p>
+        <p>You can change any of it. Click a pin under Box pins to turn it on or off for that weft, or use the all / first / second / none shortcuts. A row you have touched is marked "yours"; the reset button puts every weft back to the standard pattern.</p>
+        <p>Each body weft gets its own line, in slot order, so three wefts turn 500 design lines into 1500 picks. That is how the weft is laid, one shuttle at a time — so slot order is shuttle order.</p>
+        <p>On a <strong>4 by 4</strong> box the shuttle changes every pick, so the wefts take one line each in turn. On a <strong>2 by 1</strong> the shuttle must cross and come back, so each weft takes <strong>two</strong> lines before the next one starts. The loom's box motion, set when you register it, decides which.</p>
+        <p>If a design is drawn sideways, with the pins running down the file instead of across, it is turned a quarter turn anticlockwise on loading so it fits the pin count. The slot says so when that happens.</p>
+        <p>Each border has a single file. Its lines are used again on every weft pick of a design line, so the border holds still while the body wefts take their turns.</p>
+        <p>Borders are optional. Load neither and their pins simply stay blank; the body still carries only what its weft files put there.</p>
+      </div>
+    </details>
+  </main>
+
+  <!-- ========== 04 BUILD ========== -->
+  <main class="screen" id="sc-build" hidden>
+    <div class="head-row">
+      <h2>Build</h2>
+      <span class="hint">Check the picture before you take it to the loom</span>
+    </div>
+    <div class="loombanner" id="buildBanner"></div>
+    <div class="summary" id="buildSummary"></div>
+    <div class="opts" id="opts"></div>
+    <div style="margin-top:22px" id="checksHost"></div>
+    <div class="btn-row" style="margin-bottom:20px">
+      <button class="solid" id="build">Rebuild</button>
+      <button id="download" disabled>Download BMP</button>
+    </div>
+    <div id="pvWrap" hidden>
+      <div class="pv-bar">
+        <span class="pv-dims" id="pvDims"></span>
+        <div class="spacer" style="display:flex;gap:6px">
+          <button class="tiny ghost" data-zoom="fit">Fit</button>
+          <button class="tiny ghost" data-zoom="1">1:1</button>
+          <button class="tiny ghost" data-zoom="3">3×</button>
+          <button class="tiny ghost" id="pvMode" aria-pressed="true">Colour groups</button>
+        </div>
+      </div>
+      <div class="pv-frame" id="pvFrame"><canvas id="pv" tabindex="0"></canvas></div>
+      <div class="inspector" id="inspector">Point at the picture to read the pin and line under the cursor.</div>
+      <div class="legend" id="pvLegend"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   Pinmap — jacquard weft/border file builder
+   Black pixel = pin up. White = pin down.
+   Runs entirely in the page: no upload, no server, no network.
+   ============================================================ */
+
+// source: "generated" made here · "border" one uploaded file · "weft" one file per body weft · "down" never lifts
+const KINDS = {
+  achu:        { label: "Achu",         cls: "k-achu",        colour: "#A07C22", code: 4, source: "generated" },
+  box:         { label: "Box",          cls: "k-box",         colour: "#2E3A45", code: 1, source: "generated" },
+  leftBorder:  { label: "Left border",  cls: "k-leftBorder",  colour: "#1F4E6B", code: 2, source: "border"    },
+  locking:     { label: "Locking",      cls: "k-locking",     colour: "#7A4E86", code: 5, source: "generated" },
+  body:        { label: "Body",         cls: "k-body",        colour: "#52737E", code: 6, source: "weft"      },
+  rightBorder: { label: "Right border", cls: "k-rightBorder", colour: "#3E7A8F", code: 3, source: "border"    },
+  empty:       { label: "Empty",        cls: "k-empty",       colour: "#B9C3C8", code: 7, source: "down"      }
+};
+const WEFT_SLOTS = 4;
+const WEFT_NAMES = ["Meena", "Rani", "Zari", "Weft 4"];
+const UNALLOCATED = { label: "Not allocated", colour: "#FFFFFF", code: 8 };
+
+// A group's name is its group. Where the same group is used twice, number them.
+function labelFor(segs, i) {
+  const k = segs[i].kind, base = (KINDS[k] || {}).label || k;
+  if (segs.filter(x => x.kind === k).length < 2) return base;
+  let n = 0;
+  for (let j = 0; j <= i; j++) if (segs[j].kind === k) n++;
+  return `${base} ${n}`;
+}
+const BOARD_MAX_PX = 16000;   // keep the canvas inside browser limits
+
+// The order these groups run on the machine, used for a fresh registration.
+const DEFAULT_LAYOUT = [
+  ["achu",        4   ],
+  ["box",         4   ],
+  ["leftBorder",  null],
+  ["locking",     8,  "satin:8:3"],
+  ["body",        null],
+  ["rightBorder", null],
+  ["achu",        4   ],
+  ["empty",       null]
+];
+
+let uid = 0;
+const nextId = () => "s" + (++uid);
+
+const state = {
+  screen: "looms",
+  looms: [],
+  weaves: [],
+  boxPrefs: {},
+  editing: null,
+  loomName: "",
+  totalDeclared: 0,
+  boxMotion: "4x4",
+  version: 1,
+  segments: [],
+  borderFiles: {},                 // one file per border group, keyed by group id
+  wefts: [],                       // four body weft slots
+  activeName: "",
+  account: null,
+  accountKey: "local",
+  loomQuery: "",
+  loomSort: "recent",
+  opts: {
+    achuStartsBlack: true,
+    pinOneLeft: true,
+    topRowFirstPick: true,
+    blackIsIndexZero: true,
+    stackMode: "interleave",
+    achuOnBody: false,
+    boxWholeBand: true,
+    autoRotate: true,
+    weavePerDesignLine: true,
+    satinWarpFaced: false
+  },
+  built: null,
+  pvColour: true,
+  zoom: "fit"
+};
+
+const el = (s) => document.querySelector(s);
+let toastTimer = null;
+function notify(msg) {
+  const t = document.getElementById("toast");
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("on"), 4200);
+}
+const els = (s) => [...document.querySelectorAll(s)];
+const allocated = () => state.segments.reduce((n, s) => n + (s.count || 0), 0);
+const totalPins = () => Math.max(state.totalDeclared || 0, allocated());
+const borderSlots = () => state.segments.map((s, i) => ({ s, i })).filter(o => KINDS[o.s.kind].source === "border");
+const bodySlots   = () => state.segments.map((s, i) => ({ s, i })).filter(o => KINDS[o.s.kind].source === "weft");
+const filledWefts = () => state.wefts.filter(w => w.file && !w.file.error);
+function freshWefts() {
+  return WEFT_NAMES.map((n, i) => ({ id: "w" + (i + 1), name: n, file: null }));
+}
+function anyFile() {
+  const w = filledWefts()[0];
+  if (w) return w.file;
+  for (const { s } of borderSlots()) { const f = state.borderFiles[s.id]; if (f && !f.error) return f; }
+  return null;
+}
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+const sumPins = (segs) => segs.reduce((n, s) => n + (s.count || 0), 0);
+
+/* ============================================================
+   BMP decoding — returns 1 where the pin is up (black)
+   ============================================================ */
+
+function decodeBMP(buf) {
+  const d = new DataView(buf), u8 = new Uint8Array(buf);
+  if (u8.length < 54 || u8[0] !== 0x42 || u8[1] !== 0x4D) throw new Error("not a BMP file");
+
+  const dataOffset = d.getUint32(10, true);
+  const headerSize = d.getUint32(14, true);
+  const width      = d.getInt32(18, true);
+  const rawHeight  = d.getInt32(22, true);
+  const bpp        = d.getUint16(28, true);
+  const compress   = d.getUint32(30, true);
+  let   clrUsed    = headerSize >= 40 ? d.getUint32(46, true) : 0;
+
+  const topDown = rawHeight < 0;
+  const height  = Math.abs(rawHeight);
+
+  if (width <= 0 || height <= 0) throw new Error("bad image size in header");
+  if (compress !== 0 && compress !== 3) throw new Error("compressed BMPs are not supported — save it uncompressed");
+  if (![1, 4, 8, 24, 32].includes(bpp)) throw new Error(bpp + "-bit BMPs are not supported");
+
+  let palette = null;
+  if (bpp <= 8) {
+    if (!clrUsed) clrUsed = 1 << bpp;
+    const pStart = 14 + headerSize;
+    palette = [];
+    for (let i = 0; i < clrUsed; i++) {
+      const o = pStart + i * 4;
+      palette.push([u8[o + 2], u8[o + 1], u8[o]]);
+    }
+  }
+
+  const rowBytes = Math.ceil((width * bpp) / 8);
+  const stride   = (rowBytes + 3) & ~3;
+  if (dataOffset + stride * height > u8.length) throw new Error("file is shorter than its header claims");
+
+  const lum = (r, g, b) => 0.299 * r + 0.587 * g + 0.114 * b;
+  const bits = new Uint8Array(width * height);
+  const seen = new Set();
+
+  for (let y = 0; y < height; y++) {
+    const srcY = topDown ? y : height - 1 - y;
+    const base = dataOffset + srcY * stride;
+    for (let x = 0; x < width; x++) {
+      let r, g, b;
+      if (bpp === 1) {
+        const byte = u8[base + (x >> 3)];
+        const idx  = (byte >> (7 - (x & 7))) & 1;
+        [r, g, b] = palette[idx] || (idx ? [255,255,255] : [0,0,0]);
+      } else if (bpp === 4) {
+        const byte = u8[base + (x >> 1)];
+        const idx  = (x & 1) ? (byte & 0x0F) : (byte >> 4);
+        [r, g, b] = palette[idx] || [0,0,0];
+      } else if (bpp === 8) {
+        [r, g, b] = palette[u8[base + x]] || [0,0,0];
+      } else {
+        const o = base + x * (bpp / 8);
+        b = u8[o]; g = u8[o + 1]; r = u8[o + 2];
+      }
+      seen.add((r << 16) | (g << 8) | b);
+      bits[y * width + x] = lum(r, g, b) < 128 ? 1 : 0;
+    }
+  }
+
+  const offTone = [...seen].filter(c => {
+    const r = c >> 16, g = (c >> 8) & 255, b = c & 255;
+    const l = lum(r, g, b);
+    return !(l < 40 || l > 215);
+  });
+
+  return { width, height, bits, tones: seen.size, offTone: offTone.length };
+}
+
+/* ============================================================
+   BMP encoding — 1 bit, uncompressed, bottom-up
+   ============================================================ */
+
+function encodeBMP1(bits, width, height, blackIsIndexZero) {
+  const rowBytes = Math.ceil(width / 8);
+  const stride   = (rowBytes + 3) & ~3;
+  const offset   = 14 + 40 + 8;
+  const size     = offset + stride * height;
+
+  const out = new Uint8Array(size);
+  const dv  = new DataView(out.buffer);
+
+  out[0] = 0x42; out[1] = 0x4D;
+  dv.setUint32(2, size, true);
+  dv.setUint32(10, offset, true);
+  dv.setUint32(14, 40, true);
+  dv.setInt32(18, width, true);
+  dv.setInt32(22, height, true);
+  dv.setUint16(26, 1, true);
+  dv.setUint16(28, 1, true);
+  dv.setUint32(30, 0, true);
+  dv.setUint32(34, stride * height, true);
+  dv.setUint32(38, 3780, true);
+  dv.setUint32(42, 3780, true);
+  dv.setUint32(46, 2, true);
+  dv.setUint32(50, 2, true);
+
+  const put = (i, v) => { const o = offset - 8 + i * 4; out[o] = v; out[o+1] = v; out[o+2] = v; };
+  if (blackIsIndexZero) { put(0, 0); put(1, 255); } else { put(0, 255); put(1, 0); }
+
+  const onBit = blackIsIndexZero ? 0 : 1;
+  for (let y = 0; y < height; y++) {
+    const rowStart = offset + (height - 1 - y) * stride;
+    if (onBit === 1) {
+      for (let x = 0; x < width; x++) if (bits[y*width+x]) out[rowStart + (x>>3)] |= 0x80 >> (x&7);
+    } else {
+      for (let x = 0; x < width; x++) if (!bits[y*width+x]) out[rowStart + (x>>3)] |= 0x80 >> (x&7);
+    }
+  }
+  return out;
+}
+
+/* ============================================================
+   Design orientation
+
+   Design files are often drawn sideways: the pins run down the image
+   and the picks run across it. Turning the file a quarter turn
+   anticlockwise puts the pins across and the picks down, which is the
+   way a loom file reads.
+   ============================================================ */
+
+function rotateCCW(f) {
+  const W = f.width, H = f.height;
+  const nw = H, nh = W;
+  const bits = new Uint8Array(nw * nh);
+  for (let i = 0; i < nh; i++)
+    for (let j = 0; j < nw; j++)
+      bits[i * nw + j] = f.bits[j * W + (W - 1 - i)];
+  return { name: f.name, width: nw, height: nh, bits, offTone: f.offTone, rotated: true };
+}
+
+// Turn the file only when that is what makes it fit the pin count.
+function fitToPins(f, pins) {
+  if (!f || f.error || !pins) return f;
+  if (f.width === pins) return f;
+  if (f.height === pins) return rotateCCW(f);
+  return f;
+}
+
+/* ============================================================
+   Generated patterns
+   ============================================================ */
+
+function achuRow(count, rowIndex, startsBlack) {
+  const half = count >> 1;
+  const firstHalfUp = ((rowIndex % 2) === 0) === startsBlack;
+  const row = new Uint8Array(count);
+  for (let i = 0; i < count; i++) row[i] = ((i < half) === firstHalfUp) ? 1 : 0;
+  return row;
+}
+
+// Satin: one interlacing per line, stepped along so no two ever touch.
+// The move number must share no factor with the repeat, and sit away from
+// 1 and N-1, which would give a twill instead. Repeats under 5 have no
+// true satin, so those fall back to a plain step of 1.
+function gcd(a, b) { while (b) { [a, b] = [b, a % b]; } return a; }
+
+function satinStep(n) {
+  if (n < 5) return 1;
+  const cands = [];
+  for (let st = 2; st <= n - 2; st++) if (gcd(st, n) === 1) cands.push(st);
+  if (!cands.length) return 1;
+  cands.sort((a, b) => Math.abs(a - n / 2) - Math.abs(b - n / 2) || a - b);
+  return cands[0];
+}
+
+function stepIsValid(n, st) {
+  return Number.isInteger(st) && st >= 1 && st < n && gcd(st, n) === 1;
+}
+
+function satinRow(count, rowIndex, warpFaced, step) {
+  const row = new Uint8Array(count);
+  if (count < 1) return row;
+  const st = stepIsValid(count, step) ? step : satinStep(count);
+  const at = (((rowIndex % count) * st) % count + count) % count;
+  if (warpFaced) { row.fill(1); row[at] = 0; } else { row[at] = 1; }
+  return row;
+}
+
+// The weaves offered when a Locking group is added. Each one states the pin
+// count it needs. A step and its complement are mirror images of each other,
+// so both are offered where they exist.
+const SATIN_LIBRARY = (() => {
+  const out = [];
+  for (const n of [4, 5, 6, 7, 8, 10, 12, 16]) {
+    const steps = [];
+    for (let st = 2; st <= n - 2; st++) if (gcd(st, n) === 1) steps.push(st);
+    if (!steps.length) { out.push({ repeat: n, step: 1, satin: false }); continue; }
+    const first = satinStep(n);
+    const mirror = n - first;
+    out.push({ repeat: n, step: first, satin: true });
+    if (mirror !== first && steps.includes(mirror)) out.push({ repeat: n, step: mirror, satin: true });
+  }
+  return out;
+})();
+
+function satinName(repeat, step, satin) {
+  return satin ? `${repeat}-end satin, step ${step}` : `${repeat}-end twill`;
+}
+
+// Weaves the Locking group can be woven in: the built-in satins, plus any the
+// user has uploaded and named. A weave states the pin count it needs.
+const BUILTIN_WEAVES = SATIN_LIBRARY.map(w => ({
+  id: `satin:${w.repeat}:${w.step}`,
+  name: satinName(w.repeat, w.step, w.satin),
+  pins: w.repeat, kind: "satin", repeat: w.repeat, step: w.step, builtin: true
+}));
+
+function allWeaves() { return BUILTIN_WEAVES.concat(state.weaves || []); }
+function weaveById(id) { return allWeaves().find(w => w.id === id) || null; }
+
+// One line of a weave, tiled across however many pins the group has.
+function weaveRow(weave, count, rowIndex, warpFaced) {
+  if (!weave || weave.kind === "satin")
+    return satinRow(count, rowIndex, warpFaced, weave ? weave.step : undefined);
+  const row = new Uint8Array(count);
+  const src = (rowIndex % weave.height) * weave.width;
+  for (let x = 0; x < count; x++) {
+    const v = weave.bits[src + (x % weave.width)];
+    row[x] = warpFaced ? (v ? 0 : 1) : v;
+  }
+  return row;
+}
+
+// Shuttle order is fixed: rani (the ground), then zari, then meena, then meena 2.
+// With three or more wefts the box only speaks where there is butta on the line;
+// over plain ground it stays white.
+const BOX_TABLE = {
+  1: ["none"],
+  2: ["all",  "all"],
+  3: ["all",  "first",  "second"],
+  4: ["all",  "first",  "second", "none"]
+};
+
+// A butta band is a stretch of lines carrying figure. Small holes inside a band
+// are part of the band — the shuttle stays engaged across them. A gap only breaks
+// the band when it is longer than the butta either side of it, which needs no
+// magic number and scales with the design.
+function closeBandGaps(f) {
+  for (;;) {
+    const runs = []; let s = null;
+    for (let i = 0; i <= f.length; i++) {
+      if (i < f.length && f[i] && s === null) s = i;
+      else if ((i === f.length || !f[i]) && s !== null) { runs.push([s, i - 1]); s = null; }
+    }
+    let changed = false;
+    for (let k = 1; k < runs.length; k++) {
+      const gap = runs[k][0] - runs[k - 1][1] - 1;
+      const a = runs[k - 1][1] - runs[k - 1][0] + 1;
+      const b = runs[k][1] - runs[k][0] + 1;
+      if (gap > 0 && gap < Math.min(a, b)) {
+        for (let y = runs[k - 1][1] + 1; y < runs[k][0]; y++) f[y] = 1;
+        changed = true;
+      }
+    }
+    if (!changed) return f;
+  }
+}
+
+function boxPlan(weftCount, weftIndex, figureOnLine) {
+  if (weftCount <= 1) return "none";        // one weft: nothing to choose
+  if (weftCount === 2) return "all";        // two wefts: black the whole way down
+  if (!figureOnLine) return "none";         // plain ground line: box stays white
+  return (BOX_TABLE[weftCount] || [])[weftIndex] || "none";
+}
+
+// Each weft may carry its own box pattern. Until the user changes one, it comes
+// from the standard table for however many wefts are loaded.
+function defaultBoxPattern(count, weftIndex, weftCount) {
+  return boxRow(count, weftIndex, weftCount, true);
+}
+
+// A pattern set by hand is kept, first for this session and then in the
+// remembered settings, so the same shuttle comes back the same way next time.
+function boxPrefKey(weft, count) { return count + ":" + (weft && weft.id ? weft.id : "?"); }
+
+function storedBoxFor(weft, count) {
+  if (!weft) return null;
+  if (typeof weft.box === "string" && weft.box.length === count) return weft.box;
+  const p = state.boxPrefs && state.boxPrefs[boxPrefKey(weft, count)];
+  return (typeof p === "string" && p.length === count) ? p : null;
+}
+
+function hasCustomBox(weft, count) { return storedBoxFor(weft, count) !== null; }
+
+function weftBoxPattern(weft, count, weftIndex, weftCount) {
+  const st = storedBoxFor(weft, count);
+  if (st) return Uint8Array.from(st, ch => (ch === "1" ? 1 : 0));
+  return defaultBoxPattern(count, weftIndex, weftCount);
+}
+
+function boxRow(count, weftIndex, weftCount, figureOnLine) {
+  const plan = boxPlan(weftCount, weftIndex, figureOnLine !== false);
+  const row = new Uint8Array(count);
+  const half = Math.ceil(count / 2);
+  if (plan === "all")    row.fill(1);
+  if (plan === "first")  for (let i = 0; i < half; i++) row[i] = 1;
+  if (plan === "second") for (let i = half; i < count; i++) row[i] = 1;
+  return row;
+}
+
+/* ============================================================
+   Compositor
+   ============================================================ */
+
+function compose() {
+  const segs = state.segments;
+  const W = totalPins();
+  const wefts = filledWefts();
+  const K = wefts.length;
+  const ref = anyFile();
+  if (!ref) throw new Error("no files loaded");
+  const H = ref.height;
+  const o = state.opts;
+  // Overlay merges the wefts onto one line each; the others give a line per weft.
+  const overlay = o.stackMode === "overlay";
+  // A 4 by 4 box changes shuttle on every pick. A 2 by 1 has to send the
+  // shuttle across and bring it back, so it weaves two design lines before
+  // it can change.
+  const perShuttle = (!overlay && o.stackMode === "interleave" && state.boxMotion === "2x1") ? 2 : 1;
+  const outH = overlay ? H : H * Math.max(1, K);
+
+  // A border only takes part if a file was loaded for it. When neither border has
+  // one, the border pins stay blank and the achu weave moves onto the body instead.
+  const borderLoaded = segs.some(sg => KINDS[sg.kind].source === "border"
+    && state.borderFiles[sg.id] && !state.borderFiles[sg.id].error);
+  // Which design lines carry butta? Slot 1 is the ground, so only the wefts
+  // after it count as figure.
+  const figureOnLine = new Uint8Array(H);
+  if (K >= 3) {
+    for (let k = 1; k < K; k++) {
+      const f = wefts[k].file;
+      for (let y = 0; y < H; y++) {
+        if (figureOnLine[y]) continue;
+        const base = y * f.width;
+        for (let x = 0; x < f.width; x++) if (f.bits[base + x]) { figureOnLine[y] = 1; break; }
+      }
+    }
+    if (o.boxWholeBand) closeBandGaps(figureOnLine);
+  }
+
+  const achuSeg = segs.find(sg => sg.kind === "achu" && sg.count > 1);
+  const bodyAchu = o.achuOnBody && !borderLoaded && !!achuSeg;
+  const achuW = bodyAchu ? achuSeg.count : 0;
+
+  const bits      = new Uint8Array(W * outH);
+  const region    = new Uint8Array(W).fill(UNALLOCATED.code);
+  const regionSeg = new Int16Array(W).fill(-1);
+  const rowWeft   = new Uint8Array(outH);
+  const rowDesign = new Int32Array(outH);
+
+  const starts = [];
+  let acc = 0;
+  for (const seg of segs) { starts.push(acc); acc += seg.count; }
+
+  segs.forEach((seg, i) => {
+    for (let x = 0; x < seg.count; x++) {
+      region[starts[i] + x] = KINDS[seg.kind].code;
+      regionSeg[starts[i] + x] = i;
+    }
+  });
+
+  for (let outY = 0; outY < outH; outY++) {
+    let weftIdx, designRow;
+    if (overlay || K <= 1) { weftIdx = 0; designRow = outY; }
+    else if (o.stackMode === "interleave") {
+      const span = perShuttle * K;                 // one full turn of the box
+      const cycle = Math.floor(outY / span);
+      const within = outY % span;
+      weftIdx = Math.floor(within / perShuttle);
+      designRow = Math.min(H - 1, cycle * perShuttle + (within % perShuttle));
+    }
+    else { weftIdx = Math.floor(outY / H); designRow = outY % H; }
+    rowWeft[outY] = weftIdx;
+    rowDesign[outY] = designRow;
+
+    // Generated weaves step with the design line, not the pick, so each weft
+    // file carries the whole weave rather than a slice of it.
+    const weaveRowIndex = o.weavePerDesignLine ? designRow : outY;
+
+    const rowBase = outY * W;
+
+    segs.forEach((seg, i) => {
+      const at = starts[i], src = KINDS[seg.kind].source;
+      if (src === "down") return;
+
+      if (seg.kind === "achu") {
+        const r = achuRow(seg.count, weaveRowIndex, o.achuStartsBlack);
+        for (let x = 0; x < seg.count; x++) bits[rowBase + at + x] = r[x];
+
+      } else if (seg.kind === "locking") {
+        const r = weaveRow(weaveById(seg.weave), seg.count, weaveRowIndex, o.satinWarpFaced);
+        for (let x = 0; x < seg.count; x++) bits[rowBase + at + x] = r[x];
+
+      } else if (seg.kind === "box") {
+        let fig = !!figureOnLine[designRow];
+        if (perShuttle > 1) {                      // hold across the shuttle's own run
+          const start = Math.floor(designRow / perShuttle) * perShuttle;
+          fig = false;
+          for (let d = start; d < Math.min(H, start + perShuttle); d++) if (figureOnLine[d]) { fig = true; break; }
+        }
+        const active = K < 3 ? true : fig;
+        const pat = weftBoxPattern(wefts[weftIdx], seg.count, weftIdx, Math.max(1, K));
+        const r = active ? pat : new Uint8Array(seg.count);
+        for (let x = 0; x < seg.count; x++) bits[rowBase + at + x] = r[x];
+
+      } else if (src === "border") {
+        const f = state.borderFiles[seg.id];
+        if (!f || f.error) return;
+        const from = designRow * f.width;              // same border line on every weft pick
+        for (let x = 0; x < seg.count; x++) bits[rowBase + at + x] = f.bits[from + x];
+
+      } else if (src === "weft") {
+        const ground = achuW ? achuRow(achuW, weaveRowIndex, o.achuStartsBlack) : null;
+        if (overlay) {
+          // every weft lands on the same line; they lift different pins, so merge them
+          for (let x = 0; x < seg.count; x++) {
+            let v = 0;
+            for (let k = 0; k < K; k++) {
+              const f = wefts[k].file;
+              if (f.bits[designRow * f.width + x]) { v = 1; break; }
+            }
+            if (!v && ground) v = ground[x % achuW];
+            bits[rowBase + at + x] = v;
+          }
+        } else {
+          const w = wefts[weftIdx];
+          const from = w ? designRow * w.file.width : 0;
+          for (let x = 0; x < seg.count; x++) {
+            let v = w ? w.file.bits[from + x] : 0;
+            if (!v && ground) v = ground[x % achuW];
+            bits[rowBase + at + x] = v;
+          }
+        }
+      }
+    });
+  }
+
+  if (!o.pinOneLeft) {
+    for (let y = 0; y < outH; y++) {
+      const b = y * W;
+      for (let x = 0, j = W - 1; x < j; x++, j--) {
+        const t = bits[b + x]; bits[b + x] = bits[b + j]; bits[b + j] = t;
+      }
+    }
+    region.reverse(); regionSeg.reverse();
+  }
+
+  if (!o.topRowFirstPick) {
+    const tmp = new Uint8Array(W);
+    for (let y = 0, z = outH - 1; y < z; y++, z--) {
+      tmp.set(bits.subarray(y * W, y * W + W));
+      bits.set(bits.subarray(z * W, z * W + W), y * W);
+      bits.set(tmp, z * W);
+      const a = rowWeft[y]; rowWeft[y] = rowWeft[z]; rowWeft[z] = a;
+      const b2 = rowDesign[y]; rowDesign[y] = rowDesign[z]; rowDesign[z] = b2;
+    }
+  }
+
+  return { bits, width: W, height: outH, region, regionSeg, rowWeft, rowDesign, overlay, figureOnLine, perShuttle,
+           weftCount: Math.max(1, K), weftNames: wefts.map(w => w.name), designHeight: H };
+}
+
+/* ============================================================
+   Validation
+   ============================================================ */
+
+function validatePinMap() {
+  const errs = [], warns = [];
+  const total = state.totalDeclared || 0, alloc = allocated();
+
+  if (!state.loomName.trim()) errs.push("Give the loom a name so its pin map can be found again.");
+  if (!total) errs.push("Enter the total number of pins on the loom.");
+  if (total && alloc > total) errs.push(`Groups add up to ${alloc} pins but the loom has ${total}. Remove ${alloc - total}.`);
+  if (!state.segments.length) errs.push("Add at least one pin group.");
+
+  state.segments.forEach((s, i) => {
+    const where = `${labelFor(state.segments, i)}`;
+    if (!s.count || s.count < 1) errs.push(`${where}: enter a pin count above zero.`);
+    if (s.kind === "achu" && s.count % 2) errs.push(`${where}: achu needs an even count — ${s.count} cannot split in half.`);
+    if (s.kind === "box" && s.count % 2) errs.push(`${where}: ${s.count} box pins cannot split into two sides. Enter an even number.`);
+    if (s.kind === "locking") {
+      const w = weaveById(s.weave);
+      if (!w) warns.push(`${where}: no weave chosen, so a satin is worked out from the pin count.`);
+      else if (s.count % w.pins)
+        errs.push(`${where}: "${w.name}" needs ${w.pins} pins, or a multiple of it. ${s.count} does not divide.`);
+      else if (s.count !== w.pins)
+        warns.push(`${where}: "${w.name}" repeats ${s.count / w.pins} times across ${s.count} pins.`);
+    }
+  });
+
+  if (!borderSlots().length && !bodySlots().length) errs.push("Add a border or Body group — those are the groups an uploaded file fills.");
+  if (!state.segments.some(s => s.kind === "box")) warns.push("No box pins. With more than one weft, nothing tells the loom which shuttle to use.");
+  if (total && alloc < total) warns.push(`${total - alloc} pins are not allocated. They will be written into the file kept down, at the far end.`);
+  return { errs, warns };
+}
+
+function validateJob() {
+  const errs = [], warns = [];
+  const borders = borderSlots(), bodies = bodySlots();
+  const wefts = filledWefts();
+
+  if (!state.segments.length) { errs.push("No loom selected — go back to step 1."); return { errs, warns }; }
+
+  let H = null;
+  const checkSize = (f, tag, expected) => {
+    if (f.error) { errs.push(`${tag}: ${f.error}`); return; }
+    if (f.width !== expected)
+      errs.push(`${tag}: file is ${f.width} pins wide but the group is ${expected}. Ask for a ${expected}-pin file.`);
+    if (f.offTone)
+      warns.push(`${tag}: contains greys, read as up or down by brightness. Save it as pure black and white.`);
+    if (H === null) H = f.height;
+    else if (f.height !== H) errs.push(`${tag}: ${f.height} lines tall while another file is ${H}. Every file must match.`);
+  };
+
+  let bordersLoaded = 0;
+  borders.forEach(({ s, i }) => {
+    const f = state.borderFiles[s.id];
+    const tag = labelFor(state.segments, i);
+    if (!f) return;                        // a border with no file simply stays blank
+    bordersLoaded++;
+    checkSize(f, tag, s.count);
+  });
+  if (borders.length && !bordersLoaded) {
+    const achuSeg = state.segments.find(x => x.kind === "achu" && x.count > 1);
+    warns.push(state.opts.achuOnBody && achuSeg
+      ? "No border file loaded, so the border pins stay blank and the achu weave is filling the body. Turn that off in step 4 if the body should carry only its weft files."
+      : "No border file loaded, so the border pins stay blank.");
+  }
+
+  if (!bodies.length) {
+    if (state.wefts.some(w => w.file)) warns.push("This loom has no Body group, so the body files will not be used.");
+  } else {
+    if (!wefts.length && bordersLoaded)
+      warns.push("No body weft loaded, so the body pins carry no design.");
+    const bodyCount = bodies[0].s.count;
+    state.wefts.forEach((w, i) => {
+      if (!w.file) return;
+      checkSize(w.file, `${w.name || "Weft " + (i + 1)}`, bodyCount);
+    });
+    if (bodies.length > 1) warns.push("More than one Body group. Every body weft file fills each of them.");
+  }
+
+  if (state.opts.stackMode === "overlay" && wefts.length > 1) {
+    const same = wefts.every(w => w.file.width === wefts[0].file.width && w.file.height === wefts[0].file.height);
+    if (same) {
+      const n = wefts[0].file.bits.length;
+      let clash = 0;
+      for (let i = 0; i < n && clash < 1; i++) {
+        let lift = 0;
+        for (const w of wefts) if (w.file.bits[i]) lift++;
+        if (lift > 1) clash++;
+      }
+      if (clash) warns.push("Two body wefts lift the same pin on the same line. Merged onto one line they cannot be told apart — check the files are meant to be separate wefts.");
+    }
+  }
+  if (state.boxMotion === "2x1" && H !== null && H % 2)
+    warns.push(`A 2 by 1 box weaves two lines per shuttle, but the designs are ${H} lines — an odd number. The last line will be repeated.`);
+  if (wefts.length > WEFT_SLOTS) errs.push(`${WEFT_SLOTS} body wefts is the maximum.`);
+  if (!wefts.length && !bordersLoaded) errs.push("Load at least one file — a border or a body weft.");
+  if (!state.segments.some(s => s.kind === "box") && wefts.length > 1)
+    warns.push("No box pins in the pin map, so nothing tells the loom which shuttle each pick uses.");
+  return { errs, warns };
+}
+
+function renderChecksInto(host, res, readyMsg) {
+  const { errs, warns } = res;
+  if (!errs.length && !warns.length) {
+    host.innerHTML = `<div class="checks clear"><h3>Ready</h3><div class="fine">${esc(readyMsg)}</div></div>`;
+  } else {
+    host.innerHTML = `<div class="checks ${errs.length ? "" : "clear"}">
+      <h3>${errs.length ? "Fix before continuing" : "Worth a look"}</h3>
+      <ul>${errs.map(e => `<li>${esc(e)}</li>`).join("")}${warns.map(w => `<li class="warn">${esc(w)}</li>`).join("")}</ul></div>`;
+  }
+  return errs.length === 0;
+}
+
+/* ============================================================
+   Storage
+   ============================================================ */
+
+const hasStore = typeof window.storage !== "undefined" && !!window.storage;
+
+// Each account keeps its own looms, weaves and settings.
+const ACCOUNT_KEY = "pinmap:account";
+const keyFor = (name) => `pinmap:${state.accountKey || "local"}:${name}`;
+let memLooms = [];
+let memWeaves = [];
+let memBoxPrefs = {};
+const LOOMS_KEY = () => keyFor("looms");
+
+async function loadLooms() {
+  if (hasStore) {
+    try {
+      const r = await window.storage.get(LOOMS_KEY());
+      state.looms = r && r.value ? JSON.parse(r.value) : [];
+      return;
+    } catch { state.looms = []; return; }
+  }
+  state.looms = memLooms;
+}
+async function persistLooms() {
+  memLooms = state.looms;
+  if (hasStore) {
+    try { await window.storage.set(LOOMS_KEY(), JSON.stringify(state.looms)); return true; } catch { return false; }
+  }
+  return false;
+}
+
+const BOXPREFS_KEY = () => keyFor("boxprefs");
+
+async function loadBoxPrefs() {
+  if (hasStore) {
+    try {
+      const r = await window.storage.get(BOXPREFS_KEY());
+      state.boxPrefs = r && r.value ? JSON.parse(r.value) : {};
+      return;
+    } catch { state.boxPrefs = {}; return; }
+  }
+  state.boxPrefs = memBoxPrefs;
+}
+async function persistBoxPrefs() {
+  memBoxPrefs = state.boxPrefs;
+  if (hasStore) {
+    try { await window.storage.set(BOXPREFS_KEY(), JSON.stringify(state.boxPrefs)); return true; }
+    catch { return false; }
+  }
+  return false;
+}
+
+const WEAVES_KEY = () => keyFor("weaves");
+
+async function loadWeaves() {
+  if (hasStore) {
+    try {
+      const r = await window.storage.get(WEAVES_KEY());
+      state.weaves = r && r.value ? JSON.parse(r.value).map(reviveWeave) : [];
+      return;
+    } catch { state.weaves = []; return; }
+  }
+  state.weaves = memWeaves;
+}
+async function persistWeaves() {
+  memWeaves = state.weaves;
+  if (hasStore) {
+    try {
+      await window.storage.set(WEAVES_KEY(), JSON.stringify(state.weaves.map(dryWeave)));
+      return true;
+    } catch { return false; }
+  }
+  return false;
+}
+function dryWeave(w) {
+  const rows = [];
+  for (let y = 0; y < w.height; y++) {
+    let line = "";
+    for (let x = 0; x < w.width; x++) line += w.bits[y * w.width + x] ? "1" : "0";
+    rows.push(line);
+  }
+  return { id: w.id, name: w.name, width: w.width, height: w.height, rows };
+}
+function reviveWeave(d) {
+  const bits = new Uint8Array(d.width * d.height);
+  d.rows.forEach((line, y) => { for (let x = 0; x < d.width; x++) bits[y * d.width + x] = line[x] === "1" ? 1 : 0; });
+  return { id: d.id, name: d.name, pins: d.width, kind: "custom", width: d.width, height: d.height, bits };
+}
+
+const SESSION_KEY = () => keyFor("session");
+let memSession = null;
+let memAccount = null;
+let saveTimer = null;
+let saveBusy = false;
+
+function setSaveState(kind) {
+  const host = el("#saveState");
+  if (!host) return;
+  host.className = "savestate" + (kind === "pending" ? " pending" : kind === "off" ? " off" : "");
+  host.innerHTML = `<i></i>${kind === "pending" ? "saving" : hasStore ? "all changes saved" : "saved for this session"}`;
+}
+
+// Everything except the uploaded design files, which are far too large to keep.
+function sessionDoc() {
+  return {
+    format: "pinmap.session", savedAt: new Date().toISOString(),
+    draft: {
+      name: state.loomName, totalPins: state.totalDeclared, boxMotion: state.boxMotion,
+      editing: state.editing, version: state.version,
+      segments: state.segments.map(sg => (sg.weave ? { kind: sg.kind, count: sg.count, weave: sg.weave }
+                                                   : { kind: sg.kind, count: sg.count }))
+    },
+    opts: { ...state.opts },
+    activeName: state.activeName,
+    weftNames: state.wefts.map(w => w.name),
+    loomSort: state.loomSort
+  };
+}
+
+async function persistSession() {
+  const doc = sessionDoc();
+  memSession = doc;
+  if (hasStore) { try { await window.storage.set(SESSION_KEY(), JSON.stringify(doc)); return true; } catch { return false; } }
+  return false;
+}
+
+async function loadSession() {
+  let doc = memSession;
+  if (hasStore) {
+    try { const r = await window.storage.get(SESSION_KEY()); doc = r && r.value ? JSON.parse(r.value) : null; }
+    catch { doc = null; }
+  }
+  if (!doc || doc.format !== "pinmap.session") return;
+  if (doc.opts) Object.assign(state.opts, doc.opts);
+  if (doc.activeName) state.activeName = doc.activeName;
+  if (doc.loomSort) state.loomSort = doc.loomSort;
+  if (Array.isArray(doc.weftNames)) {
+    state.wefts = freshWefts();
+    doc.weftNames.forEach((n, i) => { if (state.wefts[i] && n) state.wefts[i].name = n; });
+  }
+  const d = doc.draft;
+  if (d && Array.isArray(d.segments) && d.segments.length) {
+    state.loomName = d.name || "";
+    state.totalDeclared = parseInt(d.totalPins, 10) || 0;
+    state.boxMotion = d.boxMotion === "2x1" ? "2x1" : "4x4";
+    state.editing = d.editing || null;
+    state.version = d.version || 1;
+    state.segments = d.segments.map(sg => {
+      const seg = { id: nextId(), kind: KINDS[sg.kind] ? sg.kind : "empty", count: parseInt(sg.count, 10) || 0 };
+      if (sg.weave) seg.weave = sg.weave;
+      return seg;
+    });
+  }
+}
+
+// Put the loom into the library as soon as it is valid, keeping its current
+// version. Pressing Save is what turns a change into a new version.
+async function autoCommitLoom() {
+  if (validatePinMap().errs.length) return false;
+  const name = state.loomName.trim();
+  const at = state.looms.findIndex(l => l.name === (state.editing || name));
+  const doc = pinMapDoc();
+  if (at >= 0) {
+    const prev = state.looms[at];
+    doc.version = prev.version || 1;
+    doc.history = prev.history || [];
+    doc.lastUsedAt = prev.lastUsedAt;
+    if (prev.name !== name && state.looms.some(l => l.name === name)) return false;
+    state.looms[at] = doc;
+  } else {
+    if (state.looms.some(l => l.name === name)) return false;
+    doc.version = state.version || 1;
+    doc.history = [];
+    state.looms.push(doc);
+  }
+  state.editing = doc.name;
+  state.version = doc.version;
+  return true;
+}
+
+async function doAutoSave() {
+  if (saveBusy) return;
+  saveBusy = true;
+  try {
+    const committed = await autoCommitLoom();
+    await persistSession();
+    await persistBoxPrefs();
+    if (committed) await persistLooms();
+    setSaveState("saved");
+    if (committed && state.screen === "looms") renderLoomList();
+  } finally { saveBusy = false; }
+}
+
+function scheduleSave() {
+  setSaveState("pending");
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(doAutoSave, 450);
+}
+
+/* ============================================================
+   Who is using the app
+
+   Signing in separates one person's looms from another's and lets them
+   travel with a Google account. It is not a lock: everything runs in the
+   page, so anyone with the file can open it. Treat it as a name on a
+   drawer, not a key to it.
+   ============================================================ */
+
+const DEFAULT_CLIENT_ID = "";   // put your own Google client ID here to skip the settings box
+
+async function loadAccount() {
+  let saved = memAccount;
+  if (hasStore) {
+    try { const r = await window.storage.get(ACCOUNT_KEY); saved = r && r.value ? JSON.parse(r.value) : null; }
+    catch { saved = null; }
+  }
+  if (saved && saved.key) { state.account = saved.account || null; state.accountKey = saved.key; return true; }
+  return false;
+}
+
+async function saveAccount() {
+  const doc = { key: state.accountKey, account: state.account, clientId: el("#clientId").value.trim() };
+  memAccount = doc;
+  if (hasStore) { try { await window.storage.set(ACCOUNT_KEY, JSON.stringify(doc)); } catch {} }
+}
+
+async function savedClientId() {
+  if (DEFAULT_CLIENT_ID) return DEFAULT_CLIENT_ID;
+  let doc = memAccount;
+  if (hasStore) {
+    try { const r = await window.storage.get(ACCOUNT_KEY); doc = r && r.value ? JSON.parse(r.value) : null; } catch {}
+  }
+  return (doc && doc.clientId) || "";
+}
+
+function readIdToken(jwt) {
+  const part = jwt.split(".")[1];
+  const json = atob(part.replace(/-/g, "+").replace(/_/g, "/"));
+  return JSON.parse(decodeURIComponent(escape(json)));
+}
+
+function loadGoogleScript() {
+  return new Promise((resolve, reject) => {
+    if (window.google && window.google.accounts && window.google.accounts.id) return resolve();
+    const sc = document.createElement("script");
+    sc.src = "https://accounts.google.com/gsi/client";
+    sc.async = true; sc.defer = true;
+    sc.onload = () => resolve();
+    sc.onerror = () => reject(new Error("could not reach Google"));
+    document.head.appendChild(sc);
+    setTimeout(() => reject(new Error("Google did not answer")), 8000);
+  });
+}
+
+function gateMsg(text, plain) {
+  const m = el("#gateMsg");
+  m.className = "gate-msg" + (plain ? " plain" : "");
+  m.textContent = text || "";
+}
+
+async function signInWithGoogle() {
+  const clientId = el("#clientId").value.trim() || DEFAULT_CLIENT_ID;
+  if (!clientId) {
+    gateMsg("Add your Google client ID under the settings below first, or use this device only.");
+    el("#signInGoogle").blur();
+    return;
+  }
+  gateMsg("Contacting Google…", true);
+  try {
+    await loadGoogleScript();
+    window.google.accounts.id.initialize({
+      client_id: clientId,
+      callback: async (resp) => {
+        try {
+          const info = readIdToken(resp.credential);
+          state.account = { name: info.name, email: info.email, picture: info.picture, sub: info.sub };
+          state.accountKey = "g" + info.sub;
+          await saveAccount();
+          await enterApp();
+          notify(`Signed in as ${info.email}.`);
+        } catch (err) { gateMsg("Could not read the reply from Google: " + err.message); }
+      }
+    });
+    el("#gsiButton").innerHTML = "";
+    window.google.accounts.id.renderButton(el("#gsiButton"), { theme: "outline", size: "large", width: 320 });
+    el("#signInGoogle").hidden = true;
+    gateMsg("Use the Google button above to choose an account.", true);
+  } catch (err) {
+    gateMsg(`Google sign-in is not available — ${err.message}. Use this device only, or try again when you are online.`);
+  }
+}
+
+async function signInLocal() {
+  state.account = null;
+  state.accountKey = "local";
+  await saveAccount();
+  await enterApp();
+}
+
+async function signOut() {
+  if (!confirm("Sign out? Your looms stay on this device.")) return;
+  clearTimeout(saveTimer);
+  await doAutoSave();
+  try { if (window.google && window.google.accounts && window.google.accounts.id)
+          window.google.accounts.id.disableAutoSelect(); } catch {}
+  state.account = null; state.accountKey = "local";
+  if (hasStore) { try { await window.storage.delete(ACCOUNT_KEY); } catch {} }
+  memAccount = null;
+  location.reload();
+}
+
+function renderWhoami() {
+  const host = el("#whoami");
+  if (!host) return;
+  if (state.account) {
+    host.innerHTML = `${state.account.picture ? `<img src="${esc(state.account.picture)}" alt="">` : ""}
+      <span class="nm2">${esc(state.account.email || state.account.name || "signed in")}</span>
+      <button class="tiny ghost" id="signOut">Sign out</button>`;
+  } else {
+    host.innerHTML = `<span class="nm2">this device</span>
+      <button class="tiny ghost" id="signOut">Switch</button>`;
+  }
+  const b = el("#signOut"); if (b) b.onclick = signOut;
+}
+
+function pinMapDoc() {
+  return {
+    format: "pinmap.loom",
+    name: state.loomName.trim(),
+    totalPins: state.totalDeclared || allocated(),
+    boxMotion: state.boxMotion || "4x4",
+    version: state.version,
+    savedAt: new Date().toISOString(),
+    segments: state.segments.map(s => (s.weave ? { kind: s.kind, count: s.count, weave: s.weave } : { kind: s.kind, count: s.count })),
+    options: { ...state.opts },
+    history: []
+  };
+}
+
+function adoptDoc(doc) {
+  if (!doc || doc.format !== "pinmap.loom" || !Array.isArray(doc.segments))
+    throw new Error("that file is not a Pinmap loom file");
+  state.loomName = doc.name || "";
+  state.version  = doc.version || 1;
+  let borderSeen = 0;
+  state.segments = doc.segments.map(s => {
+    let kind = s.kind;
+    if (!KINDS[kind]) {                                  // files from earlier versions
+      if (kind === "blank") kind = "empty";
+      else if (kind === "design" || kind === "figure") {
+        const hint = (s.label || "").toLowerCase();
+        kind = hint.includes("right") ? "rightBorder"
+             : hint.includes("left")  ? "leftBorder"
+             : (borderSeen++ ? "rightBorder" : "leftBorder");
+      } else kind = "empty";
+    }
+    const seg = { id: nextId(), kind, count: parseInt(s.count, 10) || 0 };
+    if (s.weave) seg.weave = s.weave;
+    else if (s.step && stepIsValid(seg.count, parseInt(s.step, 10))) seg.weave = `satin:${seg.count}:${s.step}`;
+    return seg;
+  });
+  state.totalDeclared = parseInt(doc.totalPins, 10) || sumPins(state.segments);
+  state.boxMotion = doc.boxMotion === "2x1" ? "2x1" : "4x4";
+  Object.assign(state.opts, doc.options || {});
+  state.borderFiles = {};
+  state.wefts = freshWefts();
+  state.built = null;
+}
+
+/* ============================================================
+   Screen 01 — looms
+   ============================================================ */
+
+function miniRuler(segs, total) {
+  const alloc = sumPins(segs);
+  const T = Math.max(total || 0, alloc);
+  if (!T) return "";
+  const parts = segs.map((s, i) =>
+    `<div class="ruler-seg ${(KINDS[s.kind] || {}).cls || ""}" style="flex:0 0 ${(s.count / T) * 100}%"
+      title="${esc(labelFor(segs, i))} · ${s.count}"><span class="c">${s.count}</span></div>`);
+  if (T > alloc) parts.push(`<div class="ruler-seg k-none" style="flex:0 0 ${((T - alloc) / T) * 100}%"
+      title="not allocated · ${T - alloc}"></div>`);
+  return `<div class="ruler">${parts.join("")}</div>`;
+}
+
+function whenText(iso) {
+  if (!iso) return "never used";
+  const d = new Date(iso), now = new Date();
+  const days = Math.floor((now - d) / 86400000);
+  if (days <= 0) return "used today";
+  if (days === 1) return "used yesterday";
+  if (days < 30) return `used ${days} days ago`;
+  return "used " + d.toLocaleDateString();
+}
+
+function visibleLooms() {
+  const q = state.loomQuery.trim().toLowerCase();
+  let list = state.looms.filter(l => !q || l.name.toLowerCase().includes(q));
+  const pins = l => l.totalPins || sumPins(l.segments);
+  if (state.loomSort === "name") list.sort((a, b) => a.name.localeCompare(b.name));
+  else if (state.loomSort === "pins") list.sort((a, b) => pins(b) - pins(a));
+  else list.sort((a, b) => (b.lastUsedAt || b.savedAt || "").localeCompare(a.lastUsedAt || a.savedAt || ""));
+  return list;
+}
+
+function renderLoomList() {
+  const host = el("#loomList");
+  el("#loomTools").hidden = state.looms.length < 2;
+  el("#exportAll").disabled = !state.looms.length && !state.weaves.length;
+
+  if (!state.looms.length) {
+    el("#loomCount").textContent = "";
+    host.innerHTML = `<div class="empty">
+      <p>No looms registered yet. Enter a loom's total pins and how they are grouped once, then every design you build uses it.</p>
+      <button class="solid" data-act="first">Register your first loom</button></div>`;
+    return;
+  }
+
+  const list = visibleLooms();
+  el("#loomCount").textContent = list.length === state.looms.length
+    ? `${state.looms.length} loom${state.looms.length > 1 ? "s" : ""}`
+    : `${list.length} of ${state.looms.length}`;
+
+  if (!list.length) {
+    host.innerHTML = `<div class="nores">No loom matches “${esc(state.loomQuery)}”.</div>`;
+    return;
+  }
+
+  host.innerHTML = `<div class="looms">` + list.map(l => {
+    const total = l.totalPins || sumPins(l.segments);
+    const alloc = sumPins(l.segments);
+    const pills = l.segments.map((sg, i) => {
+      const k = KINDS[sg.kind] || {};
+      return `<span class="pill"><i style="background:${k.colour || "#999"}"></i>${esc(labelFor(l.segments, i))} ${sg.count}</span>`;
+    }).join("");
+    const isActive = l.name === state.activeName;
+    return `<div class="loomcard ${isActive ? "active" : ""}">
+      ${isActive ? `<span class="usetag">in use</span>` : ""}
+      <h3>${esc(l.name)}</h3>
+      <div class="meta">${total.toLocaleString()} pins${total > alloc ? ` · ${total - alloc} spare` : ""} · box ${esc(l.boxMotion || "4x4")} · v${l.version}</div>
+      <div style="margin-top:11px">${miniRuler(l.segments, total)}</div>
+      <div style="margin-top:10px">${pills}</div>
+      <div class="when">${whenText(l.lastUsedAt)}</div>
+      <div class="acts">
+        <button class="tiny solid" data-act="use" data-name="${esc(l.name)}">Use this loom</button>
+        <button class="tiny ghost" data-act="edit" data-name="${esc(l.name)}">Edit pins</button>
+        <button class="tiny ghost" data-act="dupe" data-name="${esc(l.name)}">Duplicate</button>
+        <button class="tiny ghost" data-act="exp" data-name="${esc(l.name)}">Export</button>
+        <button class="tiny ghost danger" data-act="del" data-name="${esc(l.name)}">Delete</button>
+      </div></div>`;
+  }).join("") + `</div>`;
+}
+
+el("#loomSearch").addEventListener("input", e => { state.loomQuery = e.target.value; renderLoomList(); });
+el("#loomSort").addEventListener("change", e => { state.loomSort = e.target.value; renderLoomList(); });
+
+el("#loomList").addEventListener("click", async e => {
+  const t = e.target.closest("button"); if (!t) return;
+  const { act, name } = t.dataset;
+  if (act === "first") { startNewLoom(); return; }
+  const doc = state.looms.find(l => l.name === name); if (!doc) return;
+
+  if (act === "use") {
+    adoptDoc(doc);
+    state.activeName = doc.name;
+    doc.lastUsedAt = new Date().toISOString();
+    await persistLooms();
+    go("job");
+    return;
+  }
+  if (act === "edit") { adoptDoc(doc); state.editing = doc.name; go("loom"); return; }
+  if (act === "dupe") {
+    adoptDoc(doc);
+    let n = doc.name + " copy", i = 2;
+    while (state.looms.some(l => l.name === n)) n = `${doc.name} copy ${i++}`;
+    state.loomName = n; state.version = 1; state.editing = null;
+    go("loom"); return;
+  }
+  if (act === "exp") { downloadJSON(doc); return; }
+  if (act === "del") {
+    if (!confirm(`Delete the pin map for "${doc.name}"?`)) return;
+    state.looms = state.looms.filter(l => l.name !== name);
+    if (state.activeName === name) { state.activeName = ""; state.segments = []; state.borderFiles = {}; state.wefts = freshWefts(); state.totalDeclared = 0; }
+    await persistLooms(); renderLoomList(); renderSteps(); return;
+  }
+});
+
+el("#newLoom").onclick = () => startNewLoom();
+
+function applyDefaultLayout() {
+  state.segments = DEFAULT_LAYOUT.map(([kind, count, weave]) =>
+    weave ? { id: nextId(), kind, count, weave } : { id: nextId(), kind, count });
+}
+
+function startNewLoom() {
+  state.editing = null;
+  state.loomName = "";
+  state.totalDeclared = 0;
+  state.boxMotion = "4x4";
+  state.version = 1;
+  applyDefaultLayout();
+  state.built = null;
+  go("loom");
+}
+
+function downloadJSON(doc) {
+  const safe = (doc.name || "loom").replace(/[^A-Za-z0-9_-]+/g, "_").replace(/^_|_$/g, "");
+  const url = URL.createObjectURL(new Blob([JSON.stringify(doc, null, 2)], { type: "application/json" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = `${safe}_pinmap_v${doc.version}.json`; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+el("#exportAll").onclick = () => {
+  const doc = {
+    format: "pinmap.backup", version: 1, savedAt: new Date().toISOString(),
+    looms: state.looms,
+    weaves: state.weaves.map(dryWeave),
+    boxPrefs: state.boxPrefs
+  };
+  const stamp = new Date().toISOString().slice(0, 10);
+  const url = URL.createObjectURL(new Blob([JSON.stringify(doc, null, 2)], { type: "application/json" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = `pinmap_backup_${stamp}.json`; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  notify(`Backed up ${state.looms.length} loom${state.looms.length === 1 ? "" : "s"} and ${state.weaves.length} weave${state.weaves.length === 1 ? "" : "s"}.`);
+};
+
+el("#importBtn").onclick = () => el("#importFile").click();
+el("#importFile").onchange = async e => {
+  const f = e.target.files && e.target.files[0]; if (!f) return;
+  let doc;
+  try { doc = JSON.parse(await f.text()); }
+  catch (err) { alert("Could not read that file: " + err.message); e.target.value = ""; return; }
+
+  if (doc && doc.format === "pinmap.backup") {
+    const incoming = Array.isArray(doc.looms) ? doc.looms : [];
+    let added = 0, replaced = 0;
+    incoming.forEach(l => {
+      const at = state.looms.findIndex(x => x.name === l.name);
+      if (at >= 0) { state.looms[at] = l; replaced++; } else { state.looms.push(l); added++; }
+    });
+    if (Array.isArray(doc.weaves)) {
+      doc.weaves.forEach(d => {
+        const w = reviveWeave(d);
+        if (!state.weaves.some(x => x.id === w.id)) state.weaves.push(w);
+      });
+    }
+    if (doc.boxPrefs && typeof doc.boxPrefs === "object") Object.assign(state.boxPrefs, doc.boxPrefs);
+    await persistLooms(); await persistWeaves(); await persistBoxPrefs();
+    renderLoomList(); renderSteps();
+    notify(`Restored ${added} new loom${added === 1 ? "" : "s"}${replaced ? `, replaced ${replaced}` : ""}.`);
+    e.target.value = "";
+    return;
+  }
+
+  try {
+    adoptDoc(doc);
+    state.editing = state.looms.some(l => l.name === state.loomName) ? state.loomName : null;
+    go("loom");
+  } catch (err) { alert("Could not read that file: " + err.message); }
+  e.target.value = "";
+};
+
+/* ============================================================
+   Screen 02 — pin map and pin board
+   ============================================================ */
+
+// which group owns each pin, -1 when unallocated
+function pinOwners() {
+  const T = totalPins();
+  const owners = new Int16Array(T).fill(-1);
+  let at = 0;
+  state.segments.forEach((s, i) => {
+    for (let x = 0; x < (s.count || 0) && at < T; x++, at++) owners[at] = i;
+  });
+  return owners;
+}
+
+let boardGeom = null;
+let boardZoom = "fit";
+
+function drawBoard() {
+  const host = el("#boardHost");
+  const T = totalPins();
+  if (!T) {
+    host.innerHTML = `<div class="board-empty">Enter the total pins to draw the board</div>`;
+    boardGeom = null; return;
+  }
+
+  const avail = Math.max(260, host.clientWidth - 26);
+  let pitch = boardZoom === "fit" ? avail / T : parseFloat(boardZoom);
+  pitch = Math.min(pitch, BOARD_MAX_PX / T);          // never exceed the canvas limit
+  const strip = Math.max(avail, Math.ceil(T * pitch));
+
+  const TICKS = 15, BALL = Math.max(3, Math.min(22, pitch)), COLUMN = 52, GAP = 3;
+  const W = strip, H = TICKS + BALL + GAP + COLUMN;
+
+  host.innerHTML = `<div class="board-wrap"><canvas id="board"></canvas></div>`;
+  const cv = el("#board");
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  cv.style.width = W + "px"; cv.style.height = H + "px";
+  const ctx = cv.getContext("2d");
+  ctx.scale(dpr, dpr);
+
+  const owners = pinOwners();
+  const colourAt = (i) => owners[i] < 0 ? null : KINDS[state.segments[owners[i]].kind].colour;
+
+  // the column each pin controls, drawn as one band per group
+  const yCol = TICKS + BALL + GAP;
+  let runStart = 0;
+  for (let i = 1; i <= T; i++) {
+    if (i === T || owners[i] !== owners[runStart]) {
+      const c = colourAt(runStart);
+      const x0 = runStart * pitch, x1 = i * pitch;
+      if (c) { ctx.fillStyle = c; ctx.globalAlpha = 0.5; ctx.fillRect(x0, yCol, Math.max(1, x1 - x0), COLUMN); ctx.globalAlpha = 1; }
+      else {
+        ctx.fillStyle = "#fff"; ctx.fillRect(x0, yCol, Math.max(1, x1 - x0), COLUMN);
+        ctx.strokeStyle = "#D5DBDE"; ctx.lineWidth = 1;
+        ctx.strokeRect(x0 + 0.5, yCol + 0.5, Math.max(1, x1 - x0) - 1, COLUMN - 1);
+      }
+      // pin number at the start of each group, when it fits
+      if ((x1 - x0) > 28) {
+        ctx.font = "9px ui-monospace, Menlo, Consolas, monospace";
+        ctx.fillStyle = "#7C8993"; ctx.textAlign = "left"; ctx.textBaseline = "top";
+        ctx.fillText(String(runStart + 1), x0 + 2, 2);
+        ctx.strokeStyle = "#C9D1D5"; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(x0 + 0.5, 11); ctx.lineTo(x0 + 0.5, TICKS); ctx.stroke();
+      }
+      runStart = i;
+    }
+  }
+
+  // one ball per pin, or a solid line where they are too small to draw round
+  const yBall = TICKS + BALL / 2;
+  if (pitch >= 5) {
+    const r = Math.min(BALL, pitch) * 0.36;
+    for (let i = 0; i < T; i++) {
+      const c = colourAt(i);
+      ctx.beginPath();
+      ctx.arc(i * pitch + pitch / 2, yBall, r, 0, Math.PI * 2);
+      if (c) { ctx.fillStyle = c; ctx.fill(); }
+      else {
+        ctx.fillStyle = "#fff"; ctx.fill();
+        ctx.strokeStyle = "#9AA6AD"; ctx.lineWidth = 1; ctx.setLineDash([1.4, 1.4]);
+        ctx.stroke(); ctx.setLineDash([]);
+      }
+    }
+  } else {
+    for (let i = 0; i < T; i++) {
+      const c = colourAt(i);
+      ctx.fillStyle = c || "#E4E9EB";
+      ctx.fillRect(i * pitch, TICKS + 1, Math.max(0.6, pitch), BALL - 2);
+    }
+  }
+
+  boardGeom = { pitch, T, owners, W, H };
+  els("[data-bzoom]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.bzoom === boardZoom)));
+}
+
+els("[data-bzoom]").forEach(b => b.onclick = () => {
+  boardZoom = b.dataset.bzoom;
+  drawBoard();
+});
+
+let boardResizeTimer = null;
+window.addEventListener("resize", () => {
+  if (state.screen !== "loom") return;
+  clearTimeout(boardResizeTimer);
+  boardResizeTimer = setTimeout(drawBoard, 150);
+});
+
+function renderBoardLegend() {
+  const used = new Set(state.segments.map(s => s.kind));
+  let html = [...used].map(k =>
+    `<span><i style="background:${KINDS[k].colour}"></i>${KINDS[k].label}</span>`).join("");
+  if (totalPins() > allocated()) html += `<span><i class="hollow"></i>${UNALLOCATED.label}</span>`;
+  el("#boardLegend").innerHTML = html;
+}
+
+el("#boardHost").addEventListener("mousemove", e => {
+  if (!boardGeom) return;
+  const cv = el("#board"); if (!cv || e.target !== cv) return;
+  const rect = cv.getBoundingClientRect();
+  const i = Math.floor((e.clientX - rect.left) / boardGeom.pitch);
+  if (i < 0 || i >= boardGeom.T) return;
+  const oi = boardGeom.owners[i];
+  const seg = oi >= 0 ? state.segments[oi] : null;
+  let range = "";
+  if (seg) { let at = 0;
+    for (let k = 0; k < oi; k++) at += state.segments[k].count || 0;
+    range = ` · pins ${at + 1}–${at + (seg.count || 0)}`; }
+  el("#boardRead").textContent =
+    `pin ${i + 1} of ${boardGeom.T}` +
+    (seg ? ` · ${labelFor(state.segments, oi)}${range}` : ` · ${UNALLOCATED.label}`);
+});
+el("#boardHost").addEventListener("mouseleave", () => {
+  el("#boardRead").textContent = "One ball for each pin, in machine order. The band below each ball is the column that pin controls.";
+});
+
+function renderAlloc() {
+  const total = state.totalDeclared || 0, alloc = allocated();
+  const left = total - alloc;
+  let tag = "";
+  if (!total) tag = "";
+  else if (left > 0)  tag = `<span class="tag short">${left.toLocaleString()} left to allocate</span>`;
+  else if (left < 0)  tag = `<span class="tag over">${Math.abs(left).toLocaleString()} pins too many</span>`;
+  else                tag = `<span class="tag done">fully allocated</span>`;
+  el("#alloc").innerHTML =
+    `<span class="n">${alloc.toLocaleString()}</span>
+     <span class="of">of ${total ? total.toLocaleString() : "—"} pins in groups</span>
+     ${total ? `<span class="of">· ${state.segments.length} groups</span>` : ""}
+     ${tag}`;
+}
+
+function drawWeaveSwatch(cv, weave) {
+  if (!weave || !cv) return;
+  const w = weave.kind === "satin" ? weave.repeat : weave.width;
+  const h = weave.kind === "satin" ? weave.repeat : weave.height;
+  cv.width = w; cv.height = h;
+  const ctx = cv.getContext("2d");
+  if (!ctx) return;
+  const img = ctx.createImageData(w, h);
+  for (let y = 0; y < h; y++) {
+    const row = weaveRow(weave, w, y, false);
+    for (let x = 0; x < w; x++) {
+      const p = (y * w + x) * 4, c = row[x] ? 26 : 246;
+      img.data[p] = c; img.data[p + 1] = c; img.data[p + 2] = c; img.data[p + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+function renderWeaveLibrary() {
+  const host = el("#weaveList");
+  if (!state.weaves.length) {
+    host.innerHTML = `<div class="wl-empty">Nothing uploaded yet. The built-in satins and twills are always available in the Locking row.</div>`;
+    return;
+  }
+  host.innerHTML = `<div class="wl-grid">` + state.weaves.map(w => `
+    <div class="wl-item">
+      <canvas data-weave="${esc(w.id)}"></canvas>
+      <div style="flex:1;min-width:0">
+        <div class="nm">${esc(w.name)}</div>
+        <div class="sub">${w.width} pins × ${w.height} lines</div>
+        <button class="tiny ghost danger" data-act="delweave" data-id="${esc(w.id)}" style="margin-top:6px">Remove</button>
+      </div>
+    </div>`).join("") + `</div>`;
+  els("#weaveList canvas[data-weave]").forEach(cv => drawWeaveSwatch(cv, weaveById(cv.dataset.weave)));
+}
+
+el("#addWeave").onclick = async () => {
+  const name = el("#weaveName").value.trim();
+  const f = el("#weaveFile").files && el("#weaveFile").files[0];
+  if (!name) { alert("Give the weave a name first."); return; }
+  if (!f) { alert("Choose a BMP of the weave."); return; }
+  let img;
+  try { img = decodeBMP(await f.arrayBuffer()); }
+  catch (err) { alert("Could not read that file: " + err.message); return; }
+  if (img.width > 128 || img.height > 128) {
+    alert(`That is ${img.width} × ${img.height}. A weave should be one repeat, no more than 128 either way.`);
+    return;
+  }
+  if (state.weaves.some(w => w.name.toLowerCase() === name.toLowerCase()) &&
+      !confirm(`A weave called "${name}" already exists. Add another with the same name?`)) return;
+
+  state.weaves.push({ id: "w" + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36),
+                      name, pins: img.width, kind: "custom",
+                      width: img.width, height: img.height, bits: img.bits });
+  const kept = await persistWeaves();
+  el("#weaveName").value = ""; el("#weaveFile").value = "";
+  renderWeaveLibrary(); renderSegs();
+  notify(kept ? `Added "${name}" to the weave library.`
+                                      : `Added "${name}" for this session only.`);
+};
+
+el("#weaveList").addEventListener("click", async e => {
+  const t = e.target.closest("button[data-act=delweave]"); if (!t) return;
+  const w = weaveById(t.dataset.id); if (!w) return;
+  if (!confirm(`Remove "${w.name}" from the library?`)) return;
+  state.weaves = state.weaves.filter(x => x.id !== t.dataset.id);
+  state.segments.forEach(sg => { if (sg.weave === t.dataset.id) delete sg.weave; });
+  await persistWeaves();
+  state.built = null;
+  renderLoomScreen();
+});
+
+const CONTENT_NOTE = {
+  achu:        "generated",
+  box:         "generated from the wefts",
+  leftBorder:  "an uploaded file",
+  rightBorder: "an uploaded file",
+  body:        "the weft files",
+  empty:       "stays down"
+};
+
+function renderSegs() {
+  const host = el("#segTable");
+  if (!state.segments.length) {
+    host.innerHTML = `<div style="font-size:13px;color:var(--ink-3);padding:10px 0">
+      No groups yet. Add them in the order the pins run, or reset to the standard order.</div>`;
+    return;
+  }
+  const weaves = allWeaves();
+  let html = `<div class="seg-row head">
+    <div>#</div><div>Group</div><div>Content</div><div class="h-range">Pins</div><div>Count</div><div></div></div>`;
+  let at = 1;
+  state.segments.forEach((sg, i) => {
+    const from = at, to = at + (sg.count || 0) - 1; at += (sg.count || 0);
+    let content;
+    if (sg.kind === "locking") {
+      const chosen = weaveById(sg.weave);
+      content = `<div class="weave-cell">
+        <canvas data-rowweave="${sg.id}"></canvas>
+        <select data-act="weave" data-id="${sg.id}" style="flex:1">
+          <optgroup label="Satins and twills">
+            ${BUILTIN_WEAVES.map(w => `<option value="${esc(w.id)}" ${w.id===sg.weave?"selected":""}>${esc(w.name)} · ${w.pins} pins</option>`).join("")}
+          </optgroup>
+          ${state.weaves.length ? `<optgroup label="Your weaves">
+            ${state.weaves.map(w => `<option value="${esc(w.id)}" ${w.id===sg.weave?"selected":""}>${esc(w.name)} · ${w.pins} pins</option>`).join("")}
+          </optgroup>` : ""}
+          ${chosen ? "" : `<option value="" selected>— choose a weave —</option>`}
+        </select></div>`;
+    } else {
+      content = `<span class="content-note">${CONTENT_NOTE[sg.kind] || ""}</span>`;
+    }
+    html += `<div class="seg-row">
+      <div class="seg-idx">${i + 1}</div>
+      <div style="display:flex;align-items:center;gap:7px">
+        <span class="swatch" style="background:${KINDS[sg.kind].colour};margin:0"></span>
+        <select data-act="kind" data-id="${sg.id}" style="flex:1">
+          ${Object.keys(KINDS).map(k => `<option value="${k}" ${k === sg.kind ? "selected" : ""}>${KINDS[k].label}</option>`).join("")}
+        </select>
+      </div>
+      <div class="content-cell">${content}</div>
+      <div class="seg-range">${sg.count ? from + "–" + to : "—"}</div>
+      <div><input type="number" min="1" step="1" data-act="count" data-id="${sg.id}" value="${sg.count || ""}"></div>
+      <div class="seg-acts">
+        <button class="tiny ghost" data-act="up" data-id="${sg.id}" ${i === 0 ? "disabled" : ""} aria-label="Move up">↑</button>
+        <button class="tiny ghost" data-act="down" data-id="${sg.id}" ${i === state.segments.length - 1 ? "disabled" : ""} aria-label="Move down">↓</button>
+        <button class="tiny ghost danger" data-act="del" data-id="${sg.id}" aria-label="Remove">✕</button>
+      </div></div>`;
+  });
+  host.innerHTML = html;
+  els("#segTable canvas[data-rowweave]").forEach(cv => {
+    const sg = state.segments.find(x => x.id === cv.dataset.rowweave);
+    drawWeaveSwatch(cv, weaveById(sg && sg.weave));
+  });
+}
+
+function addSeg(kind) {
+  const left = (state.totalDeclared || 0) - allocated();
+  const suggested = (kind === "achu" || kind === "box") ? 4 : (left > 0 ? left : null);
+  state.segments.push({ id: nextId(), kind, count: suggested });
+  state.built = null; renderLoomScreen();
+}
+els("[data-add]").forEach(b => b.onclick = () => addSeg(b.dataset.add));
+
+el("#starter").onclick = () => {
+  if (state.segments.length && !confirm("Replace the current groups with the standard order?")) return;
+  applyDefaultLayout();
+  state.built = null; renderLoomScreen();
+};
+
+el("#restToBody").onclick = () => {
+  const left = (state.totalDeclared || 0) - allocated();
+  if (left <= 0) { alert("There are no spare pins to allocate."); return; }
+  const existing = state.segments.find(s => s.kind === "body");
+  if (existing) existing.count = (existing.count || 0) + left;
+  else state.segments.push({ id: nextId(), kind: "body", count: left });
+  state.built = null; renderLoomScreen();
+};
+
+el("#clearSegs").onclick = () => {
+  if (state.segments.length && !confirm("Remove every group?")) return;
+  state.segments = [];
+  state.borderFiles = {};
+  state.wefts = freshWefts();
+  state.built = null; renderLoomScreen();
+};
+
+el("#boxMotion").addEventListener("change", e => {
+  state.boxMotion = e.target.value;
+  state.built = null;
+});
+
+el("#totalDeclared").addEventListener("input", e => {
+  state.totalDeclared = Math.max(0, parseInt(e.target.value, 10) || 0);
+  state.built = null;
+  renderAlloc(); drawBoard(); renderBoardLegend(); renderLoomChecks();
+});
+
+el("#segTable").addEventListener("change", e => {
+  if (e.target.dataset && e.target.dataset.act === "weave") handleSegInput(e);
+});
+el("#segTable").addEventListener("input", handleSegInput);
+function handleSegInput(e) {
+  const t = e.target, act = t.dataset.act;
+  const s = state.segments.find(x => x.id === t.dataset.id); if (!s) return;
+  if (act === "count") {
+    s.count = Math.max(0, parseInt(t.value, 10) || 0);
+    state.built = null;
+    renderAlloc(); drawBoard(); renderBoardLegend(); renderLoomChecks();
+    els("#segTable .seg-range").forEach((cell, i) => {
+      let from = 1;
+      for (let j = 0; j < i; j++) from += state.segments[j].count || 0;
+      const c = state.segments[i].count || 0;
+      cell.textContent = c ? from + "–" + (from + c - 1) : "—";
+    });
+    return;
+  }
+  if (act === "weave") {
+    const w = weaveById(t.value);
+    if (w) { s.weave = w.id; s.count = w.pins; } else delete s.weave;
+    state.built = null;
+    renderLoomScreen();
+    return;
+  }
+  if (act === "kind") {
+    s.kind = t.value;
+    if (s.kind === "locking" && !s.weave) { s.weave = "satin:8:3"; s.count = 8; }
+    if (s.kind !== "locking") delete s.weave;
+    if (s.kind === "achu" && !s.count) s.count = 4;
+    if (s.kind === "box" && !s.count) s.count = 4;
+    delete state.borderFiles[s.id];
+    state.built = null; renderLoomScreen();
+  }
+}
+
+el("#segTable").addEventListener("click", e => {
+  const t = e.target.closest("button"); if (!t) return;
+  const { act, id } = t.dataset;
+  const i = state.segments.findIndex(x => x.id === id); if (i < 0) return;
+  if (act === "up" && i > 0) [state.segments[i-1], state.segments[i]] = [state.segments[i], state.segments[i-1]];
+  if (act === "down" && i < state.segments.length - 1) [state.segments[i+1], state.segments[i]] = [state.segments[i], state.segments[i+1]];
+  if (act === "del") { state.segments.splice(i, 1); delete state.borderFiles[id]; }
+  state.built = null; renderLoomScreen();
+});
+
+el("#loomName").addEventListener("input", e => { state.loomName = e.target.value; renderLoomChecks(); });
+
+function renderLoomChecks() {
+  const ok = renderChecksInto(el("#loomChecks"), validatePinMap(), "Pin map is consistent and saved. Continue to the weft files.");
+  el("#saveLoom").disabled = !ok;
+}
+
+function renderLoomScreen() {
+  el("#loomFormTitle").textContent = state.editing ? `Edit pins — ${state.editing}` : "Register a loom";
+  el("#loomName").value = state.loomName;
+  el("#totalDeclared").value = state.totalDeclared || "";
+  el("#boxMotion").value = state.boxMotion || "4x4";
+  renderAlloc(); drawBoard(); renderBoardLegend(); renderSegs(); renderWeaveLibrary(); renderLoomChecks(); renderSteps();
+}
+
+el("#cancelLoom").onclick = () => go("looms");
+
+el("#saveLoom").onclick = async () => {
+  if (validatePinMap().errs.length) return;
+  clearTimeout(saveTimer);
+  const name = state.loomName.trim();
+  const clash = state.looms.find(l => l.name === name && l.name !== state.editing);
+  if (clash && !confirm(`A loom called "${name}" already exists. Replace its pin map?`)) return;
+
+  const doc = pinMapDoc();
+  const prevIdx = state.looms.findIndex(l => l.name === (state.editing || name));
+  if (prevIdx >= 0) {
+    const prev = state.looms[prevIdx];
+    const changed = JSON.stringify(prev.segments) !== JSON.stringify(doc.segments) || prev.totalPins !== doc.totalPins;
+    doc.version = changed ? (prev.version || 1) + 1 : (prev.version || 1);
+    doc.history = (prev.history || []).concat(changed
+      ? [{ version: prev.version || 1, totalPins: prev.totalPins, segments: prev.segments, retiredAt: doc.savedAt }] : []);
+    doc.lastUsedAt = new Date().toISOString();
+    state.looms[prevIdx] = doc;
+  } else {
+    doc.lastUsedAt = new Date().toISOString();
+    state.looms.push(doc);
+  }
+  state.version = doc.version;
+  state.editing = doc.name;
+  state.activeName = doc.name;
+
+  const persisted = await persistLooms();
+  await persistSession();
+  setSaveState("saved");
+  notify(persisted
+    ? `Saved "${doc.name}" as version ${doc.version}.`
+    : `Saved "${doc.name}" for this session only — back it up to keep it.`);
+  go("job");
+};
+
+/* ============================================================
+   Screen 03 — weft files
+   ============================================================ */
+
+function banner(hostSel) {
+  const host = el(hostSel);
+  if (!state.segments.length) { host.innerHTML = `<div class="mt">No loom selected</div>`; return; }
+  host.innerHTML = `<div class="top">
+      <span class="nm">${esc(state.loomName || "Unsaved loom")}</span>
+      <span class="mt">${totalPins().toLocaleString()} pins · box ${esc(state.boxMotion || "4x4")} · version ${state.version}</span>
+    </div>${miniRuler(state.segments, state.totalDeclared)}`;
+}
+
+function drawThumb(cv, f, maxW) {
+  const step = Math.max(1, Math.ceil(f.width / maxW));
+  const w = Math.ceil(f.width / step), h = Math.ceil(f.height / step);
+  cv.width = w; cv.height = h;
+  const ctx = cv.getContext("2d");
+  const img = ctx.createImageData(w, h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const v = f.bits[Math.min(f.height - 1, y * step) * f.width + Math.min(f.width - 1, x * step)];
+      const p = (y * w + x) * 4, c = v ? 20 : 255;
+      img.data[p] = c; img.data[p+1] = c; img.data[p+2] = c; img.data[p+3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+function slotHTML(cls, title, sub, target, key, f, expected) {
+  let state_ = cls, meta = sub, thumb = "";
+  if (f && f.error) { state_ += " bad"; meta = f.error; }
+  else if (f) {
+    const bad = f.width !== expected;
+    state_ += bad ? " bad" : " filled";
+    meta = `${f.width} × ${f.height}${f.rotated ? " · turned to fit" : ""}${bad ? ` — needs ${expected} wide` : ""} · ${f.name}`;
+    thumb = `<div class="thumb"><canvas data-thumb="${target}|${key}"></canvas></div>`;
+  }
+  return `<div class="${state_}">
+    <div class="body">
+      <div class="name">${esc(title)}</div>
+      <input type="file" accept=".bmp,image/bmp,image/*" data-act="file" data-target="${target}" data-key="${key}">
+      <div class="meta ${f && (f.error || f.width !== expected) ? "err" : ""}">${esc(meta)}</div>
+    </div>${thumb}</div>`;
+}
+
+function renderBorderSlots() {
+  const host = el("#borderHost"), slots = borderSlots();
+  if (!slots.length) {
+    host.innerHTML = `<div style="font-size:13px;color:var(--ink-3)">This loom has no border group in its pin map.</div>`;
+    return;
+  }
+  host.innerHTML =
+    `<div style="font-size:12.5px;color:var(--ink-3);margin-bottom:10px">
+       Optional. Leave a border empty and its pins stay blank.</div>
+     <div class="slot-grid">` + slots.map(({ s, i }) =>
+    slotHTML("slot", `${labelFor(state.segments, i)} · ${s.count} pins`,
+             `optional · ${s.count}-pin wide BMP`, "border", s.id, state.borderFiles[s.id], s.count)
+  ).join("") + `</div>`;
+}
+
+function renderBodySlots() {
+  const host = el("#bodyHost"), bodies = bodySlots();
+  if (!bodies.length) {
+    host.innerHTML = `<div style="font-size:13px;color:var(--ink-3)">This loom has no Body group in its pin map.</div>`;
+    return;
+  }
+  const count = bodies[0].s.count;
+  host.innerHTML =
+    `<div style="font-size:12.5px;color:var(--ink-3);margin-bottom:10px">
+       Body is ${count} pins wide. Load one file per weft — the number you load sets the box pattern.</div>
+     <div class="slot-grid">` +
+    state.wefts.map((w, i) => `<div class="weftslot">
+        <div class="weftname">
+          <span class="layer-tag">${i + 1}</span>
+          <input type="text" data-act="wname" data-key="${w.id}" value="${esc(w.name)}" placeholder="weft name">
+        </div>
+        ${slotHTML("slot", `${esc(w.name || "Weft " + (i + 1))} · ${count} pins`,
+                   `needs a ${count}-pin wide BMP`, "weft", w.id, w.file, count)}
+      </div>`).join("") + `</div>`;
+}
+
+function renderFileThumbs() {
+  els("canvas[data-thumb]").forEach(cv => {
+    const [target, key] = cv.dataset.thumb.split("|");
+    const f = target === "border" ? state.borderFiles[key] : (state.wefts.find(w => w.id === key) || {}).file;
+    if (f && f.bits) drawThumb(cv, f, 58);
+  });
+}
+
+function renderBoxEditor() {
+  const host = el("#boxEditor");
+  const boxSeg = state.segments.find(x => x.kind === "box" && x.count > 0);
+  const wefts = filledWefts();
+  if (!boxSeg || !wefts.length) { host.innerHTML = ""; return; }
+  const n = boxSeg.count, K = wefts.length;
+
+  const rows = wefts.map((wf, i) => {
+    const pat = weftBoxPattern(wf, n, i, K);
+    const custom = hasCustomBox(wf, n);
+    return `<div class="boxrow">
+      <span class="who">${esc(wf.name || "Weft " + (i + 1))}</span>
+      <div class="pinstrip">
+        ${Array.from(pat).map((v, x) =>
+          `<button data-boxpin="${wf.id}" data-i="${x}" aria-pressed="${!!v}"
+             title="pin ${x + 1} — click to change" aria-label="box pin ${x + 1}"></button>`).join("")}
+      </div>
+      <div class="presets">
+        <button class="tiny ghost" data-boxset="${wf.id}" data-p="all">all</button>
+        <button class="tiny ghost" data-boxset="${wf.id}" data-p="first">first</button>
+        <button class="tiny ghost" data-boxset="${wf.id}" data-p="second">second</button>
+        <button class="tiny ghost" data-boxset="${wf.id}" data-p="none">none</button>
+      </div>
+      <span class="tag">${custom ? "yours" : "standard"}</span>
+    </div>`;
+  }).join("");
+
+  host.innerHTML = `<div class="boxed">
+    <div class="bh">
+      <span class="cap" style="margin:0">Box pins</span>
+      <span class="bn">${n} pins. Click a pin to turn it on or off for that weft — changes are remembered for next time.${
+        K >= 3 ? " Over plain ground the box stays white whatever is set here." : ""}</span>
+    </div>
+    ${rows}
+    <div class="btn-row" style="margin-top:12px">
+      <button class="ghost" id="boxReset">Back to the standard pattern</button>
+    </div>
+  </div>`;
+}
+
+el("#boxEditor").addEventListener("click", e => {
+  const boxSeg = state.segments.find(x => x.kind === "box" && x.count > 0);
+  if (!boxSeg) return;
+  const n = boxSeg.count, wefts = filledWefts(), K = wefts.length;
+
+  const remember = (wf, pattern) => {
+    wf.box = pattern;
+    state.boxPrefs[boxPrefKey(wf, n)] = pattern;
+    persistBoxPrefs();
+    state.built = null;
+    renderJobScreen();
+  };
+
+  const pin = e.target.closest("button[data-boxpin]");
+  if (pin) {
+    const wf = state.wefts.find(x => x.id === pin.dataset.boxpin); if (!wf) return;
+    const i = wefts.indexOf(wf);
+    const pat = Array.from(weftBoxPattern(wf, n, i, K));
+    const at = parseInt(pin.dataset.i, 10);
+    pat[at] = pat[at] ? 0 : 1;
+    remember(wf, pat.join(""));
+    return;
+  }
+  const preset = e.target.closest("button[data-boxset]");
+  if (preset) {
+    const wf = state.wefts.find(x => x.id === preset.dataset.boxset); if (!wf) return;
+    const half = Math.ceil(n / 2);
+    const p = preset.dataset.p;
+    let pat = new Array(n).fill(0);
+    if (p === "all") pat.fill(1);
+    else if (p === "first") for (let i = 0; i < half; i++) pat[i] = 1;
+    else if (p === "second") for (let i = half; i < n; i++) pat[i] = 1;
+    remember(wf, pat.join(""));
+    return;
+  }
+  if (e.target.closest("#boxReset")) {
+    state.wefts.forEach(wf => {
+      delete wf.box;
+      delete state.boxPrefs[boxPrefKey(wf, n)];
+    });
+    persistBoxPrefs();
+    state.built = null; renderJobScreen();
+    notify("Box pins back to the standard pattern.");
+  }
+});
+
+function renderChips() {
+  const host = el("#boxChips");
+  const boxSeg = state.segments.find(s => s.kind === "box");
+  const achuSeg = state.segments.find(s => s.kind === "achu");
+  const wefts = filledWefts();
+  let html = "";
+
+  const lockSeg = state.segments.find(s => s.kind === "locking" && s.count > 0);
+  if (lockSeg) {
+    const lw = weaveById(lockSeg.weave);
+    const n = lockSeg.count;
+    const rows = Math.min(lw && lw.kind === "custom" ? lw.height : n, 16);
+    html += `<div class="chip"><div class="cap">Locking · ${esc(lw ? lw.name : "satin")}</div>
+      <div class="cells stack">${Array.from({ length: rows }, (_, r) => {
+        const rr = weaveRow(lw, n, r, state.opts.satinWarpFaced);
+        return `<div class="cells">${[...rr].map(v => `<span class="cell ${v ? "up" : ""}"></span>`).join("")}</div>`;
+      }).join("")}</div>${n > rows ? `<div class="cap" style="margin:5px 0 0">first ${rows} of ${n} lines</div>` : ""}</div>`;
+  }
+  if (achuSeg && achuSeg.count && achuSeg.count % 2 === 0) {
+    const a = achuRow(achuSeg.count, 0, state.opts.achuStartsBlack);
+    const b = achuRow(achuSeg.count, 1, state.opts.achuStartsBlack);
+    html += `<div class="chip"><div class="cap">Achu · two lines</div>
+      <div class="cells stack">
+        <div class="cells">${[...a].map(v => `<span class="cell ${v ? "up" : ""}"></span>`).join("")}</div>
+        <div class="cells">${[...b].map(v => `<span class="cell ${v ? "up" : ""}"></span>`).join("")}</div>
+      </div></div>`;
+  }
+  host.innerHTML = html;
+}
+
+el("#clearFiles").onclick = () => {
+  if (!Object.keys(state.borderFiles).length && !state.wefts.some(w => w.file)) return;
+  if (!confirm("Remove every loaded file?")) return;
+  state.borderFiles = {};
+  state.wefts = freshWefts();
+  state.built = null;
+  renderJobScreen();
+};
+
+el("#bodyHost").addEventListener("input", e => {
+  const t = e.target;
+  if (t.dataset.act !== "wname") return;
+  const w = state.wefts.find(x => x.id === t.dataset.key);
+  if (w) { w.name = t.value; renderChips(); }
+});
+
+async function readInto(t) {
+  const file = t.files && t.files[0];
+  if (!file) return;
+  let rec;
+  try {
+    const img = decodeBMP(await file.arrayBuffer());
+    rec = { name: file.name, width: img.width, height: img.height, bits: img.bits, offTone: img.offTone > 0 };
+  } catch (err) {
+    rec = { name: file.name, error: err.message };
+  }
+  if (t.dataset.target === "border") {
+    const seg = state.segments.find(x => x.id === t.dataset.key);
+    if (state.opts.autoRotate && seg) rec = fitToPins(rec, seg.count);
+    state.borderFiles[t.dataset.key] = rec;
+  } else {
+    const body = bodySlots()[0];
+    if (state.opts.autoRotate && body) rec = fitToPins(rec, body.s.count);
+    const w = state.wefts.find(x => x.id === t.dataset.key);
+    if (w) w.file = rec;
+  }
+  state.built = null;
+  renderJobScreen();
+  scheduleSave();
+}
+
+el("#borderHost").addEventListener("change", e => {
+  if (e.target.dataset.act === "file") readInto(e.target);
+});
+el("#bodyHost").addEventListener("change", e => {
+  if (e.target.dataset.act === "file") readInto(e.target);
+});
+
+el("#combine").onclick = () => {
+  if (validateJob().errs.length) return;
+  try {
+    state.built = compose();
+    go("build");
+    const pv = el("#pvWrap");
+    if (pv) pv.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  } catch (err) { alert("Could not combine the files: " + err.message); }
+};
+
+function renderJobScreen() {
+  if (!state.wefts.length) state.wefts = freshWefts();
+  banner("#jobBanner");
+  renderBorderSlots(); renderBodySlots(); renderFileThumbs(); renderBoxEditor(); renderChips();
+  el("#combine").disabled = !renderChecksInto(el("#jobChecks"), validateJob(),
+    "Every file matches its group. Combine them.");
+  renderSteps();
+}
+
+/* ============================================================
+   Screen 04 — build
+   ============================================================ */
+
+const OPTS = [
+  { key: "stackMode", cap: "How body wefts combine", a: ["interleave", "A line each, in turn"], b: ["overlay", "Merged onto one line"],
+    why: "A line each is how the loom lays weft: menna, then rani, then zari, each its own pick. Merging puts them all on one line, which halves the file height but loses which shuttle laid what." },
+  { key: "autoRotate", cap: "Sideways design files", a: [true, "Turn them to fit"], b: [false, "Use as given"],
+    why: "Many designs are drawn with the pins running down the file. When a file only fits the pin count on its side, it is turned a quarter turn anticlockwise." },
+  { key: "weavePerDesignLine", cap: "Generated weaves step", a: [true, "Once per design line"], b: [false, "On every pick"],
+    why: "Stepping with the design line means each weft file carries the whole weave. Stepping on every pick spreads one weave across all the wefts, so no single shuttle sees it whole." },
+  { key: "satinWarpFaced", cap: "Locking satin", a: [false, "One pin up per line"], b: [true, "One pin down per line"],
+    why: "The satin puts a single interlacing on each line, stepped along the locking pins. Flip if yours reads the other way round." },
+  { key: "boxWholeBand", cap: "Box over a butta band", a: [true, "Hold across the whole band"], b: [false, "Only lines with figure"],
+    why: "A butta with a hole in it is still one butta, so the box holds across small gaps. A gap longer than the butta either side of it ends the band." },
+  { key: "achuOnBody", cap: "Achu weave on the body", a: [false, "Leave the body alone"], b: [true, "Fill the gaps with achu"],
+    why: "Off by default: the body carries only what the weft files put there. Turn it on to fill whatever the design leaves down with the achu weave, when no border file is loaded." },
+  { key: "achuStartsBlack", cap: "Achu first line", a: [true, "Up half first"], b: [false, "Down half first"],
+    why: "Flip if the achu comes out reversed against your usual file." },
+  { key: "pinOneLeft", cap: "Pin 1 sits", a: [true, "Left edge"], b: [false, "Right edge"],
+    why: "Mirrors every line. Check the border lands on the correct side." },
+  { key: "topRowFirstPick", cap: "Top line of the file", a: [true, "First pick"], b: [false, "Last pick"],
+    why: "Flip if the design weaves upside down." },
+  { key: "blackIsIndexZero", cap: "Black is saved as", a: [true, "Colour 0"], b: [false, "Colour 1"],
+    why: "Identical on screen. Flip only if the controller reads the file inverted." }
+];
+
+function renderOpts() {
+  el("#opts").innerHTML = OPTS.map(o => {
+    const v = state.opts[o.key];
+    return `<div class="opt">
+      <div class="cap">${o.cap}</div>
+      <div class="seg-toggle">
+        <button data-act="opt" data-key="${o.key}" data-val="${o.a[0]}" aria-pressed="${String(v) === String(o.a[0])}">${o.a[1]}</button>
+        <button data-act="opt" data-key="${o.key}" data-val="${o.b[0]}" aria-pressed="${String(v) === String(o.b[0])}">${o.b[1]}</button>
+      </div>
+      <div class="why">${o.why}</div></div>`;
+  }).join("");
+}
+
+el("#opts").addEventListener("click", e => {
+  const t = e.target.closest("button"); if (!t || t.dataset.act !== "opt") return;
+  const raw = t.dataset.val;
+  state.opts[t.dataset.key] = raw === "true" ? true : raw === "false" ? false : raw;
+  state.built = null;
+  renderOpts(); renderPreview(); renderBuildScreen();
+});
+
+const REGION_COLOUR = {
+  1: [46,58,69],    // box
+  2: [31,78,107],   // left border
+  3: [62,122,143],  // right border
+  4: [160,124,34],  // achu
+  5: [122,78,134],  // locking
+  6: [82,115,126],  // body
+  7: [185,195,200], // empty
+  8: [235,240,242]  // not allocated
+};
+let pvStep = 1;
+
+function renderSummary() {
+  const host = el("#buildSummary");
+  const K = filledWefts().length;
+  const ref = anyFile();
+  const H = ref ? ref.height : 0;
+  const perShuttle = (state.opts.stackMode === "interleave" && state.boxMotion === "2x1") ? 2 : 1;
+  const lines = !H ? 0 : (state.opts.stackMode === "overlay" ? H : H * Math.max(1, K));
+  const lockSeg = state.segments.find(x => x.kind === "locking");
+  const lw = lockSeg ? weaveById(lockSeg.weave) : null;
+  const cell = (k, v, sm) => `<div class="cell"><div class="k">${k}</div><div class="v${sm ? " sm" : ""}">${v}</div></div>`;
+  host.innerHTML = `<div class="grid">
+    ${cell("Pins",       totalPins().toLocaleString())}
+    ${cell("Lines",      lines ? lines.toLocaleString() : "—")}
+    ${cell("Body wefts", K || "—")}
+    ${cell("Box motion", esc(state.boxMotion || "4x4"), true)}
+    ${cell("Per shuttle", perShuttle === 2 ? "2 lines" : "1 line", true)}
+    ${cell("Locking",    lw ? esc(lw.name) : "—", true)}
+  </div>`;
+}
+
+function renderPreview() {
+  const b = state.built, wrap = el("#pvWrap");
+  if (!b) { wrap.hidden = true; el("#download").disabled = true; return; }
+  wrap.hidden = false;
+
+  pvStep = Math.max(1, Math.ceil(Math.sqrt((b.width * b.height) / 12e6)));
+  const w = Math.ceil(b.width / pvStep), h = Math.ceil(b.height / pvStep);
+
+  const cv = el("#pv"), ctx = cv.getContext("2d");
+  cv.width = w; cv.height = h;
+  const img = ctx.createImageData(w, h);
+  for (let y = 0; y < h; y++) {
+    const sy = Math.min(b.height - 1, y * pvStep);
+    for (let x = 0; x < w; x++) {
+      const sx = Math.min(b.width - 1, x * pvStep);
+      const p = (y * w + x) * 4;
+      let r, g, bl;
+      if (b.bits[sy * b.width + sx]) {
+        if (state.pvColour) [r, g, bl] = REGION_COLOUR[b.region[sx]] || [20,24,28];
+        else r = g = bl = 0;
+      } else r = g = bl = 255;
+      img.data[p] = r; img.data[p+1] = g; img.data[p+2] = bl; img.data[p+3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  applyZoom();
+
+  el("#pvDims").textContent =
+    `${b.width} pins × ${b.height} lines · ${b.weftCount} weft ${b.overlay ? "merged" : "× " + b.designHeight + " lines"}` +
+    (pvStep > 1 ? ` · preview reduced ${pvStep}×` : "");
+  el("#pvMode").setAttribute("aria-pressed", String(state.pvColour));
+  el("#pvMode").textContent = state.pvColour ? "True black & white" : "Colour groups";
+
+  const used = new Set(state.segments.map(s => s.kind));
+  el("#pvLegend").innerHTML = !state.pvColour ? "" :
+    [...used].map(k => `<span><i style="background:${KINDS[k].colour};border-radius:0"></i>${KINDS[k].label}</span>`).join("");
+  el("#download").disabled = false;
+}
+
+function applyZoom() {
+  const cv = el("#pv");
+  if (state.zoom === "fit") { cv.style.width = "100%"; cv.style.height = "auto"; }
+  else {
+    const f = parseFloat(state.zoom);
+    cv.style.width = (cv.width * f) + "px";
+    cv.style.height = (cv.height * f) + "px";
+  }
+}
+
+els("[data-zoom]").forEach(btn => btn.onclick = () => { state.zoom = btn.dataset.zoom; applyZoom(); });
+el("#pvMode").onclick = () => { state.pvColour = !state.pvColour; renderPreview(); };
+
+el("#pv").addEventListener("mousemove", e => {
+  const b = state.built; if (!b) return;
+  const cv = e.currentTarget, r = cv.getBoundingClientRect();
+  const x = Math.floor(((e.clientX - r.left) / r.width) * cv.width) * pvStep;
+  const y = Math.floor(((e.clientY - r.top) / r.height) * cv.height) * pvStep;
+  if (x < 0 || y < 0 || x >= b.width || y >= b.height) return;
+  const segIdx = b.regionSeg[x];
+  const seg = segIdx >= 0 ? state.segments[segIdx] : null;
+  const wname = (b.weftNames || [])[b.rowWeft[y]];
+  el("#inspector").textContent =
+    `pin ${x + 1} · line ${y + 1} · ${b.bits[y * b.width + x] ? "up" : "down"}` +
+    ` · ${seg ? labelFor(state.segments, segIdx) : UNALLOCATED.label}` +
+    (b.overlay ? ` · ${b.weftCount} weft merged` : ` · weft ${wname || (b.rowWeft[y] + 1)}`) +
+    ` · design line ${b.rowDesign[y] + 1}`;
+});
+el("#pv").addEventListener("mouseleave", () => {
+  el("#inspector").textContent = "Point at the picture to read the pin and line under the cursor.";
+});
+
+el("#build").onclick = () => {
+  if (validateJob().errs.length) return;
+  try {
+    state.built = compose();
+    renderPreview();
+    el("#pvWrap").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  } catch (err) { alert("Could not build the file: " + err.message); }
+};
+
+el("#download").onclick = () => {
+  const b = state.built; if (!b) return;
+  const bytes = encodeBMP1(b.bits, b.width, b.height, state.opts.blackIsIndexZero);
+  const safe = (state.loomName || "loom").replace(/[^A-Za-z0-9_-]+/g, "_").replace(/^_|_$/g, "");
+  const url = URL.createObjectURL(new Blob([bytes], { type: "image/bmp" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${safe}_${b.width}pins_${b.weftCount}weft_${state.boxMotion || "4x4"}_${b.height}.bmp`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+};
+
+function renderBuildScreen() {
+  banner("#buildBanner");
+  renderSummary();
+  el("#build").disabled = !renderChecksInto(el("#checksHost"), validateJob(), "Pin map and files agree.");
+  renderSteps();
+}
+
+/* ============================================================
+   Autosave triggers — every click, edit and choice
+   ============================================================ */
+
+["click", "input", "change"].forEach(evt =>
+  document.addEventListener(evt, e => {
+    if (el("#app").hidden) return;                  // nothing to save behind the sign-in screen
+    if (e.target && e.target.type === "file") return;
+    scheduleSave();
+  }, true)
+);
+
+window.addEventListener("beforeunload", () => {
+  clearTimeout(saveTimer);
+  if (!hasStore) return;
+  try { window.storage.set(SESSION_KEY(), JSON.stringify(sessionDoc())); } catch {}
+});
+
+/* ============================================================
+   Router
+   ============================================================ */
+
+const SCREENS = { looms: "#sc-looms", loom: "#sc-loom", job: "#sc-job", build: "#sc-build" };
+
+function canGo(name) {
+  if (name === "looms") return true;
+  if (name === "loom")  return state.segments.length > 0 || state.editing !== null || state.screen === "loom";
+  if (name === "job")   return state.segments.length > 0 && state.loomName.trim() !== "" && !!state.totalDeclared;
+  if (name === "build") return canGo("job") && !!state.built;
+  return false;
+}
+
+function renderSteps() {
+  els("nav.steps button").forEach(b => {
+    const n = b.dataset.go;
+    b.setAttribute("aria-current", String(state.screen === n));
+    b.disabled = !canGo(n) && state.screen !== n;
+  });
+  el("#activeLoom").innerHTML = (state.activeName || state.loomName)
+    ? `<div class="nm">${esc(state.activeName || state.loomName)}</div>
+       <div class="sub">${totalPins().toLocaleString()} pins · ${filledWefts().length} weft</div>`
+    : `<div class="sub">no loom in use</div>`;
+}
+
+function go(name) {
+  state.screen = name;
+  Object.entries(SCREENS).forEach(([k, sel]) => { el(sel).hidden = k !== name; });
+  if (name === "looms") renderLoomList();
+  if (name === "loom")  renderLoomScreen();
+  if (name === "job")   renderJobScreen();
+  if (name === "build") { renderOpts(); renderBuildScreen(); renderPreview(); }
+  renderSteps();
+  window.scrollTo(0, 0);
+}
+
+el("#steps").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b || b.disabled) return;
+  go(b.dataset.go);
+});
+
+/* ============================================================
+   Start
+   ============================================================ */
+
+// Anything saved before accounts existed belongs to this device.
+async function migrateUnscoped() {
+  if (!hasStore) return;
+  for (const [oldKey, newKey] of [["pinmap:looms", keyFor("looms")],
+                                  ["pinmap:weaves", keyFor("weaves")],
+                                  ["pinmap:boxprefs", keyFor("boxprefs")],
+                                  ["pinmap:session", keyFor("session")]]) {
+    try {
+      const cur = await window.storage.get(newKey).catch(() => null);
+      if (cur && cur.value) continue;
+      const old = await window.storage.get(oldKey);
+      if (old && old.value) await window.storage.set(newKey, old.value);
+    } catch {}
+  }
+}
+
+async function enterApp() {
+  el("#gate").hidden = true;
+  el("#app").hidden = false;
+  if (state.accountKey === "local") await migrateUnscoped();
+  await loadLooms();
+  await loadWeaves();
+  await loadBoxPrefs();
+  await loadSession();
+  setSaveState(hasStore ? "saved" : "off");
+  renderWhoami();
+  renderOpts();
+  go(state.segments.length && state.loomName.trim() ? "loom" : "looms");
+}
+
+el("#signInGoogle").onclick = signInWithGoogle;
+el("#signInLocal").onclick = signInLocal;
+el("#clientId").addEventListener("input", () => { gateMsg(""); });
+
+(async function start() {
+  if (!hasStore) {
+    el("#gateMsg").className = "gate-msg plain";
+    el("#gateMsg").textContent = "Nothing can be kept between visits here, so whichever you choose, back up your work before you close the page.";
+  }
+  el("#clientId").value = await savedClientId();
+  const known = await loadAccount();
+  if (known) { await enterApp(); return; }
+  el("#gate").hidden = false;
+  el("#app").hidden = true;
+})();
+</script>

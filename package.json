@@ -1,0 +1,17 @@
+{
+  "name": "pinmap",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Register a jacquard loom once, then lay weft designs onto its pins and build the file the machine reads.",
+  "type": "module",
+  "scripts": {
+    "test": "node tests/extract.mjs && node tests/run.mjs",
+    "test:logic": "node tests/extract.mjs && node tests/run.mjs logic",
+    "test:ui": "node tests/run.mjs ui",
+    "dev": "npx --yes serve ."
+  },
+  "devDependencies": {
+    "jsdom": "^24.0.0"
+  },
+  "engines": { "node": ">=18" }
+}
