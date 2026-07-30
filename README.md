@@ -84,20 +84,79 @@ checked by the page itself and anyone can walk past it with a browser console.
 Locking people out needs a server that verifies the Google token — the same
 server you would need to sync looms between machines.
 
-It also **does not sync**. Looms live in the browser's storage on that machine.
-The same account on a different machine opens an empty drawer. Use **Back up
-everything** to move them, or add a hosted store when you need real sync.
+By itself it **does not sync** — see *Keeping looms with the account* below to
+turn that on.
 
 **Use this device only** skips all of it and works identically offline. Do not
 make signing in the only way in.
 
 ---
 
+## Keeping looms with the account
+
+Out of the box the library lives on the machine, so the same account on a
+different machine opens an empty drawer. Fill in the Firebase details in the
+`<meta>` tags at the top of `index.html` and the library follows the account
+instead.
+
+### Setting it up
+
+1. [console.firebase.google.com](https://console.firebase.google.com) → **Add
+   project**. Pick the **existing Google Cloud project** you made the OAuth
+   client in, so the two share an identity.
+2. **Build → Firestore Database → Create database.** Production mode is right;
+   the rules below replace the defaults.
+3. **Authentication → Sign-in method → Google → Enable.**
+4. Still in Authentication, open **Settings → Authorised domains** and add
+   `pinmap-gilt.vercel.app`.
+5. **Project settings → Your apps → Web app.** Register one and copy the
+   `apiKey`, `projectId` and `authDomain` into the meta tags:
+
+```html
+<meta name="pinmap-firebase-api-key" content="AIza…">
+<meta name="pinmap-firebase-project-id" content="pinmap-504017">
+<meta name="pinmap-firebase-auth-domain" content="pinmap-504017.firebaseapp.com">
+```
+
+6. Paste these Firestore rules under **Firestore → Rules** and publish:
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /libraries/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}
+```
+
+Those rules are what keep accounts apart. The API key in the page is not a
+secret — Firebase keys identify the project, they do not grant access. The rules
+do that.
+
+### How syncing behaves
+
+The device is always written to first, so the app keeps working with the
+internet down; the shared copy catches up afterwards. When the two meet they are
+**merged**, not overwritten:
+
+- looms are matched by name, and the newer save wins
+- a loom deleted on one machine stays deleted, rather than returning from the other
+- weave libraries are matched by id and combined
+- box settings from both sides are kept, and the newer side wins any clash
+
+A dot in the header shows *synced*, *syncing* or *not synced*.
+
+Leave the meta tags empty and none of this loads. The app behaves exactly as it
+did before, keeping everything on the machine.
+
 ## Where the data lives
 
 | What | Kept in |
 | --- | --- |
 | Looms, weaves, box settings, session | Browser storage, scoped per account |
+| The same, shared between machines | Firestore, if configured — see above |
 | Backups | `pinmap_backup_YYYY-MM-DD.json`, written by *Back up everything* |
 | Uploaded design files | Not kept — reselect them after a reload |
 

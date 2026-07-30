@@ -35,6 +35,7 @@ const slice = (from, to) => {
 };
 
 const constants = slice("const KINDS", "let uid = 0;");
+const merging  = slice("function newerOf(", BANNER("The shared store"));
 const helpers   = slice("const allocated =", BANNER("BMP decoding"));
 const core      = slice(BANNER("BMP decoding"), BANNER("Validation"));
 
@@ -56,11 +57,12 @@ export {
   rotateCCW, fitToPins,
   SATIN_LIBRARY, BUILTIN_WEAVES, allWeaves, weaveById, weaveRow, satinName,
   BOX_TABLE, compose, state, KINDS, DEFAULT_LAYOUT, labelFor,
+  mergeLibraries, newerOf,
   freshWefts, filledWefts, borderSlots, bodySlots,
   WEFT_SLOTS, WEFT_NAMES, totalPins, allocated
 };
 `;
 
-const out = constants + stub + helpers + core + exports;
+const out = constants + stub + helpers + core + merging + exports;
 fs.writeFileSync(path.join(here, "core.mjs"), out);
 console.log(`extracted ${out.length.toLocaleString()} characters to tests/core.mjs`);

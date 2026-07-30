@@ -10,6 +10,18 @@
      ───────────────────────────────────────────────────────────── -->
 <meta name="pinmap-google-client-id" content="858656439666-2kti6bhpdoq6kpb0jp82ho3mk619nffo.apps.googleusercontent.com">
 
+<!-- ─────────────────────────────────────────────────────────────
+     Fill these in to keep looms with the account rather than the
+     machine. Take them from the Firebase console, Project settings,
+     "Your apps", web app. Leave them empty and the app works exactly
+     as before, keeping everything on this device.
+     These values are meant to be public; Firestore rules are what
+     stop one account reading another's.
+     ───────────────────────────────────────────────────────────── -->
+<meta name="pinmap-firebase-api-key" content="">
+<meta name="pinmap-firebase-project-id" content="">
+<meta name="pinmap-firebase-auth-domain" content="">
+
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pinmap — jacquard file builder</title>
 <style>
@@ -262,6 +274,16 @@
     justify-content: flex-end; padding-bottom: 2px;
   }
   .savestate i { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); display: inline-block; }
+  .syncstate {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--ink-3); display: flex; align-items: center; gap: 6px; flex-basis: 100%;
+    justify-content: flex-end;
+  }
+  .syncstate:empty { display: none; }
+  .syncstate i { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); display: inline-block; }
+  .syncstate.busy i { background: var(--c-achu); }
+  .syncstate.off i { background: var(--meena); }
+  @media (max-width: 780px) { .syncstate { justify-content: flex-start; } }
   .savestate.pending i { background: var(--c-achu); }
   .savestate.off i { background: var(--ink-3); }
   @media (max-width: 780px) { .savestate { justify-content: flex-start; } }
@@ -447,7 +469,9 @@
       </div>
       <div class="activeloom" id="activeLoom"></div>
       <div class="savestate" id="saveState" aria-live="polite"></div>
-      <div class="whoami" id="whoami" style="flex-basis:100%;justify-content:flex-end"></div>
+      <div class="whoami" id="whoami" style="flex-basis:100%;justify-content:flex-end">
+      </div>
+      <div class="syncstate" id="syncState" aria-live="polite"></div>
     </div>
     <nav class="steps" id="steps">
       <button data-go="looms"><span class="no">01</span>Looms</button>
@@ -697,6 +721,8 @@ const state = {
   looms: [],
   weaves: [],
   boxPrefs: {},
+  graveyard: [],
+  libraryUpdatedAt: "",
   editing: null,
   loomName: "",
   totalDeclared: 0,
@@ -1350,6 +1376,7 @@ const keyFor = (name) => `pinmap:${state.accountKey || "local"}:${name}`;
 let memLooms = [];
 let memWeaves = [];
 let memBoxPrefs = {};
+let memGraveyard = [];
 const LOOMS_KEY = () => keyFor("looms");
 
 async function loadLooms() {
@@ -1371,6 +1398,20 @@ async function persistLooms() {
 }
 
 const BOXPREFS_KEY = () => keyFor("boxprefs");
+const GRAVEYARD_KEY = () => keyFor("graveyard");
+
+async function loadGraveyard() {
+  if (hasStore) {
+    try { const r = await window.storage.get(GRAVEYARD_KEY()); state.graveyard = r && r.value ? JSON.parse(r.value) : []; return; }
+    catch { state.graveyard = []; return; }
+  }
+  state.graveyard = memGraveyard;
+}
+async function persistGraveyard() {
+  memGraveyard = state.graveyard;
+  if (hasStore) { try { await window.storage.set(GRAVEYARD_KEY(), JSON.stringify(state.graveyard)); return true; } catch { return false; } }
+  return false;
+}
 
 async function loadBoxPrefs() {
   if (hasStore) {
@@ -1526,7 +1567,7 @@ async function doAutoSave() {
     const committed = await autoCommitLoom();
     await persistSession();
     await persistBoxPrefs();
-    if (committed) await persistLooms();
+    if (committed) { await persistLooms(); scheduleSync(); }
     setSaveState("saved");
     if (committed && state.screen === "looms") renderLoomList();
   } finally { saveBusy = false; }
@@ -1536,6 +1577,203 @@ function scheduleSave() {
   setSaveState("pending");
   clearTimeout(saveTimer);
   saveTimer = setTimeout(doAutoSave, 450);
+}
+
+/* ============================================================
+   Joining up two copies of the same library
+
+   The same account may be used on the shed PC and on a phone, and
+   either may have been used with no internet. So neither copy is
+   the truth: they have to be merged.
+
+   A loom is matched by name and the newer save wins. Deleting is
+   remembered as well, otherwise a loom deleted on one machine would
+   come back from the other the next time they meet.
+   ============================================================ */
+
+function newerOf(a, b) {
+  return ((b && b.savedAt) || "") > ((a && a.savedAt) || "") ? b : a;
+}
+
+function mergeLibraries(local, remote) {
+  local = local || {}; remote = remote || {};
+  const lTime = local.updatedAt || "";
+  const rTime = remote.updatedAt || "";
+
+  // deletions from both sides, keeping the latest for each name
+  const graves = new Map();
+  for (const g of (local.graveyard || []).concat(remote.graveyard || [])) {
+    const at = graves.get(g.name);
+    if (!at || g.deletedAt > at) graves.set(g.name, g.deletedAt);
+  }
+
+  const looms = new Map();
+  for (const l of local.looms || []) looms.set(l.name, l);
+  for (const r of remote.looms || []) {
+    const cur = looms.get(r.name);
+    looms.set(r.name, cur ? newerOf(cur, r) : r);
+  }
+  // a loom saved before it was deleted stays deleted
+  for (const [name, deletedAt] of graves) {
+    const l = looms.get(name);
+    if (l && (l.savedAt || "") <= deletedAt) looms.delete(name);
+  }
+
+  const weaves = new Map();
+  for (const w of (local.weaves || []).concat(remote.weaves || [])) {
+    if (!weaves.has(w.id)) weaves.set(w.id, w);
+  }
+
+  // for settings there is nothing to match on, so the newer side wins
+  const boxPrefs = rTime > lTime
+    ? { ...(local.boxPrefs || {}), ...(remote.boxPrefs || {}) }
+    : { ...(remote.boxPrefs || {}), ...(local.boxPrefs || {}) };
+
+  return {
+    looms: [...looms.values()],
+    weaves: [...weaves.values()],
+    boxPrefs,
+    graveyard: [...graves].map(([name, deletedAt]) => ({ name, deletedAt })),
+    updatedAt: rTime > lTime ? rTime : lTime
+  };
+}
+
+/* ============================================================
+   The shared store
+
+   Optional. With Firebase configured, the library is kept against the
+   Google account so it follows the person from one machine to the next.
+   Without it, nothing changes: the library lives on this device.
+
+   This device is always written to first, so the app keeps working with
+   the internet down. The shared copy catches up when it can.
+   ============================================================ */
+
+const FB = {
+  apiKey: (document.querySelector('meta[name="pinmap-firebase-api-key"]') || {}).content || "",
+  projectId: (document.querySelector('meta[name="pinmap-firebase-project-id"]') || {}).content || "",
+  authDomain: (document.querySelector('meta[name="pinmap-firebase-auth-domain"]') || {}).content || ""
+};
+const CLOUD_CONFIGURED = !!(FB.apiKey && FB.projectId);
+
+const cloud = {
+  ready: false, user: null, app: null, db: null, auth: null, mod: {}, lastError: null
+};
+
+async function cloudStart() {
+  if (!CLOUD_CONFIGURED || cloud.ready) return cloud.ready;
+  try {
+    const base = "https://www.gstatic.com/firebasejs/10.12.2/";
+    const [appMod, authMod, dbMod] = await Promise.all([
+      import(base + "firebase-app.js"),
+      import(base + "firebase-auth.js"),
+      import(base + "firebase-firestore.js")
+    ]);
+    cloud.app = appMod.initializeApp({
+      apiKey: FB.apiKey, projectId: FB.projectId,
+      authDomain: FB.authDomain || `${FB.projectId}.firebaseapp.com`
+    });
+    cloud.auth = authMod.getAuth(cloud.app);
+    cloud.db = dbMod.getFirestore(cloud.app);
+    cloud.mod = { ...authMod, ...dbMod };
+    cloud.ready = true;
+    return true;
+  } catch (err) {
+    cloud.lastError = err;
+    cloud.ready = false;
+    return false;
+  }
+}
+
+// Trade the Google sign-in token for a Firebase session, so the rules
+// can tell one account from another.
+async function cloudSignIn(googleIdToken) {
+  if (!(await cloudStart())) return null;
+  try {
+    const cred = cloud.mod.GoogleAuthProvider.credential(googleIdToken);
+    const res = await cloud.mod.signInWithCredential(cloud.auth, cred);
+    cloud.user = res.user;
+    return res.user;
+  } catch (err) {
+    cloud.lastError = err;
+    return null;
+  }
+}
+
+function cloudDocRef() {
+  if (!cloud.ready || !cloud.user) return null;
+  return cloud.mod.doc(cloud.db, "libraries", cloud.user.uid);
+}
+
+async function cloudLoad() {
+  const ref = cloudDocRef(); if (!ref) return null;
+  try {
+    const snap = await cloud.mod.getDoc(ref);
+    return snap.exists() ? snap.data() : { looms: [], weaves: [], boxPrefs: {}, graveyard: [], updatedAt: "" };
+  } catch (err) { cloud.lastError = err; return null; }
+}
+
+async function cloudSave(payload) {
+  const ref = cloudDocRef(); if (!ref) return false;
+  try { await cloud.mod.setDoc(ref, payload); return true; }
+  catch (err) { cloud.lastError = err; return false; }
+}
+
+/* ---------- what this device holds, in one shape ---------- */
+
+function localLibrary() {
+  return {
+    looms: state.looms,
+    weaves: state.weaves.map(dryWeave),
+    boxPrefs: state.boxPrefs,
+    graveyard: state.graveyard || [],
+    updatedAt: state.libraryUpdatedAt || ""
+  };
+}
+
+async function adoptLibrary(lib) {
+  state.looms = lib.looms || [];
+  state.weaves = (lib.weaves || []).map(reviveWeave);
+  state.boxPrefs = lib.boxPrefs || {};
+  state.graveyard = lib.graveyard || [];
+  state.libraryUpdatedAt = lib.updatedAt || new Date().toISOString();
+  await persistLooms(); await persistWeaves(); await persistBoxPrefs(); await persistGraveyard();
+}
+
+let syncTimer = null;
+
+function setSyncState(kind, detail) {
+  const host = el("#syncState");
+  if (!host) return;
+  if (!CLOUD_CONFIGURED || !state.account) { host.textContent = ""; return; }
+  const label = kind === "busy" ? "syncing"
+              : kind === "off" ? "not synced"
+              : "synced with your account";
+  host.className = "syncstate" + (kind === "busy" ? " busy" : kind === "off" ? " off" : "");
+  host.innerHTML = `<i></i>${label}`;
+  host.title = detail || "";
+}
+
+// Bring the two copies together, then write the result to both.
+async function syncNow() {
+  if (!CLOUD_CONFIGURED || !cloud.ready || !cloud.user) return false;
+  setSyncState("busy");
+  const remote = await cloudLoad();
+  if (!remote) { setSyncState("off", cloud.lastError && cloud.lastError.message); return false; }
+  const merged = mergeLibraries(localLibrary(), remote);
+  merged.updatedAt = new Date().toISOString();
+  await adoptLibrary(merged);
+  const saved = await cloudSave(merged);
+  setSyncState(saved ? "ok" : "off", saved ? "" : (cloud.lastError && cloud.lastError.message));
+  if (state.screen === "looms") renderLoomList();
+  return saved;
+}
+
+function scheduleSync() {
+  if (!CLOUD_CONFIGURED || !cloud.user) return;
+  setSyncState("busy");
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(syncNow, 1500);
 }
 
 /* ============================================================
@@ -1620,6 +1858,17 @@ async function onGoogleCredential(resp) {
     await saveAccount();
     await enterApp();
     notify(`Signed in as ${info.email}.`);
+    if (CLOUD_CONFIGURED) {
+      setSyncState("busy");
+      const user = await cloudSignIn(resp.credential);
+      if (user) {
+        const ok = await syncNow();
+        if (ok) notify("Your looms are up to date on this device.");
+      } else {
+        setSyncState("off", cloud.lastError && cloud.lastError.message);
+        notify("Signed in, but your looms could not be fetched. They are safe on this device.");
+      }
+    }
   } catch (err) {
     gateMsg("Could not read the reply from Google: " + err.message);
   }
@@ -1677,6 +1926,32 @@ async function signInLocal() {
   await saveAccount();
   await enterApp();
 }
+
+// A returning visitor is already past the sign-in screen, so ask Google
+// quietly for a fresh token to talk to the shared store with.
+async function reconnectCloud() {
+  const clientId = CLIENT_ID_IS_BUILT_IN ? DEFAULT_CLIENT_ID : ((el("#clientId").value || "").trim());
+  if (!clientId || (typeof navigator !== "undefined" && navigator.onLine === false)) {
+    setSyncState("off", "no internet");
+    return;
+  }
+  try {
+    await loadGoogleScript();
+    window.google.accounts.id.initialize({
+      client_id: clientId,
+      auto_select: true,
+      callback: async (resp) => {
+        const user = await cloudSignIn(resp.credential);
+        if (user) await syncNow(); else setSyncState("off");
+      }
+    });
+    window.google.accounts.id.prompt();
+  } catch {
+    setSyncState("off", "could not reach Google");
+  }
+}
+
+el("#syncNow") && (el("#syncNow").onclick = syncNow);
 
 async function signOut() {
   if (!confirm("Sign out? Your looms stay on this device.")) return;
@@ -1861,8 +2136,13 @@ el("#loomList").addEventListener("click", async e => {
   if (act === "del") {
     if (!confirm(`Delete the pin map for "${doc.name}"?`)) return;
     state.looms = state.looms.filter(l => l.name !== name);
+    state.graveyard = (state.graveyard || []).filter(g => g.name !== name)
+      .concat([{ name, deletedAt: new Date().toISOString() }]);
     if (state.activeName === name) { state.activeName = ""; state.segments = []; state.borderFiles = {}; state.wefts = freshWefts(); state.totalDeclared = 0; }
-    await persistLooms(); renderLoomList(); renderSteps(); return;
+    await persistLooms(); await persistGraveyard();
+    renderLoomList(); renderSteps();
+    scheduleSync();
+    return;
   }
 });
 
@@ -2360,6 +2640,7 @@ el("#saveLoom").onclick = async () => {
   state.version = doc.version;
   state.editing = doc.name;
   state.activeName = doc.name;
+  state.graveyard = (state.graveyard || []).filter(g => g.name !== doc.name);
 
   const persisted = await persistLooms();
   await persistSession();
@@ -2909,9 +3190,12 @@ async function enterApp() {
   await loadLooms();
   await loadWeaves();
   await loadBoxPrefs();
+  await loadGraveyard();
   await loadSession();
   setSaveState(hasStore ? "saved" : "off");
+  setSyncState(CLOUD_CONFIGURED && state.account ? "off" : "ok");
   renderWhoami();
+  if (CLOUD_CONFIGURED && state.account && !cloud.user) reconnectCloud();
   renderOpts();
   go(state.segments.length && state.loomName.trim() ? "loom" : "looms");
 }
