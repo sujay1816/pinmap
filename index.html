@@ -1368,7 +1368,37 @@ function renderChecksInto(host, res, readyMsg) {
    Storage
    ============================================================ */
 
-const hasStore = typeof window.storage !== "undefined" && !!window.storage;
+// Where this device keeps things. A host may hand us a store; a plain web page
+// has localStorage; failing both, memory, which lasts until the tab closes.
+const store = (() => {
+  if (typeof window.storage !== "undefined" && window.storage) {
+    return {
+      kind: "host",
+      get: (k) => window.storage.get(k),
+      set: (k, v) => window.storage.set(k, v),
+      delete: (k) => window.storage.delete(k)
+    };
+  }
+  try {
+    const probe = "pinmap:probe";
+    window.localStorage.setItem(probe, "1");
+    window.localStorage.removeItem(probe);
+    return {
+      kind: "browser",
+      async get(k) {
+        const v = window.localStorage.getItem(k);
+        if (v === null) throw new Error("nothing stored under " + k);
+        return { key: k, value: v };
+      },
+      async set(k, v) { window.localStorage.setItem(k, v); return { key: k, value: v }; },
+      async delete(k) { window.localStorage.removeItem(k); return { key: k, deleted: true }; }
+    };
+  } catch (err) {
+    return null;      // private browsing with storage blocked, or no localStorage
+  }
+})();
+
+const hasStore = !!store;
 
 // Each account keeps its own looms, weaves and settings.
 const ACCOUNT_KEY = "pinmap:account";
@@ -1382,7 +1412,7 @@ const LOOMS_KEY = () => keyFor("looms");
 async function loadLooms() {
   if (hasStore) {
     try {
-      const r = await window.storage.get(LOOMS_KEY());
+      const r = await store.get(LOOMS_KEY());
       state.looms = r && r.value ? JSON.parse(r.value) : [];
       return;
     } catch { state.looms = []; return; }
@@ -1392,7 +1422,7 @@ async function loadLooms() {
 async function persistLooms() {
   memLooms = state.looms;
   if (hasStore) {
-    try { await window.storage.set(LOOMS_KEY(), JSON.stringify(state.looms)); return true; } catch { return false; }
+    try { await store.set(LOOMS_KEY(), JSON.stringify(state.looms)); return true; } catch { return false; }
   }
   return false;
 }
@@ -1402,21 +1432,21 @@ const GRAVEYARD_KEY = () => keyFor("graveyard");
 
 async function loadGraveyard() {
   if (hasStore) {
-    try { const r = await window.storage.get(GRAVEYARD_KEY()); state.graveyard = r && r.value ? JSON.parse(r.value) : []; return; }
+    try { const r = await store.get(GRAVEYARD_KEY()); state.graveyard = r && r.value ? JSON.parse(r.value) : []; return; }
     catch { state.graveyard = []; return; }
   }
   state.graveyard = memGraveyard;
 }
 async function persistGraveyard() {
   memGraveyard = state.graveyard;
-  if (hasStore) { try { await window.storage.set(GRAVEYARD_KEY(), JSON.stringify(state.graveyard)); return true; } catch { return false; } }
+  if (hasStore) { try { await store.set(GRAVEYARD_KEY(), JSON.stringify(state.graveyard)); return true; } catch { return false; } }
   return false;
 }
 
 async function loadBoxPrefs() {
   if (hasStore) {
     try {
-      const r = await window.storage.get(BOXPREFS_KEY());
+      const r = await store.get(BOXPREFS_KEY());
       state.boxPrefs = r && r.value ? JSON.parse(r.value) : {};
       return;
     } catch { state.boxPrefs = {}; return; }
@@ -1426,7 +1456,7 @@ async function loadBoxPrefs() {
 async function persistBoxPrefs() {
   memBoxPrefs = state.boxPrefs;
   if (hasStore) {
-    try { await window.storage.set(BOXPREFS_KEY(), JSON.stringify(state.boxPrefs)); return true; }
+    try { await store.set(BOXPREFS_KEY(), JSON.stringify(state.boxPrefs)); return true; }
     catch { return false; }
   }
   return false;
@@ -1437,7 +1467,7 @@ const WEAVES_KEY = () => keyFor("weaves");
 async function loadWeaves() {
   if (hasStore) {
     try {
-      const r = await window.storage.get(WEAVES_KEY());
+      const r = await store.get(WEAVES_KEY());
       state.weaves = r && r.value ? JSON.parse(r.value).map(reviveWeave) : [];
       return;
     } catch { state.weaves = []; return; }
@@ -1448,7 +1478,7 @@ async function persistWeaves() {
   memWeaves = state.weaves;
   if (hasStore) {
     try {
-      await window.storage.set(WEAVES_KEY(), JSON.stringify(state.weaves.map(dryWeave)));
+      await store.set(WEAVES_KEY(), JSON.stringify(state.weaves.map(dryWeave)));
       return true;
     } catch { return false; }
   }
@@ -1479,7 +1509,9 @@ function setSaveState(kind) {
   const host = el("#saveState");
   if (!host) return;
   host.className = "savestate" + (kind === "pending" ? " pending" : kind === "off" ? " off" : "");
-  host.innerHTML = `<i></i>${kind === "pending" ? "saving" : hasStore ? "all changes saved" : "saved for this session"}`;
+  host.innerHTML = `<i></i>${kind === "pending" ? "saving"
+    : hasStore ? "all changes saved" : "this session only"}`;
+  host.title = hasStore ? "" : "Storage is blocked in this browser, so nothing is kept when the tab closes.";
 }
 
 // Everything except the uploaded design files, which are far too large to keep.
@@ -1502,14 +1534,14 @@ function sessionDoc() {
 async function persistSession() {
   const doc = sessionDoc();
   memSession = doc;
-  if (hasStore) { try { await window.storage.set(SESSION_KEY(), JSON.stringify(doc)); return true; } catch { return false; } }
+  if (hasStore) { try { await store.set(SESSION_KEY(), JSON.stringify(doc)); return true; } catch { return false; } }
   return false;
 }
 
 async function loadSession() {
   let doc = memSession;
   if (hasStore) {
-    try { const r = await window.storage.get(SESSION_KEY()); doc = r && r.value ? JSON.parse(r.value) : null; }
+    try { const r = await store.get(SESSION_KEY()); doc = r && r.value ? JSON.parse(r.value) : null; }
     catch { doc = null; }
   }
   if (!doc || doc.format !== "pinmap.session") return;
@@ -1795,7 +1827,7 @@ const CLIENT_ID_IS_BUILT_IN = !!DEFAULT_CLIENT_ID;
 async function loadAccount() {
   let saved = memAccount;
   if (hasStore) {
-    try { const r = await window.storage.get(ACCOUNT_KEY); saved = r && r.value ? JSON.parse(r.value) : null; }
+    try { const r = await store.get(ACCOUNT_KEY); saved = r && r.value ? JSON.parse(r.value) : null; }
     catch { saved = null; }
   }
   if (saved && saved.key) { state.account = saved.account || null; state.accountKey = saved.key; return true; }
@@ -1805,20 +1837,20 @@ async function loadAccount() {
 async function saveAccountSettings() {
   const doc = { key: state.accountKey, account: state.account, clientId: (el("#clientId").value || "").trim() };
   memAccount = doc;
-  if (hasStore) { try { await window.storage.set(ACCOUNT_KEY, JSON.stringify(doc)); } catch {} }
+  if (hasStore) { try { await store.set(ACCOUNT_KEY, JSON.stringify(doc)); } catch {} }
 }
 
 async function saveAccount() {
   const doc = { key: state.accountKey, account: state.account, clientId: el("#clientId").value.trim() };
   memAccount = doc;
-  if (hasStore) { try { await window.storage.set(ACCOUNT_KEY, JSON.stringify(doc)); } catch {} }
+  if (hasStore) { try { await store.set(ACCOUNT_KEY, JSON.stringify(doc)); } catch {} }
 }
 
 async function savedClientId() {
   if (CLIENT_ID_IS_BUILT_IN) return DEFAULT_CLIENT_ID;
   let doc = memAccount;
   if (hasStore) {
-    try { const r = await window.storage.get(ACCOUNT_KEY); doc = r && r.value ? JSON.parse(r.value) : null; } catch {}
+    try { const r = await store.get(ACCOUNT_KEY); doc = r && r.value ? JSON.parse(r.value) : null; } catch {}
   }
   return (doc && doc.clientId) || "";
 }
@@ -1954,13 +1986,19 @@ async function reconnectCloud() {
 el("#syncNow") && (el("#syncNow").onclick = syncNow);
 
 async function signOut() {
-  if (!confirm("Sign out? Your looms stay on this device.")) return;
+  const synced = CLOUD_CONFIGURED && cloud.user;
+  const warning = synced
+    ? "Sign out? Your looms are saved to your account, so they will be here when you sign back in — on this or any other device."
+    : hasStore
+      ? "Sign out? Your looms stay on this device and come back when you sign in again."
+      : "Sign out? Nothing is being kept on this device, so back up first if you want to keep this work.";
+  if (!confirm(warning)) return;
   clearTimeout(saveTimer);
   await doAutoSave();
   try { if (window.google && window.google.accounts && window.google.accounts.id)
           window.google.accounts.id.disableAutoSelect(); } catch {}
   state.account = null; state.accountKey = "local";
-  if (hasStore) { try { await window.storage.delete(ACCOUNT_KEY); } catch {} }
+  if (hasStore) { try { await store.delete(ACCOUNT_KEY); } catch {} }
   memAccount = null;
   location.reload();
 }
@@ -3118,7 +3156,7 @@ function renderBuildScreen() {
 window.addEventListener("beforeunload", () => {
   clearTimeout(saveTimer);
   if (!hasStore) return;
-  try { window.storage.set(SESSION_KEY(), JSON.stringify(sessionDoc())); } catch {}
+  try { store.set(SESSION_KEY(), JSON.stringify(sessionDoc())); } catch {}
 });
 
 /* ============================================================
@@ -3175,10 +3213,10 @@ async function migrateUnscoped() {
                                   ["pinmap:boxprefs", keyFor("boxprefs")],
                                   ["pinmap:session", keyFor("session")]]) {
     try {
-      const cur = await window.storage.get(newKey).catch(() => null);
+      const cur = await store.get(newKey).catch(() => null);
       if (cur && cur.value) continue;
-      const old = await window.storage.get(oldKey);
-      if (old && old.value) await window.storage.set(newKey, old.value);
+      const old = await store.get(oldKey);
+      if (old && old.value) await store.set(newKey, old.value);
     } catch {}
   }
 }
