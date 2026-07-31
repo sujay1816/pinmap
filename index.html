@@ -634,7 +634,8 @@
     <details class="note">
       <summary>Box pins and layer order</summary>
       <div>
-        <p>The box pattern comes from how many body wefts you load: one lifts nothing, two lift everything, and with three the first shuttle lifts every pin, the second the first half and the third the second half. A fourth lifts nothing.</p>
+        <p>The box pattern comes from how many body wefts you load: one lifts nothing, two lift every pin, and with three the first shuttle lifts every pin, the second the first half and the third the second half. A fourth lifts nothing.</p>
+        <p>None of it speaks over plain ground. The box only lifts on the lines where a figure weft — anything after the ground — actually carries design, so a zari that appears in one band leaves the box white everywhere else.</p>
         <p>Slot order is shuttle order, so the first loaded weft takes the first pattern. Empty slots are skipped.</p>
         <p>You can change any of it. Click a pin under Box pins to turn it on or off for that weft, or use the all / first / second / none shortcuts. A row you have touched is marked "yours"; the reset button puts every weft back to the standard pattern.</p>
         <p>Each body weft gets its own line, in slot order, so three wefts turn 500 design lines into 1500 picks. That is how the weft is laid, one shuttle at a time — so slot order is shuttle order.</p>
@@ -1058,7 +1059,6 @@ function closeBandGaps(f) {
 
 function boxPlan(weftCount, weftIndex, figureOnLine) {
   if (weftCount <= 1) return "none";        // one weft: nothing to choose
-  if (weftCount === 2) return "all";        // two wefts: black the whole way down
   if (!figureOnLine) return "none";         // plain ground line: box stays white
   return (BOX_TABLE[weftCount] || [])[weftIndex] || "none";
 }
@@ -1126,7 +1126,7 @@ function compose() {
   // Which design lines carry butta? Slot 1 is the ground, so only the wefts
   // after it count as figure.
   const figureOnLine = new Uint8Array(H);
-  if (K >= 3) {
+  if (K >= 2) {
     for (let k = 1; k < K; k++) {
       const f = wefts[k].file;
       for (let y = 0; y < H; y++) {
@@ -1198,7 +1198,7 @@ function compose() {
           fig = false;
           for (let d = start; d < Math.min(H, start + perShuttle); d++) if (figureOnLine[d]) { fig = true; break; }
         }
-        const active = K < 3 ? true : fig;
+        const active = K < 2 ? true : fig;
         const pat = weftBoxPattern(wefts[weftIdx], seg.count, weftIdx, Math.max(1, K));
         const r = active ? pat : new Uint8Array(seg.count);
         for (let x = 0; x < seg.count; x++) bits[rowBase + at + x] = r[x];
@@ -2925,7 +2925,7 @@ function renderBoxEditor() {
     <div class="bh">
       <span class="cap" style="margin:0">Box pins</span>
       <span class="bn">${n} pins. Click a pin to turn it on or off for that weft — changes are remembered for next time.${
-        K >= 3 ? " Over plain ground the box stays white whatever is set here." : ""}</span>
+        K >= 2 ? " Over plain ground the box stays white whatever is set here." : ""}</span>
     </div>
     ${rows}
     <div class="btn-row" style="margin-top:12px">

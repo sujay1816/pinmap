@@ -68,7 +68,7 @@ ok('that weft goes white while the others keep their pattern',
    boxAt(o,firstButta)==='1111' && boxAt(o,firstButta+1)==='0000' && boxAt(o,firstButta+2)==='0011',
    [0,1,2].map(k=>boxAt(o,firstButta+k)).join(' '));
 
-head('two wefts, where the box is normally black throughout');
+head('two wefts, over butta');
 {
   state.segments=[{id:'bx',kind:'box',count:4},{id:'bd',kind:'body',count:720}];
   state.totalDeclared=724; state.boxMotion='4x4';
@@ -78,12 +78,32 @@ head('two wefts, where the box is normally black throughout');
   state.borderFiles={}; state.wefts=freshWefts();
   state.wefts[0].file=fitToPins(res,720); state.wefts[1].file=fitToPins(jar,720);
   let two = compose();
-  ok('default is black on every line', boxAt(two,0)==='1111' && boxAt(two,7)==='1111');
+  let first=0; while(first<two.height && boxAt(two,first)==='0000') first++;
+  ok('white until the figure weft has something', first>0, String(first));
+  ok('then every pin lifts', boxAt(two,first)==='1111', boxAt(two,first));
   state.wefts[1].box='1100';
   two = compose();
-  ok('a custom pattern applies on every line too',
-     boxAt(two,0)==='1111' && boxAt(two,1)==='1100' && boxAt(two,2)==='1111' && boxAt(two,3)==='1100',
-     [0,1,2,3].map(y=>boxAt(two,y)).join(' '));
+  ok('a pattern of your own is used over butta too',
+     boxAt(two,first)==='1111' && boxAt(two,first+1)==='1100',
+     boxAt(two,first)+' '+boxAt(two,first+1));
+  ok('and still nothing over plain ground', boxAt(two,0)==='0000');
+}
+
+head('a figure weft that covers everything');
+{
+  // when the second weft has design on every line, the box is black throughout
+  state.segments=[{id:'bx',kind:'box',count:4},{id:'bd',kind:'body',count:720}];
+  state.totalDeclared=724; state.boxMotion='4x4';
+  state.opts={achuStartsBlack:true,pinOneLeft:true,topRowFirstPick:true,blackIsIndexZero:true,
+              stackMode:'interleave',achuOnBody:false,satinWarpFaced:false,autoRotate:true,
+              boxWholeBand:true,weavePerDesignLine:true};
+  state.borderFiles={}; state.wefts=freshWefts();
+  state.wefts[0].file=fitToPins(men,720);
+  state.wefts[1].file=fitToPins(res,720);   // the ground, which lifts on every line
+  const out=compose();
+  let white=0;
+  for (let y=0;y<out.height;y++) if (boxAt(out,y)==='0000') white++;
+  ok('the box is black on every line', white===0, String(white)+' white lines');
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

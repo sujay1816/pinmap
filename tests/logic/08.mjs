@@ -23,9 +23,11 @@ ok('six pins split three and three',
 head('how many files there are');
 ok('one weft: white, butta or not',
    boxRow(4,0,1,true).join('')==='0000' && boxRow(4,0,1,false).join('')==='0000');
-ok('two wefts: black all the way down, butta or not',
-   boxRow(4,0,2,true).join('')==='1111' && boxRow(4,0,2,false).join('')==='1111' &&
-   boxRow(4,1,2,false).join('')==='1111');
+ok('two wefts: every pin over butta',
+   boxRow(4,0,2,true).join('')==='1111' && boxRow(4,1,2,true).join('')==='1111');
+ok('two wefts: white where the figure weft has nothing',
+   boxRow(4,0,2,false).join('')==='0000' && boxRow(4,1,2,false).join('')==='0000',
+   boxRow(4,0,2,false).join('')+' '+boxRow(4,1,2,false).join(''));
 ok('three wefts: white where there is no butta',
    boxRow(4,0,3,false).join('')==='0000' && boxRow(4,1,3,false).join('')==='0000' &&
    boxRow(4,2,3,false).join('')==='0000');
@@ -76,12 +78,22 @@ ok('the box goes white again once the butta ends',
   ok('every line agrees: box speaks only over butta', wrong===0, String(wrong));
 }
 
-head('two wefts stay black throughout');
-out = build([res,jar]);
+head('two wefts follow the figure weft');
+out = build([res,jar]);          // rani is the ground, jari carries the butta
 {
-  let notBlack=0;
-  for (let y=0;y<out.height;y++) if (boxAt(out,y)!=='1111') notBlack++;
-  ok('all 1000 lines are 1111', notBlack===0, String(notBlack));
+  let lit=0, plain=0, wrong=0;
+  for (let y=0;y<out.height;y++) {
+    const on = boxAt(out,y)!=='0000';
+    const want = !!out.figureOnLine[Math.floor(y/2)];
+    if (on) lit++; else plain++;
+    if (on !== want) wrong++;
+    if (on && boxAt(out,y)!=='1111') wrong++;
+  }
+  ok('the box lifts on some lines and not others', lit>0 && plain>0, `${lit} lit, ${plain} plain`);
+  ok('every line agrees with where the figure weft has design', wrong===0, String(wrong));
+  ok('and where it lifts, all four pins lift', (()=>{
+    for (let y=0;y<out.height;y++) { const b=boxAt(out,y); if (b!=='0000' && b!=='1111') return false; }
+    return true; })());
 }
 head('one weft stays white throughout');
 out = build([res]);
