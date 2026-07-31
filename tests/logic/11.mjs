@@ -49,7 +49,7 @@ const build = (weave, count) => {
   state.segments=[{id:'lk',kind:'locking',count,weave},{id:'bd',kind:'body',count:500}];
   state.totalDeclared=count+500; state.boxMotion='4x4';
   state.opts={achuStartsBlack:true,pinOneLeft:true,topRowFirstPick:true,blackIsIndexZero:true,
-              stackMode:'interleave',achuOnBody:false,satinWarpFaced:false,autoRotate:true,boxWholeBand:true};
+              stackMode:'interleave',achuOnBody:false, achuInBody:true,satinWarpFaced:false,autoRotate:true,boxWholeBand:true};
   state.borderFiles={}; state.wefts=freshWefts(); state.wefts[0].file=men;
   return compose();
 };

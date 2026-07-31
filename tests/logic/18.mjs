@@ -31,7 +31,7 @@ const setup = ({ border=false, body=false, borderHeight=240 } = {}) => {
   state.segments = SEGS();
   state.totalDeclared = 936; state.boxMotion='4x4';
   state.opts={achuStartsBlack:true,pinOneLeft:true,topRowFirstPick:true,blackIsIndexZero:true,
-              stackMode:'interleave',achuOnBody:false,satinWarpFaced:false,autoRotate:true,
+              stackMode:'interleave',achuOnBody:false, achuInBody:true,satinWarpFaced:false,autoRotate:true,
               boxWholeBand:true,weavePerDesignLine:true};
   state.borderFiles = border
     ? { lb: borderOf(res,100,borderHeight), rb: borderOf(men,100,borderHeight) } : {};

@@ -29,7 +29,7 @@ const base = () => {
   state.segments = segs;
   state.totalDeclared = W;
   state.opts = { achuStartsBlack:true, pinOneLeft:true, topRowFirstPick:true,
-                 blackIsIndexZero:true, stackMode:'interleave', achuOnBody:true };
+                 blackIsIndexZero:true, stackMode:'interleave', achuOnBody:true, achuInBody:true };
   state.borderFiles = {};
   state.wefts = freshWefts();
 };

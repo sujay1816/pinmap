@@ -39,7 +39,7 @@ const build = (wefts) => {
   state.segments=[{ id:'bx', kind:'box', count:4 },{ id:'bd', kind:'body', count:720 }];
   state.totalDeclared=724;
   state.opts={achuStartsBlack:true,pinOneLeft:true,topRowFirstPick:true,blackIsIndexZero:true,
-              stackMode:'interleave',achuOnBody:false,satinWarpFaced:false,autoRotate:true,boxWholeBand:true};
+              stackMode:'interleave',achuOnBody:false, achuInBody:true,satinWarpFaced:false,autoRotate:true,boxWholeBand:true};
   state.borderFiles={};
   state.wefts=freshWefts();
   wefts.forEach((f,i)=>{ state.wefts[i].file=fitToPins(f,720); });

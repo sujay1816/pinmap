@@ -16,7 +16,7 @@ const build = (slots, borders) => {
                   {id:'bd',kind:'body',count:720}];
   state.totalDeclared=832; state.boxMotion='4x4';
   state.opts={achuStartsBlack:true,pinOneLeft:true,topRowFirstPick:true,blackIsIndexZero:true,
-              stackMode:'interleave',achuOnBody:false,satinWarpFaced:false,autoRotate:true,
+              stackMode:'interleave',achuOnBody:false, achuInBody:true,satinWarpFaced:false,autoRotate:true,
               boxWholeBand:true,weavePerDesignLine:true};
   state.borderFiles = borders || {};
   state.wefts=freshWefts();
@@ -42,7 +42,7 @@ head('achu waits for the rani');
                   {id:'lk',kind:'locking',count:8,weave:'satin:8:3'},{id:'bd',kind:'body',count:720}];
   state.totalDeclared=832; state.boxMotion='4x4';
   state.opts={achuStartsBlack:true,pinOneLeft:true,topRowFirstPick:true,blackIsIndexZero:true,
-              stackMode:'interleave',achuOnBody:false,satinWarpFaced:false,autoRotate:true,
+              stackMode:'interleave',achuOnBody:false, achuInBody:true,satinWarpFaced:false,autoRotate:true,
               boxWholeBand:true,weavePerDesignLine:true};
   const b=new Uint8Array(100*720); b.fill(1);
   state.borderFiles={ lb:{ width:100, height:720, bits:b } };
@@ -104,6 +104,35 @@ head('locking is unaffected by the rani rule');
   const noRani   = build([null,jar,men]);
   ok('locking lifts with rani', lockLit(withRani) === withRani.height, String(lockLit(withRani)));
   ok('and still lifts without it', lockLit(noRani) === noRani.height, String(lockLit(noRani)));
+}
+
+head('the achu switch on the body file');
+{
+  const o = build([res, jar, men]);
+  ok('on by default, so it generates', achuAt(o,0)==='1100', achuAt(o,0));
+}
+{
+  state.segments=[{id:'a1',kind:'achu',count:4},
+                  {id:'lk',kind:'locking',count:8,weave:'satin:8:3'},
+                  {id:'lb',kind:'leftBorder',count:100},
+                  {id:'bd',kind:'body',count:720}];
+  state.totalDeclared=832; state.boxMotion='4x4';
+  state.opts={achuStartsBlack:true,pinOneLeft:true,topRowFirstPick:true,blackIsIndexZero:true,
+              stackMode:'interleave',achuOnBody:false, achuInBody:false, satinWarpFaced:false,
+              autoRotate:true,boxWholeBand:true,weavePerDesignLine:true};
+  state.borderFiles={}; state.wefts=freshWefts();
+  [res,jar,men].forEach((f,i)=>{ state.wefts[i].file=fitToPins(f,720); });
+  const o = compose('body');
+  let lit=0; for(let y=0;y<o.height;y++) if(achuAt(o,y)!=='0000') lit++;
+  ok('turned off, the pins stay down', lit===0, String(lit)+' lines lift');
+
+  const lock = y => { for (let x=4;x<12;x++) if (o.bits[y*o.width+x]) return x-4; return -1; };
+  ok('and nothing else is disturbed', lock(0)>=0 && lock(0)===lock(1));
+
+  // the switch is about the body file only; the border file keeps its own achu
+  state.borderFiles = { lb: { width:100, height:200, bits:(()=>{ const b=new Uint8Array(100*200); b.fill(1); return b; })() } };
+  const bord = compose('border');
+  ok('the border file keeps its achu whatever the switch says', achuAt(bord,0)==='1100', achuAt(bord,0));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

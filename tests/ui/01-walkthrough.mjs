@@ -11,7 +11,7 @@ function stubCanvas(win) {
       scale(){}, beginPath(){}, arc(){}, fill(){}, stroke(){}, fillRect(){}, strokeRect(){},
       moveTo(){}, lineTo(){}, fillText(){}, setLineDash(){}, putImageData(){},
       createImageData: (w,h)=>({ width:w, height:h, data:new Uint8ClampedArray(w*h*4) }),
-      measureText: (t)=>({ width:String(t).length*6 }), closePath(){}, save(){}, restore(){}, clearRect(){}, rect(){}, translate(){},
+      measureText: (t)=>({ width:String(t).length*6 }), closePath(){}, save(){}, restore(){}, clearRect(){}, rect(){}, translate(){}, rotate(){},rotate(){},
       set fillStyle(v){}, set strokeStyle(v){}, set lineWidth(v){}, set font(v){},
       set textAlign(v){}, set textBaseline(v){}, set globalAlpha(v){}
     };

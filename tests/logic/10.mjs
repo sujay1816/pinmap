@@ -19,7 +19,7 @@ const build = (motion, box=0) => {
   state.totalDeclared = 720 + box;
   state.boxMotion = motion;
   state.opts={achuStartsBlack:true,pinOneLeft:true,topRowFirstPick:true,blackIsIndexZero:true,
-              stackMode:'interleave',achuOnBody:false,satinWarpFaced:false,autoRotate:true,boxWholeBand:true};
+              stackMode:'interleave',achuOnBody:false, achuInBody:true,satinWarpFaced:false,autoRotate:true,boxWholeBand:true};
   state.borderFiles={};
   state.wefts=freshWefts();
   state.wefts[0].name='Rani';  state.wefts[0].file=fitToPins(res,720);

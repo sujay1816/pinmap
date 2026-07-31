@@ -34,7 +34,7 @@ const build = (patterns) => {
   state.segments=[{id:'bx',kind:'box',count:4},{id:'bd',kind:'body',count:720}];
   state.totalDeclared=724; state.boxMotion='4x4';
   state.opts={achuStartsBlack:true,pinOneLeft:true,topRowFirstPick:true,blackIsIndexZero:true,
-              stackMode:'interleave',achuOnBody:false,satinWarpFaced:false,autoRotate:true,
+              stackMode:'interleave',achuOnBody:false, achuInBody:true,satinWarpFaced:false,autoRotate:true,
               boxWholeBand:true,weavePerDesignLine:true};
   state.borderFiles={}; state.wefts=freshWefts();
   [res,jar,men].forEach((f,i)=>{ state.wefts[i].file=fitToPins(f,720); });
@@ -73,7 +73,7 @@ head('two wefts, over butta');
   state.segments=[{id:'bx',kind:'box',count:4},{id:'bd',kind:'body',count:720}];
   state.totalDeclared=724; state.boxMotion='4x4';
   state.opts={achuStartsBlack:true,pinOneLeft:true,topRowFirstPick:true,blackIsIndexZero:true,
-              stackMode:'interleave',achuOnBody:false,satinWarpFaced:false,autoRotate:true,
+              stackMode:'interleave',achuOnBody:false, achuInBody:true,satinWarpFaced:false,autoRotate:true,
               boxWholeBand:true,weavePerDesignLine:true};
   state.borderFiles={}; state.wefts=freshWefts();
   state.wefts[0].file=fitToPins(res,720); state.wefts[1].file=fitToPins(jar,720);
@@ -95,7 +95,7 @@ head('a figure weft that covers everything');
   state.segments=[{id:'bx',kind:'box',count:4},{id:'bd',kind:'body',count:720}];
   state.totalDeclared=724; state.boxMotion='4x4';
   state.opts={achuStartsBlack:true,pinOneLeft:true,topRowFirstPick:true,blackIsIndexZero:true,
-              stackMode:'interleave',achuOnBody:false,satinWarpFaced:false,autoRotate:true,
+              stackMode:'interleave',achuOnBody:false, achuInBody:true,satinWarpFaced:false,autoRotate:true,
               boxWholeBand:true,weavePerDesignLine:true};
   state.borderFiles={}; state.wefts=freshWefts();
   state.wefts[0].file=fitToPins(men,720);

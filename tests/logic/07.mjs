@@ -29,7 +29,7 @@ const load = () => {
   state.wefts[1].file = fitToPins(jar,720);
   state.wefts[2].file = fitToPins(men,720);
   state.opts = { achuStartsBlack:true, pinOneLeft:true, topRowFirstPick:true, blackIsIndexZero:true,
-                 stackMode:'interleave', achuOnBody:false, satinWarpFaced:false, autoRotate:true };
+                 stackMode:'interleave', achuOnBody:false, achuInBody:true, satinWarpFaced:false, autoRotate:true };
 };
 const bodyOf = o => { const b=new Uint8Array(720*1500);
   for(let y=0;y<1500;y++) for(let x=0;x<720;x++) b[y*720+x]=o.bits[y*o.width+516+x];

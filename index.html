@@ -349,6 +349,16 @@
     opacity: 0; pointer-events: none; transition: opacity .18s ease, transform .18s ease; z-index: 50;
   }
   #toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .achubox {
+    display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+    border: 1px solid var(--rule); background: #fff; padding: 11px 13px; margin-bottom: 16px;
+    cursor: pointer;
+  }
+  .achubox input { margin: 0; accent-color: var(--c-achu); width: 15px; height: 15px; align-self: center; }
+  .achubox .ab-name {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink);
+  }
+  .achubox .ab-why { font-size: 12.5px; color: var(--ink-3); }
   .achu-note {
     font-size: 12.5px; color: var(--ink-2); background: #FBFCFC;
     border-left: 3px solid var(--c-achu); padding: 9px 12px; margin-top: 14px;
@@ -733,6 +743,7 @@
       <summary>How this loom is read</summary>
       <div class="opts" id="opts" style="margin-top:12px"></div>
     </details>
+    <div id="bodyAchu"></div>
     <div id="bodyHost"></div>
     <div id="boxEditor"></div>
     <div class="chips" id="boxChips" style="margin-top:22px"></div>
@@ -763,7 +774,9 @@
            they are in the border file.</p>
         <p>Each body weft gets its own line, in slot order, so three wefts turn 500 design
            lines into 1500 picks. On a 4 by 1 box each weft takes two lines before the next starts.</p>
-        <p>The achu appears here only when no border file has been loaded.</p>
+        <p>The achu appears here only when the switch above is on, no border file has been
+           loaded, and a rani is in the first weft slot. Turn the switch off and its pins stay
+           down whatever else is true.</p>
       </div>
     </details>
   </main>
@@ -849,6 +862,7 @@ const state = {
     blackIsIndexZero: true,
     stackMode: "interleave",
     achuOnBody: false,
+    achuInBody: true,
     boxWholeBand: true,
     autoRotate: true,
     weavePerDesignLine: true,
@@ -1265,7 +1279,9 @@ function compose(target) {
   // Achu goes in the border file when there is one, otherwise in the body.
   // In the body it also waits on the rani, since that is the ground it binds.
   const raniLoaded = !!(state.wefts[0] && state.wefts[0].file && !state.wefts[0].file.error);
-  const achuHere = target === "border" ? true : (!borderLoaded && raniLoaded);
+  const achuHere = target === "border"
+    ? true
+    : (o.achuInBody && !borderLoaded && raniLoaded);
 
   const achuSeg = segs.find(sg => sg.kind === "achu" && sg.count > 1);
   const bodyAchu = target === "body" && o.achuOnBody && !borderLoaded && !!achuSeg && raniLoaded;
@@ -2539,6 +2555,7 @@ function drawBoard() {
     ctx.fillRect(GUT + c * pitch, RULE, pitch, PINS_PER_COLUMN * pitch);
 
   /* ---- a group reads as a region, not a run of dots ---- */
+  const labelJobs = [];
   spans.forEach(sp => {
     const rects = groupRects(sp.from, sp.to, pitch, GUT, RULE);
     const col = colourOf(sp.i);
@@ -2553,24 +2570,7 @@ function drawBoard() {
       rects.forEach(r => ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1));
     }
 
-    // name it across its widest full-height stretch
-    const full = rects.filter(r => r.full);
-    if (full.length && pitch >= 6) {
-      const x0 = full[0].x, x1 = full[full.length - 1].x + pitch;
-      const text = `${labelFor(state.segments, sp.i)} · ${sp.count}`;
-      ctx.font = "600 10px ui-monospace, Menlo, Consolas, monospace";
-      if (ctx.measureText(text).width + 12 < x1 - x0) {
-        ctx.fillStyle = "rgba(255,255,255,0.92)";
-        const tw = ctx.measureText(text).width;
-        const mx = (x0 + x1) / 2, my = RULE + PINS_PER_COLUMN * pitch / 2;
-        ctx.fillRect(mx - tw / 2 - 6, my - 9, tw + 12, 18);
-        ctx.strokeStyle = col; ctx.lineWidth = 1;
-        ctx.strokeRect(mx - tw / 2 - 6.5, my - 9.5, tw + 13, 19);
-        ctx.fillStyle = "#14181C";
-        ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillText(text, mx, my);
-      }
-    }
+    labelJobs.push({ sp, rects, col });
   });
 
   /* ---- the ruler ---- */
@@ -2611,6 +2611,45 @@ function drawBoard() {
       ctx.globalAlpha = 1;
     }
   }
+
+  /* ---- names, drawn last so nothing covers them ---- */
+  const midY = RULE + PINS_PER_COLUMN * pitch / 2;
+  labelJobs.forEach(({ sp, rects, col }) => {
+    const name = labelFor(state.segments, sp.i);
+    const long = `${name} · ${sp.count}`;
+    const x0 = rects[0].x, x1 = rects[rects.length - 1].x + pitch;
+    const width = x1 - x0;
+    const plate = (text, mx, my) => {
+      ctx.font = "700 10.5px ui-monospace, Menlo, Consolas, monospace";
+      const tw = ctx.measureText(text).width;
+      ctx.fillStyle = col;
+      ctx.fillRect(mx - tw / 2 - 7, my - 9, tw + 14, 18);
+      ctx.fillStyle = "#fff";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(text, mx, my);
+      return tw + 14;
+    };
+    ctx.font = "700 10.5px ui-monospace, Menlo, Consolas, monospace";
+    const mx = (x0 + x1) / 2;
+    if (ctx.measureText(long).width + 18 < width)      plate(long, mx, midY);
+    else if (ctx.measureText(name).width + 18 < width) plate(name, mx, midY);
+    else if (ctx.measureText(String(sp.count)).width + 14 < width) plate(String(sp.count), mx, midY);
+    else if (width >= 9 && pitch >= 9) {
+      // too narrow to read across, so run it down the column instead
+      ctx.save();
+      ctx.translate(mx, midY);
+      ctx.rotate(-Math.PI / 2);
+      const tw = ctx.measureText(name).width;
+      if (tw + 14 < PINS_PER_COLUMN * pitch) {
+        ctx.fillStyle = col;
+        ctx.fillRect(-tw / 2 - 7, -8, tw + 14, 16);
+        ctx.fillStyle = "#fff";
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(name, 0, 0);
+      }
+      ctx.restore();
+    }
+  });
 
   /* ---- where one group ends and the next begins ---- */
   const bounds = [];
@@ -3627,10 +3666,43 @@ function renderBorderScreen() {
   renderSteps();
 }
 
+function renderBodyAchu() {
+  const host = el("#bodyAchu");
+  const achuSeg = state.segments.find(x => x.kind === "achu" && x.count > 0);
+  if (!achuSeg) { host.innerHTML = ""; return; }
+
+  const border = borderFilesLoaded();
+  const rani = !!(state.wefts[0] && state.wefts[0].file && !state.wefts[0].file.error);
+  const on = state.opts.achuInBody;
+  let why = "";
+  if (!on) why = "Off, so the achu pins stay down in this file.";
+  else if (border) why = "A border file is loaded, so the achu is in that file and these pins stay down.";
+  else if (!rani) why = "Waiting on a rani in the first weft slot — the achu binds the ground.";
+  else why = "On, so the achu is generated into this file.";
+
+  host.innerHTML = `<label class="achubox">
+    <input type="checkbox" id="achuInBody" ${on ? "checked" : ""}>
+    <span class="ab-name">Achu in the body file</span>
+    <span class="ab-why">${esc(why)}</span>
+  </label>`;
+  const box = el("#achuInBody");
+  if (box) box.onchange = (e) => {
+    state.opts.achuInBody = e.target.checked;
+    state.built = null;
+    renderBodyScreen();
+    el("#pvWrap").hidden = true;
+    el("#download").disabled = true;
+    scheduleSave();
+    notify(e.target.checked ? "Achu will be generated into the body file."
+                            : "Achu removed from the body file.");
+  };
+}
+
 function renderBodyScreen() {
   if (!state.wefts.length) state.wefts = freshWefts();
   banner("#bodyBanner");
   renderSummary();
+  renderBodyAchu();
   renderBodySlots(); renderFileThumbs(); renderBoxEditor(); renderChips();
   el("#combineBody").disabled = !renderChecksInto(el("#bodyChecks"), validateBody(),
     "The body wefts match their group. Combine them.");

@@ -18,7 +18,7 @@ const build = (motion, K=3, perLine=true) => {
                   {id:'bd',kind:'body',count:720}];
   state.totalDeclared=732; state.boxMotion=motion;
   state.opts={achuStartsBlack:true,pinOneLeft:true,topRowFirstPick:true,blackIsIndexZero:true,
-              stackMode:'interleave',achuOnBody:false,satinWarpFaced:false,autoRotate:true,
+              stackMode:'interleave',achuOnBody:false, achuInBody:true,satinWarpFaced:false,autoRotate:true,
               boxWholeBand:true,weavePerDesignLine:perLine};
   state.borderFiles={}; state.wefts=freshWefts();
   [res,jar,men].slice(0,K).forEach((f,i)=>{ state.wefts[i].file=fitToPins(f,720); });

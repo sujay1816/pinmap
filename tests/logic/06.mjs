@@ -43,7 +43,7 @@ head('reproducing the sample exactly');
 state.segments=[{ id:'bd', kind:'body', count:720 }];
 state.totalDeclared=720;
 state.opts={achuStartsBlack:true,pinOneLeft:true,topRowFirstPick:true,blackIsIndexZero:true,
-            stackMode:'interleave',achuOnBody:true,satinWarpFaced:false,autoRotate:true,boxWholeBand:true};
+            stackMode:'interleave',achuOnBody:true, achuInBody:true,satinWarpFaced:false,autoRotate:true,boxWholeBand:true};
 state.borderFiles={};
 state.wefts=freshWefts();
 state.wefts[0].file=fitToPins(res,720);

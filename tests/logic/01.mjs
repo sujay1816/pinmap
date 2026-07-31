@@ -121,7 +121,7 @@ const segs = [
 ];
 state.segments = segs;
 state.totalDeclared = 732;
-state.opts = { achuStartsBlack: true, pinOneLeft: true, topRowFirstPick: true, blackIsIndexZero: true, stackMode: 'interleave', achuOnBody: true, satinWarpFaced: false, boxWholeBand: true };
+state.opts = { achuStartsBlack: true, pinOneLeft: true, topRowFirstPick: true, blackIsIndexZero: true, stackMode: 'interleave', achuOnBody: true, achuInBody:true, satinWarpFaced: false, boxWholeBand: true };
 const leftF = crop(men, 100), rightF = crop(res, 100);
 state.borderFiles = { lb: leftF, rb: rightF };
 state.wefts = freshWefts();

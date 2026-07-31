@@ -64,7 +64,7 @@ state.segments=[
 ];
 state.totalDeclared=508;
 state.opts={achuStartsBlack:true,pinOneLeft:true,topRowFirstPick:true,blackIsIndexZero:true,
-            stackMode:'interleave',achuOnBody:true,satinWarpFaced:false,boxWholeBand:true};
+            stackMode:'interleave',achuOnBody:true, achuInBody:true,satinWarpFaced:false,boxWholeBand:true};
 state.borderFiles={};
 state.wefts=freshWefts(); state.wefts[0].file=men;
 let out=compose();

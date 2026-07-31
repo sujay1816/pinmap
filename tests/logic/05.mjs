@@ -19,7 +19,7 @@ const setup = (segs, total) => {
   state.segments = segs;
   state.totalDeclared = total;
   state.opts = { achuStartsBlack:true, pinOneLeft:true, topRowFirstPick:true,
-                 blackIsIndexZero:true, stackMode:'overlay', achuOnBody:true, satinWarpFaced:false };
+                 blackIsIndexZero:true, stackMode:'overlay', achuOnBody:true, achuInBody:true, satinWarpFaced:false };
   state.borderFiles = {};
   state.wefts = freshWefts();
 };

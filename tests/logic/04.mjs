@@ -49,7 +49,7 @@ head('choosing a weave drives the build');
 const bodyOnly = () => {
   state.totalDeclared = 0;
   state.opts = { achuStartsBlack:true, pinOneLeft:true, topRowFirstPick:true,
-                 blackIsIndexZero:true, stackMode:'interleave', achuOnBody:true, satinWarpFaced:false };
+                 blackIsIndexZero:true, stackMode:'interleave', achuOnBody:true, achuInBody:true, satinWarpFaced:false };
   state.borderFiles = {};
   state.wefts = freshWefts();
 };
