@@ -940,7 +940,7 @@ function labelFor(segs, i) {
   for (let j = 0; j <= i; j++) if (segs[j].kind === k) n++;
   return `${base} ${n}`;
 }
-const BUILD = "2026-07-31.9";      // bump when the file changes, so a stale page shows
+const BUILD = "2026-07-31.10";      // bump when the file changes, so a stale page shows
 /* ============================================================
    Whose software wrote the file
 
@@ -1299,11 +1299,18 @@ function satinName(repeat, step, satin) {
 
 // Weaves the Locking group can be woven in: the built-in satins, plus any the
 // user has uploaded and named. A weave states the pin count it needs.
-const BUILTIN_WEAVES = SATIN_LIBRARY.map(w => ({
+// A plain one up, one down. Sri Tex lock with this rather than a satin, so it
+// belongs in the list even though it is not a satin at all.
+const PLAIN_WEAVE = {
+  id: "satin:2:1", name: "Plain, one up one down",
+  pins: 2, kind: "satin", repeat: 2, step: 1, builtin: true
+};
+
+const BUILTIN_WEAVES = [PLAIN_WEAVE].concat(SATIN_LIBRARY.map(w => ({
   id: `satin:${w.repeat}:${w.step}`,
   name: satinName(w.repeat, w.step, w.satin),
   pins: w.repeat, kind: "satin", repeat: w.repeat, step: w.step, builtin: true
-}));
+})));
 
 function allWeaves() { return BUILTIN_WEAVES.concat(state.weaves || []); }
 function weaveById(id) { return allWeaves().find(w => w.id === id) || null; }

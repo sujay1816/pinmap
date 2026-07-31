@@ -12,8 +12,9 @@ const head=t=>console.log('\n== '+t+' ==');
 const str=a=>Array.from(a).join('');
 
 head('the built-in weaves');
-ok('one entry per satin in the library', BUILTIN_WEAVES.length === 14, String(BUILTIN_WEAVES.length));
-ok('each states its pin count', BUILTIN_WEAVES.every(w => w.pins === w.repeat && w.pins >= 4));
+ok('fifteen weaves — fourteen satins and twills, plus the plain', BUILTIN_WEAVES.length === 15, String(BUILTIN_WEAVES.length));
+ok('the plain one is first, and is two pins', BUILTIN_WEAVES[0].pins === 2 && BUILTIN_WEAVES[0].repeat === 2);
+ok('each states its pin count', BUILTIN_WEAVES.every(w => w.pins === w.repeat && w.pins >= 2));
 ok('ids are unique and stable',
    new Set(BUILTIN_WEAVES.map(w=>w.id)).size === BUILTIN_WEAVES.length &&
    BUILTIN_WEAVES.some(w => w.id === 'satin:8:3'));
