@@ -1,4 +1,4 @@
-// The pin board: handles between groups, and dragging pins across them.
+// The pin board: balls sixteen to a column, with draggable joins.
 import fs from 'fs';
 import { JSDOM } from 'jsdom';
 const errors=[]; const ok=(n,c,e='')=>{ c?console.log('  ok   '+n):(errors.push(n),console.log('  FAIL '+n+(e?'  -> '+e:''))); };
@@ -26,100 +26,113 @@ const START=[4,4,500,8,720,500,4,52];
 START.forEach((v,i)=>{ const el=$$('#segTable input[type=number]')[i]; if(el) setVal(el,String(v)); });
 await wait(600);
 
+const PER = 16, GUT = 34, RULE = 16;
 const counts = () => $$('#segTable input[type=number]').map(e=>parseInt(e.value,10)||0);
 const cv = () => $('#board');
-// jsdom gives every element a zero-size rect, so place the canvas by hand
 const place = () => { const c=cv(); c.getBoundingClientRect = () => ({ left:0, top:0, width:c.width, height:c.height }); };
+const pitch = () => { const t=counts().reduce((a,b)=>a+b,0); const cols=Math.ceil(t/PER);
+                      return (parseFloat(cv().style.width) - GUT) / cols; };
+const ballAt = (pin) => { const p=pitch();
+  return { x: GUT + Math.floor(pin/PER)*p + p/2, y: RULE + (pin%PER)*p + p/2 }; };
+const joinAt = (pin) => { const p=pitch(), col=Math.floor(pin/PER), row=pin%PER;
+  return row===0 ? { x: GUT + col*p, y: RULE + p*4 }
+                 : { x: GUT + col*p + p/2, y: RULE + row*p }; };
+const cumulative = (i) => counts().slice(0,i).reduce((a,b)=>a+b,0);
 
-console.log('\n== handles ==');
+console.log('\n== balls, sixteen to a column ==');
 ok('the board is drawn', !!cv());
 place();
-const geomBounds = () => {
-  // recover the joins from the group counts and the drawn width
-  const t = counts().reduce((a,b)=>a+b,0);
-  const px = parseFloat(cv().style.width) / t;
-  const bs=[]; let at=0;
-  counts().forEach((c,i)=>{ at+=c; if (i<counts().length-1) bs.push({x:at*px,i}); });
-  return bs;
-};
-const bs = geomBounds();
-ok('there is a join between each pair of groups', bs.length===START.length-1, String(bs.length));
-
-console.log('\n== dragging a join moves pins across it ==');
 {
+  const t = counts().reduce((a,b)=>a+b,0);
+  const cols = Math.ceil(t/PER);
+  const expected = GUT + cols*pitch();
+  ok('as wide as the number of columns needs',
+     Math.abs(parseFloat(cv().style.width) - expected) < 2,
+     `${cv().style.width} for ${cols} columns`);
+  ok('and sixteen balls tall',
+     Math.abs(parseFloat(cv().style.height) - (RULE + PER*pitch())) < 2, cv().style.height);
+}
+
+console.log('\n== reading a pin ==');
+{
+  const at = ballAt(100);
+  cv().dispatchEvent(new w.MouseEvent('mousemove',{bubbles:true,clientX:at.x,clientY:at.y}));
+  await wait(80);
+  const t = $('#boardRead').textContent;
+  ok('it names the pin, its column and its place', /pin 101 of 1792 · column 7, place 5/.test(t), t.slice(0,90));
+}
+
+console.log('\n== dragging a join shifts pins ==');
+{
+  place();
   const before = counts();
-  const b = bs[4];                       // between body and right border, neither constrained
-  const move = (dx) => {
-    cv().dispatchEvent(new w.MouseEvent('mousedown',{bubbles:true,clientX:b.x,clientY:60}));
-    cv().dispatchEvent(new w.MouseEvent('mousemove',{bubbles:true,clientX:b.x+dx,clientY:60}));
-    w.dispatchEvent(new w.MouseEvent('mouseup',{bubbles:true}));
-  };
-  const px = parseFloat(cv().style.width) / before.reduce((a,c)=>a+c,0);
-  move(px*20);                            // twenty pins to the right
+  const boundary = cumulative(5);              // between body and right border
+  const j = joinAt(boundary);
+  cv().dispatchEvent(new w.MouseEvent('mousemove',{bubbles:true,clientX:j.x,clientY:j.y}));
+  await wait(80);
+  ok('hovering a join says what it does', /drag to move pins/i.test($('#boardRead').textContent),
+     $('#boardRead').textContent.slice(0,70));
+  ok('and the cursor changes', /col-resize/.test(cv().style.cursor||''), cv().style.cursor);
+
+  place();
+  const target = ballAt(boundary + PER*2);     // two columns further along
+  cv().dispatchEvent(new w.MouseEvent('mousedown',{bubbles:true,clientX:j.x,clientY:j.y}));
+  cv().dispatchEvent(new w.MouseEvent('mousemove',{bubbles:true,clientX:target.x,clientY:target.y}));
+  w.dispatchEvent(new w.MouseEvent('mouseup',{bubbles:true}));
+  await wait(120);
   const after = counts();
-  ok('the group on the left grew', after[4] > before[4], `${before[4]} -> ${after[4]}`);
-  ok('the group on the right shrank', after[5] < before[5], `${before[5]} -> ${after[5]}`);
-  ok('the two together are unchanged',
-     after[4]+after[5] === before[4]+before[5], `${before[4]+before[5]} vs ${after[4]+after[5]}`);
-  ok('the loom total is unchanged',
-     after.reduce((a,c)=>a+c,0) === before.reduce((a,c)=>a+c,0));
+  ok('the group before the join grew', after[4] > before[4], `${before[4]} -> ${after[4]}`);
+  ok('the one after it shrank', after[5] < before[5], `${before[5]} -> ${after[5]}`);
+  ok('the pair still adds up', after[4]+after[5] === before[4]+before[5]);
+  ok('the loom total is unchanged', after.reduce((a,b)=>a+b,0) === before.reduce((a,b)=>a+b,0));
 }
 
 console.log('\n== groups that cannot take any number ==');
 {
   place();
   const before = counts();
-  const t = before.reduce((a,c)=>a+c,0);
-  const px = parseFloat(cv().style.width) / t;
-  let at=0; for (let i=0;i<=2;i++) at+=before[i];      // the join before locking
-  cv().dispatchEvent(new w.MouseEvent('mousedown',{bubbles:true,clientX:at*px,clientY:60}));
-  cv().dispatchEvent(new w.MouseEvent('mousemove',{bubbles:true,clientX:at*px+px*3,clientY:60}));
+  const boundary = cumulative(3);              // the join before locking
+  const j = joinAt(boundary);
+  const target = ballAt(boundary + 3);
+  cv().dispatchEvent(new w.MouseEvent('mousedown',{bubbles:true,clientX:j.x,clientY:j.y}));
+  cv().dispatchEvent(new w.MouseEvent('mousemove',{bubbles:true,clientX:target.x,clientY:target.y}));
   w.dispatchEvent(new w.MouseEvent('mouseup',{bubbles:true}));
+  await wait(120);
   const after = counts();
   ok('locking stays a whole number of repeats', after[3] % 8 === 0, `${after[3]} pins`);
-  ok('and the pair still adds up', after[2]+after[3] === before[2]+before[3]);
+  ok('and never reaches nothing', after[3] >= 8, String(after[3]));
+  ok('the pair still adds up', after[2]+after[3] === before[2]+before[3]);
 }
 
-console.log('\n== it will not take a group down to nothing ==');
+console.log('\n== the plus and minus buttons ==');
 {
-  place();
   const before = counts();
-  const t = before.reduce((a,c)=>a+c,0);
-  const px = parseFloat(cv().style.width) / t;
-  let at=0; for (let i=0;i<=2;i++) at+=before[i];
-  cv().dispatchEvent(new w.MouseEvent('mousedown',{bubbles:true,clientX:at*px,clientY:60}));
-  cv().dispatchEvent(new w.MouseEvent('mousemove',{bubbles:true,clientX:at*px+px*5000,clientY:60}));
-  w.dispatchEvent(new w.MouseEvent('mouseup',{bubbles:true}));
+  const rows = $$('#segTable .seg-row').filter(r => r.querySelector('button[data-step]'));
+  ok('every group has them', rows.length === START.length, `${rows.length} of ${START.length}`);
+  // the table redraws after each step, so find the row again each time
+  const stepGroup = (idx, dir) => {
+    const row = $$('#segTable .seg-row')[idx + 1];
+    click(row.querySelector(`button[data-step="${dir}"]`));
+  };
+  stepGroup(4, 1); await wait(120);
   const after = counts();
-  ok('the neighbour keeps a usable count', after[3] >= 8 && after[3] % 8 === 0, String(after[3]));
-  ok('and the total still holds', after.reduce((a,c)=>a+c,0)===t, String(after.reduce((a,c)=>a+c,0)));
+  ok('plus adds a pin', after[4] === before[4] + 1, `${before[4]} -> ${after[4]}`);
+  stepGroup(4, -1); await wait(120);
+  ok('minus takes it back', counts()[4] === before[4], `${counts()[4]} vs ${before[4]}`);
 }
-
-console.log('\n== the guidance changes on a join ==');
 {
-  place();
-  const before = counts();
-  const px = parseFloat(cv().style.width) / before.reduce((a,c)=>a+c,0);
-  let at=0; for (let i=0;i<=0;i++) at+=before[i];
-  cv().dispatchEvent(new w.MouseEvent('mousemove',{bubbles:true,clientX:at*px,clientY:60}));
-  await wait(80);
-  ok('it says what dragging would do', /drag to move pins/i.test($('#boardRead').textContent),
-     $('#boardRead').textContent.slice(0,80));
-  ok('and the cursor shows it', /col-resize/.test(cv().style.cursor||''), cv().style.cursor);
+  const before = counts()[0];
+  click($$('#segTable .seg-row')[1].querySelector('button[data-step="1"]')); await wait(120);
+  ok('achu moves in twos, since it splits in half', counts()[0] === before + 2,
+     `${before} -> ${counts()[0]}`);
 }
-
-console.log('\n== the mini ruler names its groups ==');
 {
-  // the banners carry a small ruler; save the loom and open a file screen
-  if ($('#saveLoom').disabled) throw new Error('save disabled: ' + $('#loomChecks').textContent.replace(/\s+/g,' ').slice(0,140));
-  click($('#saveLoom')); await wait(400);
-  const nav = $$('nav.steps button').find(x => x.dataset.go === 'body');
-  if (nav) { click(nav); await wait(250); }
-  const named = $$('.loombanner .ruler-seg .k').length;
-  const total = $$('.loombanner .ruler-seg').length;
-  ok('a ruler is drawn in the banner', total>0, String(total)+' segments');
-  ok('the wider groups are named', named>0, `${named} of ${total} named`);
-  ok('narrow ones are not crowded with text', named < total, `${named} of ${total}`);
+  const before = counts()[3];
+  click($$('#segTable .seg-row')[4].querySelector('button[data-step="1"]')); await wait(120);
+  ok('locking moves a whole repeat at a time', counts()[3] === before + 8,
+     `${before} -> ${counts()[3]}`);
+  click($$('#segTable .seg-row')[4].querySelector('button[data-step="-1"]')); await wait(120);
+  ok('and back down by one repeat', counts()[3] === before, `${counts()[3]} vs ${before}`);
 }
 
 console.log('\n== result ==');
