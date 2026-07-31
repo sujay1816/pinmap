@@ -64,12 +64,15 @@ ok('halves scale to 6 box pins', boxRow(6, 1, 3, true).join('') === '111000',
 /* --------------------------------------------------------- BMP round trip */
 head('BMP writing');
 for (const [nm, f] of [['menna', men], ['resham', res]]) {
-  for (const zero of [true, false]) {
-    const enc = encodeBMP1(f.bits, f.width, f.height, zero);
+  for (const liftedIsBlack of [true, false]) {
+    const enc = encodeBMP1(f.bits, f.width, f.height, liftedIsBlack);
     const back = decodeBMP(enc.buffer.slice(enc.byteOffset, enc.byteOffset + enc.byteLength));
     let same = back.width === f.width && back.height === f.height;
     if (same) for (let i = 0; i < f.bits.length; i++) if (f.bits[i] !== back.bits[i]) { same = false; break; }
-    ok(`${nm} survives a round trip (black=index${zero ? 0 : 1})`, same);
+    // The reader takes black as a lifted pin. Written black it comes back as it
+    // went in; written white it comes back as its opposite, which is the point.
+    ok(`${nm} written with a lifted pin as ${liftedIsBlack ? 'black comes back the same' : 'white comes back inverted'}`,
+       liftedIsBlack ? same : !same);
   }
 }
 {

@@ -940,7 +940,7 @@ function labelFor(segs, i) {
   for (let j = 0; j <= i; j++) if (segs[j].kind === k) n++;
   return `${base} ${n}`;
 }
-const BUILD = "2026-07-31.7";      // bump when the file changes, so a stale page shows
+const BUILD = "2026-07-31.8";      // bump when the file changes, so a stale page shows
 /* ============================================================
    Whose software wrote the file
 
@@ -1166,7 +1166,9 @@ function decodeBMP(buf) {
    BMP encoding — 1 bit, uncompressed, bottom-up
    ============================================================ */
 
-function encodeBMP1(bits, width, height, blackIsIndexZero) {
+// liftedIsBlack: true writes a lifted pin as black, which is what Sai Tex reads.
+// false writes it as white, which is what Sri Tex reads.
+function encodeBMP1(bits, width, height, liftedIsBlack) {
   const rowBytes = Math.ceil(width / 8);
   const stride   = (rowBytes + 3) & ~3;
   const offset   = 14 + 40 + 8;
@@ -1190,16 +1192,18 @@ function encodeBMP1(bits, width, height, blackIsIndexZero) {
   dv.setUint32(46, 2, true);
   dv.setUint32(50, 2, true);
 
+  // The palette stays put: colour 0 is black, colour 1 is white. What changes
+  // is which of the two a lifted pin gets. Flipping both, as this once did,
+  // cancels out and the page looks identical either way.
   const put = (i, v) => { const o = offset - 8 + i * 4; out[o] = v; out[o+1] = v; out[o+2] = v; };
-  if (blackIsIndexZero) { put(0, 0); put(1, 255); } else { put(0, 255); put(1, 0); }
+  put(0, 0); put(1, 255);
 
-  const onBit = blackIsIndexZero ? 0 : 1;
+  const setWhenUp = !liftedIsBlack;          // set the bit -> colour 1 -> white
   for (let y = 0; y < height; y++) {
     const rowStart = offset + (height - 1 - y) * stride;
-    if (onBit === 1) {
-      for (let x = 0; x < width; x++) if (bits[y*width+x]) out[rowStart + (x>>3)] |= 0x80 >> (x&7);
-    } else {
-      for (let x = 0; x < width; x++) if (!bits[y*width+x]) out[rowStart + (x>>3)] |= 0x80 >> (x&7);
+    for (let x = 0; x < width; x++) {
+      const up = !!bits[y * width + x];
+      if (up === setWhenUp) out[rowStart + (x >> 3)] |= 0x80 >> (x & 7);
     }
   }
   return out;
@@ -4309,7 +4313,15 @@ async function runVerify(which, file) {
     return;
   }
   let ref;
-  try { ref = decodeBMP(await file.arrayBuffer()); }
+  try {
+    ref = decodeBMP(await file.arrayBuffer());
+    // their file, read their way: on a white-lifted loom, black is the resting pin
+    if (state.opts.blackIsIndexZero === false) {
+      const flipped = new Uint8Array(ref.bits.length);
+      for (let i = 0; i < ref.bits.length; i++) flipped[i] = ref.bits[i] ? 0 : 1;
+      ref = { width: ref.width, height: ref.height, bits: flipped };
+    }
+  }
   catch (err) {
     el(`.verify[data-verify="${which}"] .vf-out`).innerHTML =
       `<div class="vf-verdict differs">Could not read that file</div><div class="vf-body">${esc(err.message)}</div>`;
@@ -4484,8 +4496,8 @@ const OPTS = [
     why: "Mirrors every line. Check the border lands on the correct side." },
   { key: "topRowFirstPick", cap: "Top line of the file", a: [true, "First pick"], b: [false, "Last pick"],
     why: "Flip if the design weaves upside down." },
-  { key: "blackIsIndexZero", cap: "Black is saved as", a: [true, "Colour 0"], b: [false, "Colour 1"],
-    why: "Identical on screen. Flip only if the controller reads the file inverted." }
+  { key: "blackIsIndexZero", cap: "A lifted pin is written", a: [true, "Black"], b: [false, "White"],
+    why: "Sai Tex reads a lifted pin as black. Sri Tex reads it as white, so their files look mostly black with the design picked out in white. If a built file opens looking inverted, this is the one to change." }
 ];
 
 function renderOpts() {
