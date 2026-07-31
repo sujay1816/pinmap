@@ -46,15 +46,39 @@ head('achu waits for the rani');
   ok('rani alone is enough', achuAt(o,0)==='1100', achuAt(o,0));
 }
 
-head('achu does not care how many files there are');
+head('achu alternates on every pick, whatever the file count');
 {
-  const one = build([res]), two = build([res,jar]), three = build([res,jar,men]);
-  const first = (o) => achuAt(o,0);
-  ok('the same first line with one, two or three',
-     first(one)===first(two) && first(two)===first(three),
-     [first(one),first(two),first(three)].join(' '));
-  ok('and it still flips line to line',
-     achuAt(three,0)!==achuAt(three,3), achuAt(three,0)+' / '+achuAt(three,3));
+  const eight = o => [0,1,2,3,4,5,6,7].map(y => achuAt(o,y)).join(' ');
+  const want = '1100 0011 1100 0011 1100 0011 1100 0011';
+  ok('one weft',    eight(build([res]))===want,          eight(build([res])));
+  ok('two wefts',   eight(build([res,jar]))===want,      eight(build([res,jar])));
+  ok('three wefts', eight(build([res,jar,men]))===want,  eight(build([res,jar,men])));
+  ok('it never holds for two lines running', (()=>{
+    const o = build([res,jar,men]);
+    for (let y=1;y<40;y++) if (achuAt(o,y)===achuAt(o,y-1)) return false;
+    return true; })());
+}
+
+head('locking still belongs to the design line');
+{
+  const o = build([res,jar,men]);
+  const lock = y => { for (let x=4;x<12;x++) if (o.bits[y*o.width+x]) return x-4; return -1; };
+  ok('all three picks of a line bind the same way',
+     lock(0)===lock(1) && lock(1)===lock(2), [lock(0),lock(1),lock(2)].join(','));
+  ok('and the next line binds differently', lock(0)!==lock(3), lock(0)+' / '+lock(3));
+}
+
+head('with a border loaded');
+{
+  const border = { lb: { width:100, height:720, bits:(()=>{ const b=new Uint8Array(100*720); b.fill(1); return b; })() } };
+  const o = build([res,jar,men], border);
+  const eight = [0,1,2,3,4,5,6,7].map(y => achuAt(o,y)).join(' ');
+  ok('achu still alternates every pick', eight==='1100 0011 1100 0011 1100 0011 1100 0011', eight);
+  const lock = y => { for (let x=4;x<12;x++) if (o.bits[y*o.width+x]) return x-4; return -1; };
+  ok('locking still shared across the picks', lock(0)===lock(1) && lock(1)===lock(2));
+  ok('the border itself is carried', (()=>{
+    for (let x=0;x<100;x++) if (!o.bits[12+x]) return false;   // achu 4 + locking 8 = 12
+    return true; })());
 }
 
 head('locking is unaffected by the rani rule');

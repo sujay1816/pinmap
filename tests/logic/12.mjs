@@ -39,18 +39,24 @@ ok('all three wefts of a design line share the same locking line',
    lockAt(o,3)===lockAt(o,4) && lockAt(o,4)===lockAt(o,5));
 ok('and it advances on the next design line', lockAt(o,0)!==lockAt(o,3));
 
-head('achu too');
-ok('all three picks of a design line share an achu line',
-   achuAt(o,0)===achuAt(o,1) && achuAt(o,1)===achuAt(o,2));
-ok('and it flips on the next design line', achuAt(o,0)!==achuAt(o,3));
+head('achu goes its own way');
+ok('it alternates on every pick, not per design line',
+   achuAt(o,0)!==achuAt(o,1) && achuAt(o,1)!==achuAt(o,2),
+   [0,1,2].map(y=>achuAt(o,y)).join(' '));
+ok('so it repeats every two picks', achuAt(o,0)===achuAt(o,2) && achuAt(o,1)===achuAt(o,3));
 for (let k=0;k<3;k++){
   const a=achuAt(o,k), b=achuAt(o,3+k);
-  ok(`weft ${k+1} sees the achu flip line to line`, a!==b, a+' / '+b);
+  ok(`weft ${k+1} sees it flip between its own lines`, a!==b, a+' / '+b);
 }
 
 head('with two wefts, where the old way failed outright');
 o = build('4x4', 2);
-ok('achu still flips for each weft', achuAt(o,0)!==achuAt(o,2), achuAt(o,0)+' / '+achuAt(o,2));
+ok('achu flips pick to pick', achuAt(o,0)!==achuAt(o,1), achuAt(o,0)+' / '+achuAt(o,1));
+// Alternating every pick with an even number of wefts means each weft keeps
+// one half of the achu throughout. With an odd number it alternates for each.
+ok('with two wefts each shuttle keeps one half',
+   achuAt(o,0)===achuAt(o,2) && achuAt(o,1)===achuAt(o,3) && achuAt(o,0)!==achuAt(o,1),
+   [0,1,2,3].map(y=>achuAt(o,y)).join(' '));
 {
   const seq=[]; for(let n=0;n<8;n++) seq.push(lockAt(o, n*2));
   ok('weft 1 still gets a proper satin', seq.join(',')==='0,3,6,1,4,7,2,5', seq.join(','));

@@ -601,7 +601,8 @@
         <p><strong>Achu pins</strong> are generated here — half up then half down, flipping on the next line. The count must be even. They only lift once a rani is loaded in the first weft slot; with no ground to bind, they stay down.</p>
         <p><strong>Box pins</strong> are generated from how many weft files you combine.</p>
         <p><strong>Locking</strong> pins are woven with a weave generated here — a satin by default. Choose it from the dropdown on the Locking row: each weave states the number of pins it needs, and picking one sets that count. Your own uploaded weaves appear there too.</p>
-        <p>The weave steps once per design line, so it is applied in full to every weft file you combine. All three shuttles lay the same locking line, and each file on its own carries the complete weave.</p>
+        <p>The locking weave steps once per design line, so it is applied in full to every weft file you combine. All the shuttles lay the same locking line, and each file on its own carries the complete weave.</p>
+        <p><strong>Achu is different.</strong> It alternates on every pick, so it reads the same whether you combine one weft or four.</p>
         <p><strong>Body</strong> takes the uploaded weft files. <strong>Empty</strong> pins stay down.</p>
         <p>A group's name is simply its group, so there is nothing extra to type. Where the same group appears twice, as achu does, they are numbered Achu 1 and Achu 2.</p>
         <p>Groups start in the order these pins run on the machine — achu, box, left border, locking, body, right border, achu, empty. Change any count, reorder with the arrows, or add and remove groups as a particular loom needs.</p>
@@ -1177,9 +1178,12 @@ function compose() {
     rowWeft[outY] = weftIdx;
     rowDesign[outY] = designRow;
 
-    // Generated weaves step with the design line, not the pick, so each weft
-    // file carries the whole weave rather than a slice of it.
-    const weaveRowIndex = o.weavePerDesignLine ? designRow : outY;
+    // Locking steps with the design line, so every weft of that line binds the
+    // same way and each file carries the whole weave. Achu steps with the pick:
+    // it is the ground's own alternation and does not care how many shuttles
+    // are running.
+    const lockRowIndex = o.weavePerDesignLine ? designRow : outY;
+    const achuRowIndex = outY;
 
     const rowBase = outY * W;
 
@@ -1189,11 +1193,11 @@ function compose() {
 
       if (seg.kind === "achu") {
         if (!raniLoaded) return;              // nothing to bind yet
-        const r = achuRow(seg.count, weaveRowIndex, o.achuStartsBlack);
+        const r = achuRow(seg.count, achuRowIndex, o.achuStartsBlack);
         for (let x = 0; x < seg.count; x++) bits[rowBase + at + x] = r[x];
 
       } else if (seg.kind === "locking") {
-        const r = weaveRow(weaveById(seg.weave), seg.count, weaveRowIndex, o.satinWarpFaced);
+        const r = weaveRow(weaveById(seg.weave), seg.count, lockRowIndex, o.satinWarpFaced);
         for (let x = 0; x < seg.count; x++) bits[rowBase + at + x] = r[x];
 
       } else if (seg.kind === "box") {
@@ -1215,7 +1219,7 @@ function compose() {
         for (let x = 0; x < seg.count; x++) bits[rowBase + at + x] = f.bits[from + x];
 
       } else if (src === "weft") {
-        const ground = achuW ? achuRow(achuW, weaveRowIndex, o.achuStartsBlack) : null;
+        const ground = achuW ? achuRow(achuW, achuRowIndex, o.achuStartsBlack) : null;
         if (overlay) {
           // every weft lands on the same line; they lift different pins, so merge them
           for (let x = 0; x < seg.count; x++) {
@@ -3094,8 +3098,8 @@ const OPTS = [
     why: "A line each is how the loom lays weft: menna, then rani, then zari, each its own pick. Merging puts them all on one line, which halves the file height but loses which shuttle laid what." },
   { key: "autoRotate", cap: "Sideways design files", a: [true, "Turn them to fit"], b: [false, "Use as given"],
     why: "Many designs are drawn with the pins running down the file. When a file only fits the pin count on its side, it is turned a quarter turn anticlockwise." },
-  { key: "weavePerDesignLine", cap: "Generated weaves step", a: [true, "Once per design line"], b: [false, "On every pick"],
-    why: "Stepping with the design line means each weft file carries the whole weave. Stepping on every pick spreads one weave across all the wefts, so no single shuttle sees it whole." },
+  { key: "weavePerDesignLine", cap: "Locking weave steps", a: [true, "Once per design line"], b: [false, "On every pick"],
+    why: "Once per design line means every shuttle of that line binds the same way, and each weft file carries the whole weave. Achu is not affected — it alternates on every pick whatever this is set to." },
   { key: "satinWarpFaced", cap: "Locking satin", a: [false, "One pin up per line"], b: [true, "One pin down per line"],
     why: "The satin puts a single interlacing on each line, stepped along the locking pins. Flip if yours reads the other way round." },
   { key: "boxWholeBand", cap: "Box over a butta band", a: [true, "Hold across the whole band"], b: [false, "Only lines with figure"],
