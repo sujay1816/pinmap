@@ -26,12 +26,12 @@ const START=[4,4,500,8,720,500,4,52];
 START.forEach((v,i)=>{ const el=$$('#segTable input[type=number]')[i]; if(el) setVal(el,String(v)); });
 await wait(600);
 
-const PER = 16, GUT = 34, RULE = 16;
+const PER = 16, GUT = 40, RULE = 22, FOOT = 18, PAD = 8;
 const counts = () => $$('#segTable input[type=number]').map(e=>parseInt(e.value,10)||0);
 const cv = () => $('#board');
 const place = () => { const c=cv(); c.getBoundingClientRect = () => ({ left:0, top:0, width:c.width, height:c.height }); };
 const pitch = () => { const t=counts().reduce((a,b)=>a+b,0); const cols=Math.ceil(t/PER);
-                      return (parseFloat(cv().style.width) - GUT) / cols; };
+                      return (parseFloat(cv().style.width) - GUT - PAD) / cols; };
 const ballAt = (pin) => { const p=pitch();
   return { x: GUT + Math.floor(pin/PER)*p + p/2, y: RULE + (pin%PER)*p + p/2 }; };
 const joinAt = (pin) => { const p=pitch(), col=Math.floor(pin/PER), row=pin%PER;
@@ -47,10 +47,10 @@ place();
   const cols = Math.ceil(t/PER);
   const expected = GUT + cols*pitch();
   ok('as wide as the number of columns needs',
-     Math.abs(parseFloat(cv().style.width) - expected) < 2,
+     Math.abs(parseFloat(cv().style.width) - (expected + PAD)) < 2,
      `${cv().style.width} for ${cols} columns`);
-  ok('and sixteen balls tall',
-     Math.abs(parseFloat(cv().style.height) - (RULE + PER*pitch())) < 2, cv().style.height);
+  ok('and sixteen balls tall, with room for the ruler and scale',
+     Math.abs(parseFloat(cv().style.height) - (RULE + PER*pitch() + FOOT)) < 2, cv().style.height);
 }
 
 console.log('\n== reading a pin ==');
@@ -133,6 +133,47 @@ console.log('\n== the plus and minus buttons ==');
      `${before} -> ${counts()[3]}`);
   click($$('#segTable .seg-row')[4].querySelector('button[data-step="-1"]')); await wait(120);
   ok('and back down by one repeat', counts()[3] === before, `${counts()[3]} vs ${before}`);
+}
+
+console.log('\n== picking a group ==');
+{
+  place();
+  const at = ballAt(cumulative(4) + 40);          // somewhere in the body
+  click(cv());
+  cv().dispatchEvent(new w.MouseEvent('click',{bubbles:true,clientX:at.x,clientY:at.y}));
+  await wait(150);
+  const t = $('#boardSel').textContent;
+  ok('it says which group', /Body/.test(t), t.replace(/\s+/g,' ').slice(0,80));
+  ok('with its pin count', /pins/.test(t));
+  ok('its range', /\d+–\d+/.test(t), t.replace(/\s+/g,' ').slice(0,90));
+  ok('and its share of the loom', /% of the loom/.test(t));
+}
+
+console.log('\n== moving it from the keyboard ==');
+{
+  const before = counts();
+  const key = (k, shift) => cv().dispatchEvent(
+    new w.KeyboardEvent('keydown',{key:k,shiftKey:!!shift,bubbles:true}));
+  key('ArrowRight'); await wait(120);
+  const after = counts();
+  ok('right grows the chosen group', after[4] === before[4] + 1, `${before[4]} -> ${after[4]}`);
+  ok('and takes it from the next one', after[5] === before[5] - 1, `${before[5]} -> ${after[5]}`);
+  key('ArrowLeft'); await wait(120);
+  ok('left puts it back', counts()[4] === before[4]);
+  key('ArrowRight', true); await wait(120);
+  ok('shift moves five at a time', counts()[4] === before[4] + 5, `${before[4]} -> ${counts()[4]}`);
+  key('ArrowLeft', true); await wait(120);
+  ok('and the total never drifts', counts().reduce((a,b)=>a+b,0) === before.reduce((a,b)=>a+b,0));
+}
+
+console.log('\n== nothing picked ==');
+{
+  place();
+  const empty = ballAt(counts().reduce((a,b)=>a+b,0) - 1);
+  cv().dispatchEvent(new w.MouseEvent('click',{bubbles:true,clientX:empty.x,clientY:empty.y}));
+  await wait(120);
+  ok('it explains what the keys do', /←/.test($('#boardSel').textContent) || /Click a group/.test($('#boardSel').textContent),
+     $('#boardSel').textContent.replace(/\s+/g,' ').slice(0,70));
 }
 
 console.log('\n== result ==');

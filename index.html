@@ -159,6 +159,19 @@
   }
   #board { display: block; }
   .board-empty { border: 1px dashed var(--rule); background: #fff; padding: 30px; text-align: center; font-size: 13px; color: var(--ink-3); }
+  .board-sel {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 9px;
+    min-height: 22px;
+  }
+  .board-sel .selchip {
+    display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11px;
+    letter-spacing: 0.06em; text-transform: uppercase; border: 1px solid var(--ink); padding: 3px 8px;
+  }
+  .board-sel .selchip i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .board-sel .selfact {
+    font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); font-variant-numeric: tabular-nums;
+  }
+  .board-sel .hintline { font-size: 12px; color: var(--ink-3); }
   .board-read {
     font-family: var(--mono); font-size: 11.5px; color: var(--ink-2);
     font-variant-numeric: tabular-nums; margin-top: 8px; min-height: 1.5em;
@@ -613,6 +626,7 @@
       </div>
     </div>
     <div id="boardHost"><div class="board-empty">Enter the total pins to draw the board</div></div>
+    <div class="board-sel" id="boardSel"></div>
     <div class="board-read" id="boardRead"></div>
     <div class="legend" id="boardLegend"></div>
 
@@ -2448,6 +2462,7 @@ let boardHover = -1;
 let nearBoundary = null;
 let dragging = null;
 let boardCursor = "pointer";
+let boardSel = -1;
 
 // Where each group starts and ends, in pins.
 function groupSpans() {
@@ -2468,6 +2483,22 @@ function tickStep(pitch) {
   return 5000;
 }
 
+// The stretch of columns a group covers, as rectangles, because a group snakes
+// down one column and on into the next.
+function groupRects(from, to, pitch, GUT, RULE) {
+  const fc = Math.floor(from / PINS_PER_COLUMN), fr = from % PINS_PER_COLUMN;
+  const lc = Math.floor(to / PINS_PER_COLUMN), lr = to % PINS_PER_COLUMN;
+  const rect = (col, r0, r1) => ({
+    x: GUT + col * pitch, y: RULE + r0 * pitch,
+    w: pitch, h: (r1 - r0 + 1) * pitch, col, full: r0 === 0 && r1 === PINS_PER_COLUMN - 1
+  });
+  if (fc === lc) return [rect(fc, fr, lr)];
+  const out = [rect(fc, fr, PINS_PER_COLUMN - 1)];
+  for (let c = fc + 1; c < lc; c++) out.push(rect(c, 0, PINS_PER_COLUMN - 1));
+  out.push(rect(lc, 0, lr));
+  return out;
+}
+
 function drawBoard() {
   const host = el("#boardHost");
   const T = totalPins();
@@ -2482,12 +2513,12 @@ function drawBoard() {
 
   const cols = Math.ceil(T / PINS_PER_COLUMN);
   const pitch = boardZoom === "fit"
-    ? Math.max(4, Math.min(22, (Math.max(260, host.clientWidth - 26) - 34) / cols))
+    ? Math.max(4, Math.min(24, (Math.max(260, host.clientWidth - 28) - 40) / cols))
     : parseFloat(boardZoom);
-  const RULE = 16, GUT = 34;
-  const W = GUT + cols * pitch, H = RULE + PINS_PER_COLUMN * pitch;
+  const RULE = 22, GUT = 40, FOOT = 18;
+  const W = GUT + cols * pitch + 8, H = RULE + PINS_PER_COLUMN * pitch + FOOT;
 
-  host.innerHTML = `<div class="board-wrap"><canvas id="board"></canvas></div>`;
+  host.innerHTML = `<div class="board-wrap"><canvas id="board" tabindex="0"></canvas></div>`;
   const cv = el("#board");
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
@@ -2498,31 +2529,73 @@ function drawBoard() {
   const owners = pinOwners();
   const spans = groupSpans();
   const colourOf = (i) => KINDS[state.segments[i].kind].colour;
-  const xy = (i) => ({
-    col: Math.floor(i / PINS_PER_COLUMN),
-    row: i % PINS_PER_COLUMN
-  });
+  const xy = (i) => ({ col: Math.floor(i / PINS_PER_COLUMN), row: i % PINS_PER_COLUMN });
   const cx = (i) => GUT + xy(i).col * pitch + pitch / 2;
   const cy = (i) => RULE + xy(i).row * pitch + pitch / 2;
 
-  // pin numbers along the top, every so many columns
-  const step = pitch >= 16 ? 1 : pitch >= 10 ? 2 : pitch >= 7 ? 5 : 10;
+  /* ---- every fifth column shaded, so the eye can count along ---- */
+  ctx.fillStyle = "#F4F6F7";
+  for (let c = 0; c < cols; c += 2)
+    ctx.fillRect(GUT + c * pitch, RULE, pitch, PINS_PER_COLUMN * pitch);
+
+  /* ---- a group reads as a region, not a run of dots ---- */
+  spans.forEach(sp => {
+    const rects = groupRects(sp.from, sp.to, pitch, GUT, RULE);
+    const col = colourOf(sp.i);
+    const on = boardHover === sp.i || boardSel === sp.i;
+    ctx.fillStyle = col;
+    ctx.globalAlpha = on ? 0.26 : 0.14;
+    rects.forEach(r => ctx.fillRect(r.x, r.y, r.w, r.h));
+    ctx.globalAlpha = 1;
+
+    if (on) {
+      ctx.strokeStyle = col; ctx.lineWidth = boardSel === sp.i ? 2 : 1.5;
+      rects.forEach(r => ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1));
+    }
+
+    // name it across its widest full-height stretch
+    const full = rects.filter(r => r.full);
+    if (full.length && pitch >= 6) {
+      const x0 = full[0].x, x1 = full[full.length - 1].x + pitch;
+      const text = `${labelFor(state.segments, sp.i)} · ${sp.count}`;
+      ctx.font = "600 10px ui-monospace, Menlo, Consolas, monospace";
+      if (ctx.measureText(text).width + 12 < x1 - x0) {
+        ctx.fillStyle = "rgba(255,255,255,0.92)";
+        const tw = ctx.measureText(text).width;
+        const mx = (x0 + x1) / 2, my = RULE + PINS_PER_COLUMN * pitch / 2;
+        ctx.fillRect(mx - tw / 2 - 6, my - 9, tw + 12, 18);
+        ctx.strokeStyle = col; ctx.lineWidth = 1;
+        ctx.strokeRect(mx - tw / 2 - 6.5, my - 9.5, tw + 13, 19);
+        ctx.fillStyle = "#14181C";
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(text, mx, my);
+      }
+    }
+  });
+
+  /* ---- the ruler ---- */
+  const step = pitch >= 18 ? 1 : pitch >= 11 ? 2 : pitch >= 7 ? 5 : 10;
   ctx.font = "9px ui-monospace, Menlo, Consolas, monospace";
-  ctx.fillStyle = "#9AA6AD"; ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+  ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
   for (let c = 0; c < cols; c += step) {
-    ctx.fillText(String(c * PINS_PER_COLUMN + 1), GUT + c * pitch + pitch / 2, RULE - 4);
+    ctx.fillStyle = c % (step * 5) === 0 ? "#4A555E" : "#9AA6AD";
+    ctx.fillText(String(c * PINS_PER_COLUMN + 1), GUT + c * pitch + pitch / 2, RULE - 7);
+    ctx.strokeStyle = "#DCE2E5"; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(GUT + c * pitch + 0.5, RULE - 4); ctx.lineTo(GUT + c * pitch + 0.5, RULE);
+    ctx.stroke();
   }
-  // and the position within a column down the side
   if (pitch >= 11) {
-    ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    ctx.textAlign = "right"; ctx.textBaseline = "middle"; ctx.fillStyle = "#9AA6AD";
     for (let r = 0; r < PINS_PER_COLUMN; r += 4)
-      ctx.fillText(String(r + 1), GUT - 6, RULE + r * pitch + pitch / 2);
+      ctx.fillText(String(r + 1), GUT - 7, RULE + r * pitch + pitch / 2);
   }
 
-  // the pins
-  const r = Math.max(1.4, pitch * 0.36);
+  /* ---- the pins ---- */
+  const r = Math.max(1.4, pitch * 0.33);
   for (let i = 0; i < T; i++) {
     const oi = owners[i];
+    const dim = boardHover >= 0 && boardHover !== oi;
     ctx.beginPath();
     ctx.arc(cx(i), cy(i), r, 0, Math.PI * 2);
     if (oi < 0) {
@@ -2533,22 +2606,19 @@ function drawBoard() {
       }
     } else {
       ctx.fillStyle = colourOf(oi);
-      ctx.globalAlpha = boardHover < 0 || boardHover === oi ? 1 : 0.3;
+      ctx.globalAlpha = dim ? 0.28 : 1;
       ctx.fill();
       ctx.globalAlpha = 1;
     }
   }
 
-  // where one group ends and the next begins
+  /* ---- where one group ends and the next begins ---- */
   const bounds = [];
   const addBound = (pin, left, right) => {
     if (pin <= 0 || pin >= T + 1) return;
-    const { col, row } = xy(pin);
-    bounds.push({ pin, left, right, col, row,
-      // a join either sits between two columns, or between two balls in one
-      vertical: row === 0,
-      x: row === 0 ? GUT + col * pitch : GUT + col * pitch,
-      y: row === 0 ? RULE : RULE + row * pitch });
+    const col = Math.floor(pin / PINS_PER_COLUMN), row = pin % PINS_PER_COLUMN;
+    bounds.push({ pin, left, right, col, row, vertical: row === 0,
+                  x: GUT + col * pitch, y: row === 0 ? RULE : RULE + row * pitch });
   };
   for (let k = 0; k < spans.length - 1; k++) addBound(spans[k].to + 1, spans[k].i, spans[k + 1].i);
   if (spans.length) {
@@ -2558,13 +2628,35 @@ function drawBoard() {
 
   bounds.forEach(b => {
     const on = (dragging && dragging.left === b.left) || nearBoundary === b.pin;
-    ctx.strokeStyle = on ? "#14181C" : "rgba(20,24,28,0.55)";
-    ctx.lineWidth = on ? 3 : 2;
+    ctx.strokeStyle = on ? "#14181C" : "rgba(20,24,28,0.5)";
+    ctx.lineWidth = on ? 3 : 1.5;
     ctx.beginPath();
-    if (b.vertical) { ctx.moveTo(b.x, RULE); ctx.lineTo(b.x, H); }
+    if (b.vertical) { ctx.moveTo(b.x, RULE); ctx.lineTo(b.x, RULE + PINS_PER_COLUMN * pitch); }
     else { ctx.moveTo(b.x, b.y); ctx.lineTo(b.x + pitch, b.y); }
     ctx.stroke();
+    if (on && pitch >= 8) {
+      ctx.fillStyle = "#14181C";
+      if (b.vertical) ctx.fillRect(b.x - 2.5, RULE + PINS_PER_COLUMN * pitch / 2 - 8, 5, 16);
+      else ctx.fillRect(b.x + pitch / 2 - 8, b.y - 2.5, 16, 5);
+    }
   });
+
+  /* ---- a scale along the foot, so the shape of the loom is readable ---- */
+  const fy = RULE + PINS_PER_COLUMN * pitch + 7;
+  let at = 0;
+  spans.forEach(sp => {
+    const x0 = GUT + (at / T) * (cols * pitch);
+    const x1 = GUT + ((at + sp.count) / T) * (cols * pitch);
+    ctx.fillStyle = colourOf(sp.i);
+    ctx.globalAlpha = boardHover < 0 || boardHover === sp.i ? 1 : 0.3;
+    ctx.fillRect(x0, fy, Math.max(1, x1 - x0 - 1), 6);
+    ctx.globalAlpha = 1;
+    at += sp.count;
+  });
+  if (at < T) {
+    ctx.strokeStyle = "#C9D1D5"; ctx.lineWidth = 1;
+    ctx.strokeRect(GUT + (at / T) * (cols * pitch) + 0.5, fy + 0.5, Math.max(1, ((T - at) / T) * (cols * pitch) - 1), 5);
+  }
 
   boardGeom = { pitch, T, owners, W, H, spans, bounds, cols, GUT, RULE, cx, cy, xy };
   cv.style.cursor = boardCursor;
@@ -2761,13 +2853,70 @@ el("#boardHost").addEventListener("mouseleave", () => {
 el("#boardHost").addEventListener("click", e => {
   if (boundaryNear(e)) return;              // that was a handle, not a group
   const i = pinAtEvent(e);
-  if (i < 0) return;
+  if (i < 0) { boardSel = -1; drawBoard(); renderBoardSelection(); return; }
   const oi = boardGeom.owners[i];
-  if (oi < 0) return;
-  const seg = state.segments[oi];
-  const input = el(`#segTable input[data-act="count"][data-id="${seg.id}"]`);
-  if (input) { input.focus(); input.select(); input.scrollIntoView({ behavior: "smooth", block: "center" }); }
+  if (oi < 0) { boardSel = -1; drawBoard(); renderBoardSelection(); return; }
+  boardSel = oi;
+  drawBoard();
+  renderBoardSelection();
+  const cv = el("#board"); if (cv) cv.focus();
 });
+
+// how far a group moves in one step: whatever it can actually use
+function stepFor(idx) {
+  const sg = state.segments[idx];
+  if (!sg) return 1;
+  if (sg.kind === "achu") return 2;
+  if (sg.kind === "locking") { const wv = weaveById(sg.weave); return wv && wv.pins ? wv.pins : 1; }
+  return 1;
+}
+
+el("#boardHost").addEventListener("keydown", e => {
+  if (boardSel < 0) return;
+  const nudge = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+  if (!nudge) return;
+  e.preventDefault();
+  const sg = state.segments[boardSel];
+  if (!sg) return;
+  const by = stepFor(boardSel) * nudge * (e.shiftKey ? 5 : 1);
+
+  // take the pins from the next group, so the loom total stays put
+  const next = state.segments[boardSel + 1];
+  const spare = totalPins() - allocated();
+  if (next) {
+    const room = (next.count || 0) - stepFor(boardSel + 1);
+    const give = Math.max(-(sg.count || 0) + 1, Math.min(by, room));
+    if (!give) return;
+    sg.count = snapCount(boardSel, (sg.count || 0) + give);
+    next.count = snapCount(boardSel + 1, (next.count || 0) - give);
+  } else {
+    const give = Math.max(-(sg.count || 0) + 1, Math.min(by, spare));
+    if (!give) return;
+    sg.count = snapCount(boardSel, (sg.count || 0) + give);
+  }
+  state.built = null; state.builtBorder = null;
+  renderAlloc(); drawBoard(); renderBoardLegend(); renderSegs(); renderLoomChecks(); renderBoardSelection();
+  scheduleSave();
+});
+
+function renderBoardSelection() {
+  const host = el("#boardSel");
+  if (!host) return;
+  if (boardSel < 0 || !state.segments[boardSel]) {
+    host.innerHTML = `<span class="hintline">Click a group to pick it, then use ← and → to move its end. Hold shift to go five at a time.</span>`;
+    return;
+  }
+  const sg = state.segments[boardSel];
+  let at = 0;
+  for (let k = 0; k < boardSel; k++) at += state.segments[k].count || 0;
+  const kind = KINDS[sg.kind];
+  host.innerHTML =
+    `<span class="selchip"><i style="background:${kind.colour}"></i>${esc(labelFor(state.segments, boardSel))}</span>
+     <span class="selfact">${sg.count} pins</span>
+     <span class="selfact">${at + 1}–${at + sg.count}</span>
+     <span class="selfact">${((sg.count / totalPins()) * 100).toFixed(1)}% of the loom</span>
+     <span class="selfact">← → moves by ${stepFor(boardSel)}</span>`;
+}
 
 function renderAlloc() {
   const total = state.totalDeclared || 0, alloc = allocated();
@@ -3045,7 +3194,7 @@ function renderLoomScreen() {
   el("#totalDeclared").value = state.totalDeclared || "";
   el("#boxMotion").value = normalBoxMotion(state.boxMotion);
   el("#boardRead").textContent = BOARD_HELP;
-  renderAlloc(); drawBoard(); renderBoardLegend(); renderSegs(); renderWeaveLibrary(); renderLoomChecks(); renderSteps();
+  renderAlloc(); drawBoard(); renderBoardLegend(); renderBoardSelection(); renderSegs(); renderWeaveLibrary(); renderLoomChecks(); renderSteps();
 }
 
 el("#cancelLoom").onclick = () => go("looms");
