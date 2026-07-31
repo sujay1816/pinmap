@@ -179,9 +179,17 @@
   .swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: -1px; }
 
   /* ---------- mini ruler ---------- */
-  .ruler { display: flex; height: 24px; border: 1px solid var(--rule); overflow: hidden; }
-  .ruler-seg { min-width: 2px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .ruler { display: flex; height: 34px; border: 1px solid var(--rule); overflow: hidden; }
+  .ruler-seg {
+    min-width: 2px; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; overflow: hidden; line-height: 1.15; padding: 0 3px;
+  }
+  .ruler-seg .k {
+    font-family: var(--mono); font-size: 8.5px; letter-spacing: 0.05em; text-transform: uppercase;
+    color: #fff; opacity: 0.92; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+  }
   .ruler-seg .c { font-family: var(--mono); font-size: 10px; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; }
+  .k-empty .k, .k-empty .c, .k-none .k, .k-none .c { color: var(--ink-2); }
   .k-box .c, .k-leftBorder .c, .k-rightBorder .c, .k-achu .c, .k-body .c, .k-locking .c { color: #fff; }
   .k-empty .c { color: var(--ink-2); }
   .k-box { background: var(--c-box); }
@@ -766,7 +774,7 @@ function labelFor(segs, i) {
   return `${base} ${n}`;
 }
 const BOARD_MAX_PX = 16000;   // keep the canvas inside browser limits
-const BOARD_HELP = "One ball for each pin, in machine order. The band below is the column that pin controls. Point at a group to pick it out, click to jump to its count.";
+const BOARD_HELP = "One ball for each pin, in machine order. Point at a group to pick it out, click to jump to its count, or drag a join to move pins from one group to the next.";
 
 // The order these groups run on the machine, used for a fresh registration.
 const DEFAULT_LAYOUT = [
@@ -1672,6 +1680,7 @@ async function loadSession() {
   if (doc.loomSort) state.loomSort = doc.loomSort;
   if (Array.isArray(doc.weftNames)) {
     state.wefts = freshWefts();
+    while (state.wefts.length < Math.min(MAX_WEFTS, doc.weftNames.length)) addWeftSlot();
     doc.weftNames.forEach((n, i) => { if (state.wefts[i] && n) state.wefts[i].name = n; });
   }
   const d = doc.draft;
@@ -2196,9 +2205,15 @@ function miniRuler(segs, total) {
   const alloc = sumPins(segs);
   const T = Math.max(total || 0, alloc);
   if (!T) return "";
-  const parts = segs.map((s, i) =>
-    `<div class="ruler-seg ${(KINDS[s.kind] || {}).cls || ""}" style="flex:0 0 ${(s.count / T) * 100}%"
-      title="${esc(labelFor(segs, i))} · ${s.count}"><span class="c">${s.count}</span></div>`);
+  const parts = segs.map((s, i) => {
+    const share = (s.count / T) * 100;
+    const name = labelFor(segs, i);
+    // a name needs room; below that just the count, and below that nothing
+    const body = share > 11 ? `<span class="k">${esc(name)}</span><span class="c">${s.count}</span>`
+               : share > 3  ? `<span class="c">${s.count}</span>` : "";
+    return `<div class="ruler-seg ${(KINDS[s.kind] || {}).cls || ""}" style="flex:0 0 ${share}%"
+      title="${esc(name)} · ${s.count} pins">${body}</div>`;
+  });
   if (T > alloc) parts.push(`<div class="ruler-seg k-none" style="flex:0 0 ${((T - alloc) / T) * 100}%"
       title="not allocated · ${T - alloc}"></div>`);
   return `<div class="ruler">${parts.join("")}</div>`;
@@ -2406,6 +2421,9 @@ function pinOwners() {
 let boardGeom = null;
 let boardZoom = "fit";
 let boardHover = -1;
+let nearBoundary = null;
+let dragging = null;
+let boardCursor = "pointer";
 
 // Where each group starts and ends, in pins.
 function groupSpans() {
@@ -2545,7 +2563,34 @@ function drawBoard() {
     }
   }
 
-  boardGeom = { pitch, T, owners, W, H, spans };
+  // a handle on every join, so pins can be moved from one group to its neighbour
+  const bounds = [];
+  for (let k = 0; k < spans.length - 1; k++)
+    bounds.push({ x: (spans[k].to + 1) * pitch, left: spans[k].i, right: spans[k + 1].i });
+  if (spans.length) {
+    const last = spans[spans.length - 1];
+    if (last.to + 1 < T) bounds.push({ x: (last.to + 1) * pitch, left: last.i, right: -1 });
+  }
+
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  bounds.forEach(b => {
+    const on = dragging && dragging.at === b.x || nearBoundary === b.x;
+    ctx.strokeStyle = on ? "#14181C" : "rgba(20,24,28,0.45)";
+    ctx.lineWidth = on ? 2 : 1;
+    ctx.beginPath();
+    ctx.moveTo(b.x, yBand - 3);
+    ctx.lineTo(b.x, yBand + BAND + 3);
+    ctx.stroke();
+    // a small grip, so it reads as something you can take hold of
+    ctx.fillStyle = on ? "#14181C" : "rgba(20,24,28,0.5)";
+    ctx.fillRect(b.x - 3, yBand + BAND / 2 - 6, 6, 12);
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(b.x - 1, yBand + BAND / 2 - 3, 0.6, 6);
+    ctx.fillRect(b.x + 0.6, yBand + BAND / 2 - 3, 0.6, 6);
+  });
+
+  boardGeom = { pitch, T, owners, W, H, spans, bounds };
+  cv.style.cursor = boardCursor;
   els("[data-bzoom]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.bzoom === boardZoom)));
 }
 
@@ -2588,7 +2633,106 @@ function pinAtEvent(e) {
   return (i < 0 || i >= boardGeom.T) ? -1 : i;
 }
 
+function boundaryNear(e) {
+  if (!boardGeom || !boardGeom.bounds) return null;
+  const cv = el("#board"); if (!cv || e.target !== cv) return null;
+  const x = e.clientX - cv.getBoundingClientRect().left;
+  let best = null, bestD = 6;
+  boardGeom.bounds.forEach(b => {
+    const d = Math.abs(b.x - x);
+    if (d < bestD) { bestD = d; best = b; }
+  });
+  return best;
+}
+
+// Some groups cannot take any number: achu splits in half, and a locking weave
+// needs whole repeats. Dragging snaps to what the group can actually use.
+function snapCount(idx, n) {
+  const sg = state.segments[idx];
+  if (!sg) return n;
+  if (sg.kind === "achu") return Math.max(2, Math.round(n / 2) * 2);
+  if (sg.kind === "locking") {
+    const wv = weaveById(sg.weave);
+    if (wv && wv.pins) return Math.max(wv.pins, Math.round(n / wv.pins) * wv.pins);
+  }
+  return Math.max(1, n);
+}
+
+function setCount(idx, n) {
+  const seg = state.segments[idx];
+  if (!seg) return;
+  seg.count = Math.max(1, n);
+  const input = el(`#segTable input[data-act="count"][data-id="${seg.id}"]`);
+  if (input) input.value = String(seg.count);
+}
+
+el("#boardHost").addEventListener("mousedown", e => {
+  const b = boundaryNear(e);
+  if (!b) return;
+  e.preventDefault();
+  const cv = el("#board");
+  dragging = {
+    at: b.x, left: b.left, right: b.right,
+    startX: e.clientX - cv.getBoundingClientRect().left,
+    leftCount: state.segments[b.left].count || 0,
+    rightCount: b.right >= 0 ? (state.segments[b.right].count || 0) : (totalPins() - allocated()),
+    moved: false
+  };
+});
+
+window.addEventListener("mouseup", () => {
+  if (!dragging) return;
+  const moved = dragging.moved;
+  dragging = null;
+  if (moved) { state.built = null; state.builtBorder = null; renderLoomScreen(); scheduleSave(); }
+});
+
 el("#boardHost").addEventListener("mousemove", e => {
+  // dragging a join moves pins from one group into the next
+  if (dragging) {
+    const cv = el("#board"); if (!cv) return;
+    const x = e.clientX - cv.getBoundingClientRect().left;
+    let delta = Math.round((x - dragging.startX) / boardGeom.pitch);
+    const minLeft = 1;
+    const maxLeft = dragging.right >= 0
+      ? dragging.leftCount + dragging.rightCount - 1     // the neighbour keeps at least one
+      : dragging.leftCount + dragging.rightCount;        // or take from the spare pins
+    let newLeft = Math.min(maxLeft, Math.max(minLeft, dragging.leftCount + delta));
+    const pair = dragging.leftCount + dragging.rightCount;
+
+    newLeft = snapCount(dragging.left, newLeft);
+    if (dragging.right >= 0) {
+      // whatever the neighbour needs wins, since the pair has to add up
+      const wantRight = snapCount(dragging.right, pair - newLeft);
+      newLeft = pair - wantRight;
+      newLeft = Math.min(maxLeft, Math.max(minLeft, newLeft));
+    }
+    delta = newLeft - dragging.leftCount;
+    if (delta !== 0) dragging.moved = true;
+
+    setCount(dragging.left, newLeft);
+    if (dragging.right >= 0) setCount(dragging.right, dragging.rightCount - delta);
+
+    renderAlloc(); drawBoard(); renderLoomChecks();
+    const a = state.segments[dragging.left];
+    const bseg = dragging.right >= 0 ? state.segments[dragging.right] : null;
+    el("#boardRead").textContent =
+      `${labelFor(state.segments, dragging.left)} ${a.count}` +
+      (bseg ? `  ·  ${labelFor(state.segments, dragging.right)} ${bseg.count}` : `  ·  ${totalPins() - allocated()} spare`);
+    return;
+  }
+
+  const b = boundaryNear(e);
+  boardCursor = b ? "col-resize" : "pointer";
+  if ((b ? b.x : null) !== nearBoundary) { nearBoundary = b ? b.x : null; drawBoard(); }
+  else { const c = el("#board"); if (c) c.style.cursor = boardCursor; }
+  if (b) {
+    el("#boardRead").textContent = "Drag to move pins between " +
+      labelFor(state.segments, b.left) + " and " +
+      (b.right >= 0 ? labelFor(state.segments, b.right) : "the spare pins") + ".";
+    return;
+  }
+
   const i = pinAtEvent(e);
   if (i < 0) return;
   const oi = boardGeom.owners[i];
@@ -2609,12 +2753,14 @@ el("#boardHost").addEventListener("mousemove", e => {
 });
 
 el("#boardHost").addEventListener("mouseleave", () => {
-  if (boardHover !== -1) { boardHover = -1; drawBoard(); }
+  if (dragging) return;
+  if (boardHover !== -1 || nearBoundary !== null) { boardHover = -1; nearBoundary = null; drawBoard(); }
   el("#boardRead").textContent = BOARD_HELP;
 });
 
 // clicking a group jumps to its count, which is usually why you were looking
 el("#boardHost").addEventListener("click", e => {
+  if (boundaryNear(e)) return;              // that was a handle, not a group
   const i = pinAtEvent(e);
   if (i < 0) return;
   const oi = boardGeom.owners[i];
@@ -3452,7 +3598,7 @@ let pvStep = 1;
 function renderSummary() {
   const host = el("#bodySummary");
   const K = filledWefts().length;
-  const ref = anyFile();
+  const ref = K ? filledWefts()[0].file : null;   // the body's height, not a border's
   const H = ref ? ref.height : 0;
   const perShuttle = (state.opts.stackMode === "interleave" && normalBoxMotion(state.boxMotion) === "4x1") ? 2 : 1;
   const lines = !H ? 0 : (state.opts.stackMode === "overlay" ? H : H * Math.max(1, K));
