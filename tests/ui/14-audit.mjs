@@ -113,6 +113,28 @@ note('the pin map still draws', !$('#board'));
 goTo('looms'); await wait(200);
 note('the loom is listed', !/Audit/.test($('#loomList').textContent));
 
+console.log('\n== stylesheet hygiene ==');
+{
+  const css = w.document.querySelector('style').textContent;
+  // A bare .cell rule once matched both the box previews and the summary
+  // figures, forcing the figures to 13x13 with a border.
+  // a rule whose whole selector is just ".cell" — it once matched both the box
+  // previews and the summary figures, forcing those to 13x13 with a border
+  const bare = /(^|\})\s*\.cell\s*\{/.test(css);
+  note('no unscoped .cell rule', bare, 'a bare .cell rule is back');
+
+  // A single-class rule that pins width and height will squash anything else
+  // that happens to share the name. These few are meant to be that size.
+  const MARKERS = ['.swatch', '.spin'];
+  const risky = [];
+  css.replace(/(^|\})\s*(\.[a-zA-Z][\w-]*)\s*\{([^}]*)\}/g, (m, _b, sel, body) => {
+    if (/[^-]width:\s*\d+px/.test(' ' + body) && /[^-]height:\s*\d+px/.test(' ' + body)
+        && !MARKERS.includes(sel)) risky.push(sel);
+    return m;
+  });
+  note('no new single-class rule pins both width and height', risky.length > 0, risky.join(', '));
+}
+
 console.log('\n== result ==');
 if (found.length){ console.log('  '+found.length+' problem(s)'); found.forEach(e=>console.log('   - '+e)); }
 else console.log('  no errors');
