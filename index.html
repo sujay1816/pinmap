@@ -940,7 +940,7 @@ function labelFor(segs, i) {
   for (let j = 0; j <= i; j++) if (segs[j].kind === k) n++;
   return `${base} ${n}`;
 }
-const BUILD = "2026-07-31.12";      // bump when the file changes, so a stale page shows
+const BUILD = "2026-07-31.13";      // bump when the file changes, so a stale page shows
 /* ============================================================
    Whose software wrote the file
 
@@ -983,14 +983,15 @@ const COMPANY_BASE = {
   pinOneLeft: true, topRowFirstPick: true, blackIsIndexZero: true,
   achuStartsBlack: true, stackMode: "interleave", weavePerDesignLine: true,
   satinWarpFaced: false, boxWholeBand: true, autoRotate: true,
-  mirrorBodyFile: false
+  mirrorBodyFile: false, bodyGround: ""
 };
 
 const COMPANIES = [
   { id: "",       name: "Not set", opts: null },
   { id: "saitex", name: "Sai Tex", opts: { ...COMPANY_BASE } },
   { id: "sritex", name: "Sri Tex", opts: { ...COMPANY_BASE,
-      blackIsIndexZero: false } } // white is the lifted pin
+      blackIsIndexZero: false,     // white is the lifted pin
+      bodyGround: "satin:2:1" } }  // and a plain ground under every weft
 ];
 
 const companyById = (id) => COMPANIES.find(c => c.id === (id || "")) || COMPANIES[0];
@@ -1052,6 +1053,7 @@ const state = {
     achuOnBody: false,
     achuInBody: true,
     mirrorBodyFile: false,
+    bodyGround: "",
     boxWholeBand: true,
     autoRotate: true,
     weavePerDesignLine: true,
@@ -1576,6 +1578,12 @@ function compose(target) {
       } else if (src === "weft") {
         if (target !== "body") return;
         const ground = achuW ? achuRow(achuW, achuRowIndex, o.achuStartsBlack) : null;
+        // A figure weft has nothing to lift until its figure appears, and a weft
+        // that lifts nothing floats unbound. The ground weave goes underneath so
+        // every pick is tied down. It steps with the pick, which keeps it in
+        // phase with the ground weft's own weave.
+        const gw = o.bodyGround ? weaveById(o.bodyGround) : null;
+        const gRow = gw ? weaveRow(gw, seg.count, outY, o.satinWarpFaced) : null;
         if (overlay) {
           for (let x = 0; x < seg.count; x++) {
             let v = 0;
@@ -1583,6 +1591,7 @@ function compose(target) {
               const f = wefts[k].file;
               if (f.bits[designRow * f.width + x]) { v = 1; break; }
             }
+            if (!v && gRow) v = gRow[x];
             if (!v && ground) v = ground[x % achuW];
             bits[rowBase + at + x] = v;
           }
@@ -1591,6 +1600,7 @@ function compose(target) {
           const from = w ? designRow * w.file.width : 0;
           for (let x = 0; x < seg.count; x++) {
             let v = w ? w.file.bits[from + x] : 0;
+            if (!v && gRow) v = gRow[x];
             if (!v && ground) v = ground[x % achuW];
             bits[rowBase + at + x] = v;
           }
@@ -4415,11 +4425,33 @@ function renderBodyAchu() {
   else if (!rani) why = "Waiting on a rani in the first weft slot — the achu binds the ground.";
   else why = "On, so the achu is generated into this file.";
 
+  const gw = state.opts.bodyGround;
   host.innerHTML = `<label class="achubox">
     <input type="checkbox" id="achuInBody" ${on ? "checked" : ""}>
     <span class="ab-name">Achu in the body file</span>
     <span class="ab-why">${esc(why)}</span>
+  </label>
+  <label class="achubox" style="cursor:default">
+    <span class="ab-name">Ground under the wefts</span>
+    <select id="bodyGround" style="width:auto;min-width:200px">
+      <option value="">None — a weft lifts only its own design</option>
+      ${allWeaves().map(w => `<option value="${esc(w.id)}"${gw === w.id ? " selected" : ""}>${esc(w.name)}</option>`).join("")}
+    </select>
+    <span class="ab-why">${gw
+      ? "Where a weft has no design of its own, this weave holds it down."
+      : "A figure weft lifts nothing until its figure appears, which leaves it floating. Sri Tex put a plain ground underneath."}</span>
   </label>`;
+  const gsel = el("#bodyGround");
+  if (gsel) gsel.onchange = (e) => {
+    state.opts.bodyGround = e.target.value;
+    state.built = null;
+    renderBodyScreen();
+    el("#pvWrap").hidden = true;
+    el("#download").disabled = true;
+    scheduleSave();
+    notify(e.target.value ? "Ground weave set." : "No ground weave — wefts lift only their own design.");
+  };
+
   const box = el("#achuInBody");
   if (box) box.onchange = (e) => {
     state.opts.achuInBody = e.target.checked;
@@ -4610,6 +4642,8 @@ function renderSummary() {
     ${state.company ? cell("Company", esc(companyName(state.company)), true) : ""}
     ${state.opts.mirrorBodyFile ? cell("Body file", "Mirrored", true,
         "Pin 1 sits at the right in the body file, as Sri Tex write it") : ""}
+    ${state.opts.bodyGround ? cell("Ground", esc((weaveById(state.opts.bodyGround) || {}).name || "—"), true,
+        "Laid under every weft where it has no design of its own") : ""}
     ${cell("Lifted pin", state.opts.blackIsIndexZero === false ? "White" : "Black", true,
            state.opts.blackIsIndexZero === false
              ? "The file will be mostly black with the design in white"
