@@ -100,6 +100,18 @@ console.log('\n== a loom with no border group ==');
      keys('body').every(k => kinds().includes(k.dataset.lit)), keys('body').map(k=>k.dataset.lit).join(','));
 }
 
+console.log('\n== the strip above the map is gone ==');
+{
+  ok('no banner on the body screen', !w.document.querySelector('#sc-body .loombanner'));
+  goTo('border'); await wait(200);
+  ok('nor on the border screen', !w.document.querySelector('#sc-border .loombanner'));
+  const cap = $('.sideboard[data-board=border] .sb-loom');
+  ok('the loom is still named on the map', !!cap && /Shared/.test(cap.textContent),
+     cap ? cap.textContent.replace(/\s+/g,' ') : 'missing');
+  ok('with its pin count and box motion', /1,792 pins/.test(cap.textContent) && /box 4x4/.test(cap.textContent),
+     cap.textContent.replace(/\s+/g,' '));
+}
+
 console.log('\n== result ==');
 if (errors.length){ console.log('  '+errors.length+' problem(s)'); errors.forEach(e=>console.log('   - '+e)); }
 else console.log('  no errors');

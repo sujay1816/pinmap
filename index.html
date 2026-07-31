@@ -165,6 +165,10 @@
   .sideboard .sb-bar {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px;
   }
+  .sideboard .sb-loom {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.04em; color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+  }
   .sideboard .sb-cap {
     font-family: var(--mono); font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--ink-3);
   }
@@ -521,10 +525,6 @@
   details.note div { font-size: 13px; color: var(--ink-2); margin-top: 9px; line-height: 1.55; }
   details.note p { margin: 0 0 9px; }
   .saved-note { font-family: var(--mono); font-size: 11px; color: var(--ink-3); margin-top: 10px; }
-  .loombanner { border: 1px solid var(--rule); background: #fff; padding: 12px 13px; margin-bottom: 20px; }
-  .loombanner .top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 9px; }
-  .loombanner .nm { font-size: 14.5px; font-weight: 650; }
-  .loombanner .mt { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 
   @media (max-width: 780px) {
     .seg-row { grid-template-columns: 18px 1fr 1fr; }
@@ -748,7 +748,6 @@
       <h2>Border file</h2>
       <span class="hint">Its own file, as long as the border design needs</span>
     </div>
-    <div class="loombanner" id="borderBanner"></div>
     <div class="sideboard" data-board="border"></div>
     <div id="borderHost"></div>
     <div id="borderAchuNote"></div>
@@ -787,7 +786,6 @@
       <h2>Body file</h2>
       <span class="hint">Up to four body wefts, with the box and locking</span>
     </div>
-    <div class="loombanner" id="bodyBanner"></div>
     <div class="sideboard" data-board="body"></div>
     <div class="summary" id="bodySummary"></div>
     <details class="note" id="bodyOpts">
@@ -3453,15 +3451,6 @@ el("#saveLoom").onclick = async () => {
    Screen 03 — weft files
    ============================================================ */
 
-function banner(hostSel) {
-  const host = el(hostSel);
-  if (!state.segments.length) { host.innerHTML = `<div class="mt">No loom selected</div>`; return; }
-  host.innerHTML = `<div class="top">
-      <span class="nm">${esc(state.loomName || "Unsaved loom")}</span>
-      <span class="mt">${totalPins().toLocaleString()} pins · box ${esc(normalBoxMotion(state.boxMotion))} · version ${state.version}</span>
-    </div>${miniRuler(state.segments, state.totalDeclared)}`;
-}
-
 function drawThumb(cv, f, maxW) {
   const step = Math.max(1, Math.ceil(f.width / maxW));
   const w = Math.ceil(f.width / step), h = Math.ceil(f.height / step);
@@ -3856,6 +3845,7 @@ function drawSideBoard(which) {
   block.innerHTML =
     `<div class="sb-bar">
        <span class="sb-cap">Pin map</span>
+       <span class="sb-loom">${esc(state.loomName || "unnamed loom")} · ${totalPins().toLocaleString()} pins · box ${esc(normalBoxMotion(state.boxMotion))} · v${state.version}</span>
        <span class="sb-keys">
          ${present.map(k => `<button class="sbkey" data-lit="${k}" aria-pressed="${b.highlight.has(k)}"
              ><i style="background:${KINDS[k].colour}"></i>${KINDS[k].label}</button>`).join("")}
@@ -3915,7 +3905,6 @@ function sideHoverText(which, oi) {
 
 function renderBorderScreen() {
   if (!state.wefts.length) state.wefts = freshWefts();
-  banner("#borderBanner");
   drawSideBoard("border");
   renderBorderSlots(); renderFileThumbs();
   const achuSeg = state.segments.find(x => x.kind === "achu" && x.count > 0);
@@ -3963,7 +3952,6 @@ function renderBodyAchu() {
 
 function renderBodyScreen() {
   if (!state.wefts.length) state.wefts = freshWefts();
-  banner("#bodyBanner");
   renderSummary();
   renderBodyAchu();
   drawSideBoard("body");

@@ -60,6 +60,8 @@ click($('#saveLoom')); await wait(350);
 console.log('\n== the border screen ==');
 goTo('border'); await wait(250);
 note('shared map present', !$('.sideboard[data-board=border] canvas'));
+note('no repeated strip above it', !!$('#borderBanner') || !!$('.loombanner'));
+note('the map names the loom', !/Audit/.test(($('.sideboard[data-board=border] .sb-loom')||{}).textContent||''), 'caption missing the loom');
 note('two border slots', $$('#borderHost input[type=file]').length !== 2);
 note('combine blocked with no files', !$('#combineBorder').disabled);
 note('achu note explains itself', !/achu/i.test($('#borderAchuNote').textContent));
@@ -78,6 +80,8 @@ goTo('body'); await wait(250);
   note('box shows the motion', vs[3] !== '4x4', vs[3]);
   note('locking names its weave', !/satin|twill/i.test(vs[5]), vs[5]);
 }
+note('no repeated strip above the map', !!$('#bodyBanner') || !!$('.loombanner'));
+note('the map names the loom', !/Audit/.test(($('.sideboard[data-board=body] .sb-loom')||{}).textContent||''), 'caption missing the loom');
 note('achu switch present and on', !($('#achuInBody') && $('#achuInBody').checked));
 note('four weft slots', $$('#bodyHost input[type=file]').length !== 4);
 note('box editor hidden until wefts are loaded', $$('#boxEditor .boxrow').length !== 0);
