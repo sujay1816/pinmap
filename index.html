@@ -598,7 +598,7 @@
       <summary>What each group does</summary>
       <div>
         <p><strong>Left border</strong> and <strong>Right border</strong> take an uploaded BMP each, which must be exactly as wide as the count you enter.</p>
-        <p><strong>Achu pins</strong> are generated here — half up then half down, flipping on the next line. The count must be even.</p>
+        <p><strong>Achu pins</strong> are generated here — half up then half down, flipping on the next line. The count must be even. They only lift once a rani is loaded in the first weft slot; with no ground to bind, they stay down.</p>
         <p><strong>Box pins</strong> are generated from how many weft files you combine.</p>
         <p><strong>Locking</strong> pins are woven with a weave generated here — a satin by default. Choose it from the dropdown on the Locking row: each weave states the number of pins it needs, and picking one sets that count. Your own uploaded weaves appear there too.</p>
         <p>The weave steps once per design line, so it is applied in full to every weft file you combine. All three shuttles lay the same locking line, and each file on its own carries the complete weave.</p>
@@ -1138,8 +1138,12 @@ function compose() {
     if (o.boxWholeBand) closeBandGaps(figureOnLine);
   }
 
+  // Achu waits on the ground weft. With no rani loaded there is nothing for it
+  // to bind, so its pins stay down.
+  const raniLoaded = !!(state.wefts[0] && state.wefts[0].file && !state.wefts[0].file.error);
+
   const achuSeg = segs.find(sg => sg.kind === "achu" && sg.count > 1);
-  const bodyAchu = o.achuOnBody && !borderLoaded && !!achuSeg;
+  const bodyAchu = o.achuOnBody && !borderLoaded && !!achuSeg && raniLoaded;
   const achuW = bodyAchu ? achuSeg.count : 0;
 
   const bits      = new Uint8Array(W * outH);
@@ -1184,6 +1188,7 @@ function compose() {
       if (src === "down") return;
 
       if (seg.kind === "achu") {
+        if (!raniLoaded) return;              // nothing to bind yet
         const r = achuRow(seg.count, weaveRowIndex, o.achuStartsBlack);
         for (let x = 0; x < seg.count; x++) bits[rowBase + at + x] = r[x];
 
@@ -1353,6 +1358,9 @@ function validateJob() {
       if (clash) warns.push("Two body wefts lift the same pin on the same line. Merged onto one line they cannot be told apart — check the files are meant to be separate wefts.");
     }
   }
+  if (state.segments.some(x => x.kind === "achu" && x.count > 0) &&
+      !(state.wefts[0] && state.wefts[0].file && !state.wefts[0].file.error))
+    warns.push("No rani loaded in the first weft slot, so the achu pins stay down.");
   if (normalBoxMotion(state.boxMotion) === "4x1" && H !== null && H % 2)
     warns.push(`A 4 by 1 box weaves two lines per shuttle, but the designs are ${H} lines — an odd number. The last line will be repeated.`);
   if (wefts.length > WEFT_SLOTS) errs.push(`${WEFT_SLOTS} body wefts is the maximum.`);
