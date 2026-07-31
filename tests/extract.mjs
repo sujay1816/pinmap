@@ -56,7 +56,7 @@ export {
   satinRow, satinStep, stepIsValid, gcd,
   rotateCCW, fitToPins,
   SATIN_LIBRARY, BUILTIN_WEAVES, allWeaves, weaveById, weaveRow, satinName,
-  BOX_TABLE, compose, state, KINDS, DEFAULT_LAYOUT, labelFor,
+  BOX_TABLE, compose, borderFilesLoaded, state, KINDS, DEFAULT_LAYOUT, labelFor,
   mergeLibraries, newerOf, normalBoxMotion,
   freshWefts, filledWefts, borderSlots, bodySlots,
   WEFT_SLOTS, WEFT_NAMES, totalPins, allocated

@@ -60,7 +60,12 @@ await step('set the group counts', () => {
 await step('save it', async () => {
   if ($('#saveLoom').disabled) throw new Error('save disabled: '+$('#loomChecks').textContent.replace(/\s+/g,' ').slice(0,180));
   click($('#saveLoom')); await new Promise(r=>setTimeout(r,200));
-  if ($('#sc-job').hidden) throw new Error('did not reach weft files');
+  if ($('#sc-border').hidden) throw new Error('did not reach the border file');
+});
+await step('go to the body file', async () => {
+  click($$('nav.steps button').find(x => x.dataset.go === 'body'));
+  await new Promise(r=>setTimeout(r,150));
+  if ($('#sc-body').hidden) throw new Error('did not reach the body file');
 });
 await step('load three body wefts', async () => {
   const slots = $$('#bodyHost input[type=file]');
@@ -111,24 +116,25 @@ await step('reset restores the standard pattern', () => {
   if (/yours/.test($('#boxEditor').textContent)) throw new Error('still marked as custom');
 });
 await step('combine becomes available', () => {
-  if ($('#combine').disabled) throw new Error('still disabled: '+$('#jobChecks').textContent.replace(/\s+/g,' ').slice(0,200));
+  if ($('#combineBody').disabled) throw new Error('still disabled: '+$('#bodyChecks').textContent.replace(/\s+/g,' ').slice(0,200));
 });
-await step('combine the files', async () => {
-  click($('#combine')); await new Promise(r=>setTimeout(r,400));
-  if ($('#sc-build').hidden) throw new Error('did not reach build');
+await step('combine the body', async () => {
+  click($('#combineBody')); await new Promise(r=>setTimeout(r,400));
+  if ($('#pvWrap').hidden) throw new Error('no preview after combining');
+  if ($('#download').disabled) throw new Error('download still disabled');
 });
 await step('summary reports the job', () => {
-  const t=$('#buildSummary').textContent;
+  const t=$('#bodySummary').textContent;
   ['1,792','4x1','2 lines'].forEach(x=>{ if(!t.includes(x)) throw new Error('summary missing '+x+': '+t.replace(/\s+/g,' ')); });
 });
 await step('summary labels stay on one line', () => {
-  const ks=[...$$('#buildSummary .k')].map(e=>e.textContent);
+  const ks=[...$$('#bodySummary .k')].map(e=>e.textContent);
   const long = ks.filter(k => k.length > 12);
   if (long.length) throw new Error('labels too long to fit: ' + long.join(', '));
   if (ks.length !== 6) throw new Error('expected 6 figures, found ' + ks.length);
 });
 await step('the locking weave is shortened with the full name on hover', () => {
-  const cells=[...$$('#buildSummary .cell')];
+  const cells=[...$$('#bodySummary .cell')];
   const lock=cells.find(c=>c.querySelector('.k').textContent==='Locking');
   if (!lock) throw new Error('no locking figure');
   const v=lock.querySelector('.v');
@@ -142,11 +148,19 @@ await step('preview appears', () => {
 });
 await step('download button is live', () => { if ($('#download').disabled) throw new Error('download disabled'); });
 await step('zoom and colour toggles work', () => { $$('[data-zoom]').forEach(click); click($('#pvMode')); });
-await step('switching an option invalidates and rebuilds', async () => {
+await step('switching an option and rebuilding', async () => {
   const t = $$('#opts button[data-key=stackMode]')[1]; click(t);
-  await new Promise(r=>setTimeout(r,120));
-  click($('#build')); await new Promise(r=>setTimeout(r,300));
+  await new Promise(r=>setTimeout(r,150));
+  click($('#combineBody')); await new Promise(r=>setTimeout(r,300));
   if ($('#download').disabled) throw new Error('rebuild failed');
+});
+await step('the border file is built separately', async () => {
+  click($$('nav.steps button').find(x => x.dataset.go === 'border'));
+  await new Promise(r=>setTimeout(r,150));
+  if ($('#sc-border').hidden) throw new Error('no border screen');
+  if (!$('#combineBorder').disabled) throw new Error('should be blocked with no border files');
+  if (!/goes in the body file|once a border file is loaded/i.test($('#borderAchuNote').textContent))
+    throw new Error('achu note: ' + $('#borderAchuNote').textContent);
 });
 console.log('\n== result ==');
 if (errors.length){ console.log('  '+errors.length+' problem(s):'); errors.forEach(e=>console.log('   - '+e)); }

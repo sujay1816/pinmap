@@ -165,7 +165,26 @@ cutting a new version of a pin map; ordinary edits are saved without it.
 
 ---
 
-## How a file gets built
+## How the files get built
+
+A loom produces **two files, built apart**: a border file and a body file. They
+share the pin map and nothing else — the jacquard company's software puts them
+together at the end.
+
+| | Border file | Body file |
+| --- | --- | --- |
+| Border pins | the uploaded designs | down |
+| Body pins | down | the weft files |
+| Box pins | down | generated |
+| Locking pins | down | generated |
+| Achu pins | generated, when a border is loaded | generated, when no border is |
+| Height | the border's own | the wefts, times how many |
+
+The achu is the only thing that ties them: it belongs to whichever file exists,
+never both, or the two would collide when joined. Make only a border and it goes
+there; make only a body and it goes there instead.
+
+## How each one gets built
 
 1. **Register a loom** — total pins, box motion (4×4 or 4×1), and the pin groups
    in the order they run: achu, box, left border, locking, body, right border,

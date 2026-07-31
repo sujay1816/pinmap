@@ -21,7 +21,7 @@ const build = (slots, borders) => {
   state.borderFiles = borders || {};
   state.wefts=freshWefts();
   slots.forEach((f,i)=>{ if(f) state.wefts[i].file=fitToPins(f,720); });
-  return compose();
+  return compose('body');
 };
 const achuAt=(o,y)=>[0,1,2,3].map(x=>o.bits[y*o.width+x]).join('');
 const lockLit=(o)=>{ let n=0; for(let y=0;y<o.height;y++) for(let x=4;x<12;x++) if(o.bits[y*o.width+x]) n++; return n; };
@@ -37,9 +37,18 @@ head('achu waits for the rani');
   ok('with the first slot empty it stays down', lit===0, String(lit)+' lines lift');
 }
 {
-  const o = build([], { lb: { width:100, height:720, bits:new Uint8Array(100*720) } });
-  let lit=0; for(let y=0;y<o.height;y++) if(achuAt(o,y)!=='0000') lit++;
-  ok('a border-only job leaves it down too', lit===0, String(lit));
+  // a border-only job builds the border file, where the achu belongs anyway
+  state.segments=[{id:'a1',kind:'achu',count:4},{id:'lb',kind:'leftBorder',count:100},
+                  {id:'lk',kind:'locking',count:8,weave:'satin:8:3'},{id:'bd',kind:'body',count:720}];
+  state.totalDeclared=832; state.boxMotion='4x4';
+  state.opts={achuStartsBlack:true,pinOneLeft:true,topRowFirstPick:true,blackIsIndexZero:true,
+              stackMode:'interleave',achuOnBody:false,satinWarpFaced:false,autoRotate:true,
+              boxWholeBand:true,weavePerDesignLine:true};
+  const b=new Uint8Array(100*720); b.fill(1);
+  state.borderFiles={ lb:{ width:100, height:720, bits:b } };
+  state.wefts=freshWefts();
+  const o = compose('border');
+  ok('a border-only job puts the achu in the border file', achuAt(o,0)==='1100', achuAt(o,0));
 }
 {
   const o = build([res]);
@@ -71,13 +80,21 @@ head('locking still belongs to the design line');
 head('with a border loaded');
 {
   const border = { lb: { width:100, height:720, bits:(()=>{ const b=new Uint8Array(100*720); b.fill(1); return b; })() } };
-  const o = build([res,jar,men], border);
-  const eight = [0,1,2,3,4,5,6,7].map(y => achuAt(o,y)).join(' ');
-  ok('achu still alternates every pick', eight==='1100 0011 1100 0011 1100 0011 1100 0011', eight);
-  const lock = y => { for (let x=4;x<12;x++) if (o.bits[y*o.width+x]) return x-4; return -1; };
-  ok('locking still shared across the picks', lock(0)===lock(1) && lock(1)===lock(2));
+  const body = build([res,jar,men], border);
+  const bord = compose('border');
+
+  const eight = [0,1,2,3,4,5,6,7].map(y => achuAt(bord,y)).join(' ');
+  ok('achu alternates every pick in the border file',
+     eight==='1100 0011 1100 0011 1100 0011 1100 0011', eight);
+  ok('and stays out of the body file', (()=>{
+    for (let y=0;y<body.height;y++) if (achuAt(body,y)!=='0000') return false;
+    return true; })());
+
+  const lock = y => { for (let x=4;x<12;x++) if (body.bits[y*body.width+x]) return x-4; return -1; };
+  ok('locking still shared across the picks in the body',
+     lock(0)===lock(1) && lock(1)===lock(2));
   ok('the border itself is carried', (()=>{
-    for (let x=0;x<100;x++) if (!o.bits[12+x]) return false;   // achu 4 + locking 8 = 12
+    for (let x=0;x<100;x++) if (!bord.bits[12+x]) return false;   // achu 4 + locking 8 = 12
     return true; })());
 }
 

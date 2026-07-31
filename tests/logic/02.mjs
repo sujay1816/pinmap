@@ -37,7 +37,7 @@ const base = () => {
 head('no border loaded: border pins blank, achu moves to the body');
 base();
 state.wefts[0].file = men;                       // body design only
-let out = compose();
+let out = compose('body');
 ok('still builds without any border file', out.width === W && out.height === 720);
 {
   let lb=0, rb=0;
@@ -77,11 +77,12 @@ head('achu ground respects the design');
   ok('design lifts survive and gaps take the ground', conflict===0, String(conflict));
 }
 
-head('one border loaded: achu stays on its own pins');
+head('one border loaded: the achu moves to the border file');
 base();
 state.wefts[0].file = men;
 state.borderFiles.lb = crop(res, 100);
-out = compose();
+out = compose('body');
+const bOut = compose('border');
 {
   let bodyGround = 0;
   const g0 = achuRow(4, 0, true);
@@ -96,16 +97,20 @@ out = compose();
 {
   let lOK=true;
   const lf = crop(res,100);
-  for (let x=0;x<100;x++) if (out.bits[at.lb+x] !== lf.bits[x]) { lOK=false; break; }
-  ok('the loaded left border carries its file', lOK);
+  for (let x=0;x<100;x++) if (bOut.bits[at.lb+x] !== lf.bits[x]) { lOK=false; break; }
+  ok('the border file carries the loaded border', lOK);
 }
-ok('achu pins unchanged', Array.from(out.bits.slice(at.a1, at.a1+4)).join('')==='1100');
+ok('achu is in the border file', Array.from(bOut.bits.slice(at.a1, at.a1+4)).join('')==='1100',
+   Array.from(bOut.bits.slice(at.a1, at.a1+4)).join(''));
+ok('and not in the body file', (()=>{
+   for (let y=0;y<out.height;y++) for (let x=0;x<4;x++) if (out.bits[y*W+at.a1+x]) return false;
+   return true; })());
 
 head('option can be switched off');
 base();
 state.wefts[0].file = men;
 state.opts.achuOnBody = false;
-out = compose();
+out = compose('body');
 {
   let bodyGround = 0;
   for (let x=0;x<500;x++) if (!men.bits[x] && out.bits[at.bd+x]) bodyGround++;
@@ -116,14 +121,14 @@ head('border only, no body weft');
 base();
 state.borderFiles.lb = crop(res, 100);
 state.borderFiles.rb = crop(men, 100);
-out = compose();
-ok('builds with no body weft at all', out.height===720);
+out = compose('border');
+ok('the border file builds with no body weft at all', out.height===720);
 {
   let bd=0;
   for (let y=0;y<out.height;y++) for (let x=0;x<500;x++) if (out.bits[y*W+at.bd+x]) bd++;
   ok('body pins stay down', bd===0, String(bd));
 }
-ok('box all down with no weft', Array.from(out.bits.slice(at.bx, at.bx+4)).join('')==='0000');
+ok('the box stays out of the border file', Array.from(out.bits.slice(at.bx, at.bx+4)).join('')==='0000');
 {
   let ok1=true, ok2=true;
   const lf=crop(res,100), rf=crop(men,100);
@@ -140,7 +145,7 @@ state.totalDeclared = 704;
 state.borderFiles = {};
 state.wefts = freshWefts();
 state.wefts[0].file = men;
-out = compose();
+out = compose('body');
 ok('builds without achu groups', out.width===704);
 {
   let extra=0;
@@ -149,7 +154,7 @@ ok('builds without achu groups', out.width===704);
   ok('no ground invented when there is no achu group', extra===0, String(extra));
 }
 
-out = compose();
+out = compose('body');
 fs.writeFileSync('noborder.bmp', Buffer.from(encodeBMP1(out.bits,out.width,out.height,true)));
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail?1:0);

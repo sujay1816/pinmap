@@ -295,6 +295,10 @@
     opacity: 0; pointer-events: none; transition: opacity .18s ease, transform .18s ease; z-index: 50;
   }
   #toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .achu-note {
+    font-size: 12.5px; color: var(--ink-2); background: #FBFCFC;
+    border-left: 3px solid var(--c-achu); padding: 9px 12px; margin-top: 14px;
+  }
   .summary { border: 1px solid var(--ink); background: #fff; padding: 14px; margin-bottom: 18px; }
   .summary .grid { display: flex; flex-wrap: wrap; gap: 14px 30px; align-items: flex-start; }
   .summary .cell { min-width: 0; flex: 0 1 auto; }
@@ -485,8 +489,8 @@
     <nav class="steps" id="steps">
       <button data-go="looms"><span class="no">01</span>Looms</button>
       <button data-go="loom"><span class="no">02</span>Pin map</button>
-      <button data-go="job"><span class="no">03</span>Weft files</button>
-      <button data-go="build"><span class="no">04</span>Build</button>
+      <button data-go="border"><span class="no">03</span>Border file</button>
+      <button data-go="body"><span class="no">04</span>Body file</button>
     </nav>
   </header>
 
@@ -611,58 +615,66 @@
     </details>
   </main>
 
-  <!-- ========== 03 WEFT FILES ========== -->
-  <main class="screen" id="sc-job" hidden>
+  <!-- ========== 03 BORDER FILE ========== -->
+  <main class="screen" id="sc-border" hidden>
     <div class="head-row">
-      <h2>Weft files</h2>
-      <span class="hint">Borders are optional · up to four body wefts</span>
+      <h2>Border file</h2>
+      <span class="hint">Its own file, as long as the border design needs</span>
     </div>
-    <div class="loombanner" id="jobBanner"></div>
-
-    <h3 class="sec">Borders</h3>
+    <div class="loombanner" id="borderBanner"></div>
     <div id="borderHost"></div>
-
-    <h3 class="sec">Body wefts</h3>
-    <div id="bodyHost"></div>
-
-    <div id="boxEditor"></div>
-    <div style="margin-top:22px" class="chips" id="boxChips"></div>
-    <div id="jobChecks" style="margin-top:20px"></div>
+    <div id="borderAchuNote"></div>
+    <div id="borderChecks" style="margin-top:20px"></div>
     <div class="btn-row">
-      <button class="solid" id="combine">Combine files</button>
-      <button class="ghost danger" id="clearFiles">Clear all files</button>
+      <button class="solid" id="combineBorder">Combine border</button>
+      <button id="downloadBorder" disabled>Download BMP</button>
+      <button class="ghost danger" id="clearBorder">Clear border files</button>
+    </div>
+    <div id="borderPvWrap" hidden style="margin-top:20px">
+      <div class="pv-bar">
+        <span class="pv-dims" id="borderDims"></span>
+        <div class="spacer" style="display:flex;gap:6px">
+          <button class="tiny ghost" data-bzoomv="border" data-zoom="fit">Fit</button>
+          <button class="tiny ghost" data-bzoomv="border" data-zoom="1">1:1</button>
+          <button class="tiny ghost" data-bzoomv="border" data-zoom="3">3×</button>
+        </div>
+      </div>
+      <div class="pv-frame"><canvas id="borderPv"></canvas></div>
     </div>
     <details class="note">
-      <summary>Box pins and layer order</summary>
+      <summary>What goes in this file</summary>
       <div>
-        <p>The box pattern comes from how many body wefts you load: one lifts nothing, two lift every pin, and with three the first shuttle lifts every pin, the second the first half and the third the second half. A fourth lifts nothing.</p>
-        <p>None of it speaks over plain ground. The box only lifts on the lines where a figure weft — anything after the ground — actually carries design, so a zari that appears in one band leaves the box white everywhere else.</p>
-        <p>Slot order is shuttle order, so the first loaded weft takes the first pattern. Empty slots are skipped.</p>
-        <p>You can change any of it. Click a pin under Box pins to turn it on or off for that weft, or use the all / first / second / none shortcuts. A row you have touched is marked "yours"; the reset button puts every weft back to the standard pattern.</p>
-        <p>Each body weft gets its own line, in slot order, so three wefts turn 500 design lines into 1500 picks. That is how the weft is laid, one shuttle at a time — so slot order is shuttle order.</p>
-        <p>On a <strong>4 by 4</strong> box the shuttle changes every pick, so the wefts take one line each in turn. On a <strong>4 by 1</strong> the shuttle must cross and come back, so each weft takes <strong>two</strong> lines before the next one starts. The loom's box motion, set when you register it, decides which.</p>
-        <p>If a design is drawn sideways, with the pins running down the file instead of across, it is turned a quarter turn anticlockwise on loading so it fits the pin count. The slot says so when that happens.</p>
-        <p>Each border has a single file. Its lines are used again on every weft pick of a design line, so the border holds still while the body wefts take their turns.</p>
-        <p>Borders are optional. Load neither and their pins simply stay blank; the body still carries only what its weft files put there.</p>
+        <p>Only the border designs, and the achu that binds them. Box and locking pins
+           belong to the body file and stay down here.</p>
+        <p>Its height is the border's own — nothing to do with how long the body is.</p>
+        <p>Make a border and the achu comes here. Make only a body and the achu goes there
+           instead, so the two files never both carry it.</p>
       </div>
     </details>
   </main>
 
-  <!-- ========== 04 BUILD ========== -->
-  <main class="screen" id="sc-build" hidden>
+  <!-- ========== 04 BODY FILE ========== -->
+  <main class="screen" id="sc-body" hidden>
     <div class="head-row">
-      <h2>Build</h2>
-      <span class="hint">Check the picture before you take it to the loom</span>
+      <h2>Body file</h2>
+      <span class="hint">Up to four body wefts, with the box and locking</span>
     </div>
-    <div class="loombanner" id="buildBanner"></div>
-    <div class="summary" id="buildSummary"></div>
-    <div class="opts" id="opts"></div>
-    <div style="margin-top:22px" id="checksHost"></div>
-    <div class="btn-row" style="margin-bottom:20px">
-      <button class="solid" id="build">Rebuild</button>
+    <div class="loombanner" id="bodyBanner"></div>
+    <div class="summary" id="bodySummary"></div>
+    <details class="note" id="bodyOpts">
+      <summary>How this loom is read</summary>
+      <div class="opts" id="opts" style="margin-top:12px"></div>
+    </details>
+    <div id="bodyHost"></div>
+    <div id="boxEditor"></div>
+    <div class="chips" id="boxChips" style="margin-top:22px"></div>
+    <div id="bodyChecks" style="margin-top:20px"></div>
+    <div class="btn-row">
+      <button class="solid" id="combineBody">Combine body</button>
       <button id="download" disabled>Download BMP</button>
+      <button class="ghost danger" id="clearFiles">Clear body files</button>
     </div>
-    <div id="pvWrap" hidden>
+    <div id="pvWrap" hidden style="margin-top:20px">
       <div class="pv-bar">
         <span class="pv-dims" id="pvDims"></span>
         <div class="spacer" style="display:flex;gap:6px">
@@ -676,6 +688,16 @@
       <div class="inspector" id="inspector">Point at the picture to read the pin and line under the cursor.</div>
       <div class="legend" id="pvLegend"></div>
     </div>
+    <details class="note">
+      <summary>What goes in this file</summary>
+      <div>
+        <p>The body wefts, the box pins and the locking pins. Border pins stay down here —
+           they are in the border file.</p>
+        <p>Each body weft gets its own line, in slot order, so three wefts turn 500 design
+           lines into 1500 picks. On a 4 by 1 box each weft takes two lines before the next starts.</p>
+        <p>The achu appears here only when no border file has been loaded.</p>
+      </div>
+    </details>
   </main>
 </div>
 
@@ -761,6 +783,7 @@ const state = {
     satinWarpFaced: false
   },
   built: null,
+  builtBorder: null,
   pvColour: true,
   zoom: "fit"
 };
@@ -1103,31 +1126,52 @@ function boxRow(count, weftIndex, weftCount, figureOnLine) {
    Compositor
    ============================================================ */
 
-function compose() {
+// Two files come out of a loom, and they are built apart: the border file and
+// the body file. They share the pin map and the loom's conventions, nothing
+// else — the jacquard company's software puts them together at the end.
+//
+// The one thing that ties them: achu belongs to whichever file exists. Make a
+// border and the achu goes there; make only a body and it goes in the body.
+// Never both, or they would collide when the two are joined.
+
+function borderFilesLoaded() {
+  return borderSlots().some(({ s }) => state.borderFiles[s.id] && !state.borderFiles[s.id].error);
+}
+
+function compose(target) {
+  target = target === "border" ? "border" : "body";
   const segs = state.segments;
   const W = totalPins();
-  const wefts = filledWefts();
-  const K = wefts.length;
-  const ref = anyFile();
-  if (!ref) throw new Error("no files loaded");
-  const H = ref.height;
   const o = state.opts;
-  // Overlay merges the wefts onto one line each; the others give a line per weft.
-  const overlay = o.stackMode === "overlay";
-  // A 4 by 4 box changes shuttle on every pick. A 4 by 1 has to send the
-  // shuttle across and bring it back, so it weaves two design lines before
-  // it can change.
-  const perShuttle = (!overlay && o.stackMode === "interleave" && normalBoxMotion(state.boxMotion) === "4x1") ? 2 : 1;
-  const outH = overlay ? H : H * Math.max(1, K);
 
-  // A border only takes part if a file was loaded for it. When neither border has
-  // one, the border pins stay blank and the achu weave moves onto the body instead.
-  const borderLoaded = segs.some(sg => KINDS[sg.kind].source === "border"
-    && state.borderFiles[sg.id] && !state.borderFiles[sg.id].error);
-  // Which design lines carry butta? Slot 1 is the ground, so only the wefts
-  // after it count as figure.
-  const figureOnLine = new Uint8Array(H);
-  if (K >= 2) {
+  const wefts = target === "body" ? filledWefts() : [];
+  const K = wefts.length;
+  const borderLoaded = borderFilesLoaded();
+
+  // Each file takes its height from its own designs. A border is as long as it
+  // is; the body is as long as its wefts, times however many there are.
+  let H = 0;
+  if (target === "border") {
+    for (const { s } of borderSlots()) {
+      const f = state.borderFiles[s.id];
+      if (f && !f.error) { H = Math.max(H, f.height); }
+    }
+    if (!H) throw new Error("no border file loaded");
+  } else {
+    const ref = wefts[0] && wefts[0].file;
+    if (!ref) throw new Error("no body weft loaded");
+    H = ref.height;
+  }
+
+  const overlay = target === "body" && o.stackMode === "overlay";
+  const perShuttle = (target === "body" && !overlay && o.stackMode === "interleave"
+                      && normalBoxMotion(state.boxMotion) === "4x1") ? 2 : 1;
+  const outH = target === "border" ? H : (overlay ? H : H * Math.max(1, K));
+
+  // Which design lines carry butta? Slot one is the ground, so only the wefts
+  // after it count as figure. Only the body file has a box to answer to.
+  const figureOnLine = new Uint8Array(target === "body" ? H : 0);
+  if (target === "body" && K >= 2) {
     for (let k = 1; k < K; k++) {
       const f = wefts[k].file;
       for (let y = 0; y < H; y++) {
@@ -1139,12 +1183,13 @@ function compose() {
     if (o.boxWholeBand) closeBandGaps(figureOnLine);
   }
 
-  // Achu waits on the ground weft. With no rani loaded there is nothing for it
-  // to bind, so its pins stay down.
+  // Achu goes in the border file when there is one, otherwise in the body.
+  // In the body it also waits on the rani, since that is the ground it binds.
   const raniLoaded = !!(state.wefts[0] && state.wefts[0].file && !state.wefts[0].file.error);
+  const achuHere = target === "border" ? true : (!borderLoaded && raniLoaded);
 
   const achuSeg = segs.find(sg => sg.kind === "achu" && sg.count > 1);
-  const bodyAchu = o.achuOnBody && !borderLoaded && !!achuSeg && raniLoaded;
+  const bodyAchu = target === "body" && o.achuOnBody && !borderLoaded && !!achuSeg && raniLoaded;
   const achuW = bodyAchu ? achuSeg.count : 0;
 
   const bits      = new Uint8Array(W * outH);
@@ -1165,26 +1210,24 @@ function compose() {
   });
 
   for (let outY = 0; outY < outH; outY++) {
-    let weftIdx, designRow;
-    if (overlay || K <= 1) { weftIdx = 0; designRow = outY; }
-    else if (o.stackMode === "interleave") {
-      const span = perShuttle * K;                 // one full turn of the box
-      const cycle = Math.floor(outY / span);
-      const within = outY % span;
-      weftIdx = Math.floor(within / perShuttle);
-      designRow = Math.min(H - 1, cycle * perShuttle + (within % perShuttle));
+    let weftIdx = 0, designRow = outY;
+    if (target === "body" && !overlay && K > 1) {
+      if (o.stackMode === "interleave") {
+        const span = perShuttle * K;                 // one full turn of the box
+        const cycle = Math.floor(outY / span);
+        const within = outY % span;
+        weftIdx = Math.floor(within / perShuttle);
+        designRow = Math.min(H - 1, cycle * perShuttle + (within % perShuttle));
+      } else { weftIdx = Math.floor(outY / H); designRow = outY % H; }
     }
-    else { weftIdx = Math.floor(outY / H); designRow = outY % H; }
     rowWeft[outY] = weftIdx;
     rowDesign[outY] = designRow;
 
     // Locking steps with the design line, so every weft of that line binds the
-    // same way and each file carries the whole weave. Achu steps with the pick:
-    // it is the ground's own alternation and does not care how many shuttles
-    // are running.
+    // same way. Achu steps with the pick: it is the ground's own alternation
+    // and does not care how many shuttles are running.
     const lockRowIndex = o.weavePerDesignLine ? designRow : outY;
     const achuRowIndex = outY;
-
     const rowBase = outY * W;
 
     segs.forEach((seg, i) => {
@@ -1192,17 +1235,19 @@ function compose() {
       if (src === "down") return;
 
       if (seg.kind === "achu") {
-        if (!raniLoaded) return;              // nothing to bind yet
+        if (!achuHere) return;
         const r = achuRow(seg.count, achuRowIndex, o.achuStartsBlack);
         for (let x = 0; x < seg.count; x++) bits[rowBase + at + x] = r[x];
 
       } else if (seg.kind === "locking") {
+        if (target !== "body") return;              // locking lives in the body file only
         const r = weaveRow(weaveById(seg.weave), seg.count, lockRowIndex, o.satinWarpFaced);
         for (let x = 0; x < seg.count; x++) bits[rowBase + at + x] = r[x];
 
       } else if (seg.kind === "box") {
+        if (target !== "body") return;              // and so does the box
         let fig = !!figureOnLine[designRow];
-        if (perShuttle > 1) {                      // hold across the shuttle's own run
+        if (perShuttle > 1) {                       // hold across the shuttle's own run
           const start = Math.floor(designRow / perShuttle) * perShuttle;
           fig = false;
           for (let d = start; d < Math.min(H, start + perShuttle); d++) if (figureOnLine[d]) { fig = true; break; }
@@ -1213,15 +1258,17 @@ function compose() {
         for (let x = 0; x < seg.count; x++) bits[rowBase + at + x] = r[x];
 
       } else if (src === "border") {
+        if (target !== "border") return;            // borders belong to the border file
         const f = state.borderFiles[seg.id];
         if (!f || f.error) return;
-        const from = designRow * f.width;              // same border line on every weft pick
+        if (designRow >= f.height) return;          // a shorter border simply stops
+        const from = designRow * f.width;
         for (let x = 0; x < seg.count; x++) bits[rowBase + at + x] = f.bits[from + x];
 
       } else if (src === "weft") {
+        if (target !== "body") return;
         const ground = achuW ? achuRow(achuW, achuRowIndex, o.achuStartsBlack) : null;
         if (overlay) {
-          // every weft lands on the same line; they lift different pins, so merge them
           for (let x = 0; x < seg.count; x++) {
             let v = 0;
             for (let k = 0; k < K; k++) {
@@ -1265,7 +1312,8 @@ function compose() {
     }
   }
 
-  return { bits, width: W, height: outH, region, regionSeg, rowWeft, rowDesign, overlay, figureOnLine, perShuttle,
+  return { target, bits, width: W, height: outH, region, regionSeg, rowWeft, rowDesign,
+           overlay, figureOnLine, perShuttle, achuHere,
            weftCount: Math.max(1, K), weftNames: wefts.map(w => w.name), designHeight: H };
 }
 
@@ -1303,50 +1351,67 @@ function validatePinMap() {
   return { errs, warns };
 }
 
-function validateJob() {
+function checkFile(f, tag, expected, errs, warns, heights) {
+  if (f.error) { errs.push(`${tag}: ${f.error}`); return; }
+  if (f.width !== expected)
+    errs.push(`${tag}: file is ${f.width} pins wide but the group is ${expected}. Ask for a ${expected}-pin file.`);
+  if (f.offTone)
+    warns.push(`${tag}: contains greys, read as up or down by brightness. Save it as pure black and white.`);
+  if (heights) heights.push(f.height);
+}
+
+function validateBorder() {
   const errs = [], warns = [];
-  const borders = borderSlots(), bodies = bodySlots();
+  const slots = borderSlots();
+  if (!state.segments.length) { errs.push("No loom selected — go back to step 1."); return { errs, warns }; }
+  if (!slots.length) { errs.push("This loom has no border group in its pin map."); return { errs, warns }; }
+
+  const heights = [];
+  let loaded = 0;
+  slots.forEach(({ s, i }) => {
+    const f = state.borderFiles[s.id];
+    if (!f) return;
+    loaded++;
+    checkFile(f, labelFor(state.segments, i), s.count, errs, warns, heights);
+  });
+
+  if (!loaded) errs.push("Load a border file to build this.");
+  if (heights.length > 1 && new Set(heights).size > 1)
+    warns.push(`The borders are ${heights.join(" and ")} lines. The file takes the longer, and the shorter simply stops.`);
+  if (loaded && loaded < slots.length)
+    warns.push("Only one border loaded, so the other border's pins stay down.");
+  return { errs, warns };
+}
+
+function validateBody() {
+  const errs = [], warns = [];
+  const bodies = bodySlots();
   const wefts = filledWefts();
 
   if (!state.segments.length) { errs.push("No loom selected — go back to step 1."); return { errs, warns }; }
+  if (!bodies.length) { errs.push("This loom has no Body group in its pin map."); return { errs, warns }; }
 
-  let H = null;
-  const checkSize = (f, tag, expected) => {
-    if (f.error) { errs.push(`${tag}: ${f.error}`); return; }
-    if (f.width !== expected)
-      errs.push(`${tag}: file is ${f.width} pins wide but the group is ${expected}. Ask for a ${expected}-pin file.`);
-    if (f.offTone)
-      warns.push(`${tag}: contains greys, read as up or down by brightness. Save it as pure black and white.`);
-    if (H === null) H = f.height;
-    else if (f.height !== H) errs.push(`${tag}: ${f.height} lines tall while another file is ${H}. Every file must match.`);
-  };
-
-  let bordersLoaded = 0;
-  borders.forEach(({ s, i }) => {
-    const f = state.borderFiles[s.id];
-    const tag = labelFor(state.segments, i);
-    if (!f) return;                        // a border with no file simply stays blank
-    bordersLoaded++;
-    checkSize(f, tag, s.count);
+  const heights = [];
+  if (!wefts.length) errs.push("Load at least one body weft.");
+  const bodyCount = bodies[0].s.count;
+  state.wefts.forEach((w, i) => {
+    if (!w.file) return;
+    checkFile(w.file, w.name || `Weft ${i + 1}`, bodyCount, errs, warns, heights);
   });
-  if (borders.length && !bordersLoaded) {
-    const achuSeg = state.segments.find(x => x.kind === "achu" && x.count > 1);
-    warns.push(state.opts.achuOnBody && achuSeg
-      ? "No border file loaded, so the border pins stay blank and the achu weave is filling the body. Turn that off in step 4 if the body should carry only its weft files."
-      : "No border file loaded, so the border pins stay blank.");
-  }
+  if (heights.length > 1 && new Set(heights).size > 1)
+    errs.push(`The wefts are ${heights.join(" and ")} lines tall. They must match.`);
+  if (bodies.length > 1) warns.push("More than one Body group. Every weft file fills each of them.");
+  if (wefts.length > WEFT_SLOTS) errs.push(`${WEFT_SLOTS} body wefts is the maximum.`);
 
-  if (!bodies.length) {
-    if (state.wefts.some(w => w.file)) warns.push("This loom has no Body group, so the body files will not be used.");
-  } else {
-    if (!wefts.length && bordersLoaded)
-      warns.push("No body weft loaded, so the body pins carry no design.");
-    const bodyCount = bodies[0].s.count;
-    state.wefts.forEach((w, i) => {
-      if (!w.file) return;
-      checkSize(w.file, `${w.name || "Weft " + (i + 1)}`, bodyCount);
-    });
-    if (bodies.length > 1) warns.push("More than one Body group. Every body weft file fills each of them.");
+  const H = heights[0];
+  if (normalBoxMotion(state.boxMotion) === "4x1" && H && H % 2)
+    warns.push(`A 4 by 1 box weaves two lines per shuttle, but the designs are ${H} lines — an odd number. The last line will be repeated.`);
+
+  if (state.segments.some(x => x.kind === "achu" && x.count > 0)) {
+    if (borderFilesLoaded())
+      warns.push("A border file is loaded, so the achu goes in that file and its pins stay down here.");
+    else if (!(state.wefts[0] && state.wefts[0].file && !state.wefts[0].file.error))
+      warns.push("No rani loaded in the first weft slot, so the achu pins stay down.");
   }
 
   if (state.opts.stackMode === "overlay" && wefts.length > 1) {
@@ -1359,16 +1424,9 @@ function validateJob() {
         for (const w of wefts) if (w.file.bits[i]) lift++;
         if (lift > 1) clash++;
       }
-      if (clash) warns.push("Two body wefts lift the same pin on the same line. Merged onto one line they cannot be told apart — check the files are meant to be separate wefts.");
+      if (clash) warns.push("Two body wefts lift the same pin on the same line. Merged onto one line they cannot be told apart.");
     }
   }
-  if (state.segments.some(x => x.kind === "achu" && x.count > 0) &&
-      !(state.wefts[0] && state.wefts[0].file && !state.wefts[0].file.error))
-    warns.push("No rani loaded in the first weft slot, so the achu pins stay down.");
-  if (normalBoxMotion(state.boxMotion) === "4x1" && H !== null && H % 2)
-    warns.push(`A 4 by 1 box weaves two lines per shuttle, but the designs are ${H} lines — an odd number. The last line will be repeated.`);
-  if (wefts.length > WEFT_SLOTS) errs.push(`${WEFT_SLOTS} body wefts is the maximum.`);
-  if (!wefts.length && !bordersLoaded) errs.push("Load at least one file — a border or a body weft.");
   if (!state.segments.some(s => s.kind === "box") && wefts.length > 1)
     warns.push("No box pins in the pin map, so nothing tells the loom which shuttle each pick uses.");
   return { errs, warns };
@@ -2085,7 +2143,7 @@ function adoptDoc(doc) {
   Object.assign(state.opts, doc.options || {});
   state.borderFiles = {};
   state.wefts = freshWefts();
-  state.built = null;
+  state.built = null; state.builtBorder = null;
 }
 
 /* ============================================================
@@ -2186,7 +2244,7 @@ el("#loomList").addEventListener("click", async e => {
     state.activeName = doc.name;
     doc.lastUsedAt = new Date().toISOString();
     await persistLooms();
-    go("job");
+    go(borderSlots().length ? "border" : "body");
     return;
   }
   if (act === "edit") { adoptDoc(doc); state.editing = doc.name; go("loom"); return; }
@@ -2225,7 +2283,7 @@ function startNewLoom() {
   state.boxMotion = "4x4";
   state.version = 1;
   applyDefaultLayout();
-  state.built = null;
+  state.built = null; state.builtBorder = null;
   go("loom");
 }
 
@@ -2607,7 +2665,7 @@ el("#weaveList").addEventListener("click", async e => {
   state.weaves = state.weaves.filter(x => x.id !== t.dataset.id);
   state.segments.forEach(sg => { if (sg.weave === t.dataset.id) delete sg.weave; });
   await persistWeaves();
-  state.built = null;
+  state.built = null; state.builtBorder = null;
   renderLoomScreen();
 });
 
@@ -2678,14 +2736,14 @@ function addSeg(kind) {
   const left = (state.totalDeclared || 0) - allocated();
   const suggested = (kind === "achu" || kind === "box") ? 4 : (left > 0 ? left : null);
   state.segments.push({ id: nextId(), kind, count: suggested });
-  state.built = null; renderLoomScreen();
+  state.built = null; state.builtBorder = null; renderLoomScreen();
 }
 els("[data-add]").forEach(b => b.onclick = () => addSeg(b.dataset.add));
 
 el("#starter").onclick = () => {
   if (state.segments.length && !confirm("Replace the current groups with the standard order?")) return;
   applyDefaultLayout();
-  state.built = null; renderLoomScreen();
+  state.built = null; state.builtBorder = null; renderLoomScreen();
 };
 
 el("#restToBody").onclick = () => {
@@ -2694,7 +2752,7 @@ el("#restToBody").onclick = () => {
   const existing = state.segments.find(s => s.kind === "body");
   if (existing) existing.count = (existing.count || 0) + left;
   else state.segments.push({ id: nextId(), kind: "body", count: left });
-  state.built = null; renderLoomScreen();
+  state.built = null; state.builtBorder = null; renderLoomScreen();
 };
 
 el("#clearSegs").onclick = () => {
@@ -2702,17 +2760,17 @@ el("#clearSegs").onclick = () => {
   state.segments = [];
   state.borderFiles = {};
   state.wefts = freshWefts();
-  state.built = null; renderLoomScreen();
+  state.built = null; state.builtBorder = null; renderLoomScreen();
 };
 
 el("#boxMotion").addEventListener("change", e => {
   state.boxMotion = normalBoxMotion(e.target.value);
-  state.built = null;
+  state.built = null; state.builtBorder = null;
 });
 
 el("#totalDeclared").addEventListener("input", e => {
   state.totalDeclared = Math.max(0, parseInt(e.target.value, 10) || 0);
-  state.built = null;
+  state.built = null; state.builtBorder = null;
   renderAlloc(); drawBoard(); renderBoardLegend(); renderLoomChecks();
 });
 
@@ -2725,7 +2783,7 @@ function handleSegInput(e) {
   const s = state.segments.find(x => x.id === t.dataset.id); if (!s) return;
   if (act === "count") {
     s.count = Math.max(0, parseInt(t.value, 10) || 0);
-    state.built = null;
+    state.built = null; state.builtBorder = null;
     renderAlloc(); drawBoard(); renderBoardLegend(); renderLoomChecks();
     els("#segTable .seg-range").forEach((cell, i) => {
       let from = 1;
@@ -2738,7 +2796,7 @@ function handleSegInput(e) {
   if (act === "weave") {
     const w = weaveById(t.value);
     if (w) { s.weave = w.id; s.count = w.pins; } else delete s.weave;
-    state.built = null;
+    state.built = null; state.builtBorder = null;
     renderLoomScreen();
     return;
   }
@@ -2749,7 +2807,7 @@ function handleSegInput(e) {
     if (s.kind === "achu" && !s.count) s.count = 4;
     if (s.kind === "box" && !s.count) s.count = 4;
     delete state.borderFiles[s.id];
-    state.built = null; renderLoomScreen();
+    state.built = null; state.builtBorder = null; renderLoomScreen();
   }
 }
 
@@ -2760,7 +2818,7 @@ el("#segTable").addEventListener("click", e => {
   if (act === "up" && i > 0) [state.segments[i-1], state.segments[i]] = [state.segments[i], state.segments[i-1]];
   if (act === "down" && i < state.segments.length - 1) [state.segments[i+1], state.segments[i]] = [state.segments[i], state.segments[i+1]];
   if (act === "del") { state.segments.splice(i, 1); delete state.borderFiles[id]; }
-  state.built = null; renderLoomScreen();
+  state.built = null; state.builtBorder = null; renderLoomScreen();
 });
 
 el("#loomName").addEventListener("input", e => { state.loomName = e.target.value; renderLoomChecks(); });
@@ -2813,7 +2871,7 @@ el("#saveLoom").onclick = async () => {
   notify(persisted
     ? `Saved "${doc.name}" as version ${doc.version}.`
     : `Saved "${doc.name}" for this session only — back it up to keep it.`);
-  go("job");
+  go(borderSlots().length ? "border" : "body");
 };
 
 /* ============================================================
@@ -2956,7 +3014,7 @@ el("#boxEditor").addEventListener("click", e => {
     state.boxPrefs[boxPrefKey(wf, n)] = pattern;
     persistBoxPrefs();
     state.built = null;
-    renderJobScreen();
+    renderBodyScreen();
   };
 
   const pin = e.target.closest("button[data-boxpin]");
@@ -2987,7 +3045,7 @@ el("#boxEditor").addEventListener("click", e => {
       delete state.boxPrefs[boxPrefKey(wf, n)];
     });
     persistBoxPrefs();
-    state.built = null; renderJobScreen();
+    state.built = null; renderBodyScreen();
     notify("Box pins back to the standard pattern.");
   }
 });
@@ -3023,12 +3081,13 @@ function renderChips() {
 }
 
 el("#clearFiles").onclick = () => {
-  if (!Object.keys(state.borderFiles).length && !state.wefts.some(w => w.file)) return;
-  if (!confirm("Remove every loaded file?")) return;
-  state.borderFiles = {};
+  if (!state.wefts.some(w => w.file)) return;
+  if (!confirm("Remove the body weft files?")) return;
   state.wefts = freshWefts();
   state.built = null;
-  renderJobScreen();
+  renderBodyScreen();
+  el("#pvWrap").hidden = true;
+  el("#download").disabled = true;
 };
 
 el("#bodyHost").addEventListener("input", e => {
@@ -3048,7 +3107,8 @@ async function readInto(t) {
   } catch (err) {
     rec = { name: file.name, error: err.message };
   }
-  if (t.dataset.target === "border") {
+  const isBorder = t.dataset.target === "border";
+  if (isBorder) {
     const seg = state.segments.find(x => x.id === t.dataset.key);
     if (state.opts.autoRotate && seg) rec = fitToPins(rec, seg.count);
     state.borderFiles[t.dataset.key] = rec;
@@ -3058,8 +3118,9 @@ async function readInto(t) {
     const w = state.wefts.find(x => x.id === t.dataset.key);
     if (w) w.file = rec;
   }
-  state.built = null;
-  renderJobScreen();
+  // only the file that changed needs rebuilding
+  if (isBorder) { state.builtBorder = null; renderBorderScreen(); }
+  else { state.built = null; renderBodyScreen(); }
   scheduleSave();
 }
 
@@ -3070,24 +3131,107 @@ el("#bodyHost").addEventListener("change", e => {
   if (e.target.dataset.act === "file") readInto(e.target);
 });
 
-el("#combine").onclick = () => {
-  if (validateJob().errs.length) return;
-  try {
-    state.built = compose();
-    go("build");
-    const pv = el("#pvWrap");
-    if (pv) pv.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  } catch (err) { alert("Could not combine the files: " + err.message); }
-};
-
-function renderJobScreen() {
+function renderBorderScreen() {
   if (!state.wefts.length) state.wefts = freshWefts();
-  banner("#jobBanner");
-  renderBorderSlots(); renderBodySlots(); renderFileThumbs(); renderBoxEditor(); renderChips();
-  el("#combine").disabled = !renderChecksInto(el("#jobChecks"), validateJob(),
-    "Every file matches its group. Combine them.");
+  banner("#borderBanner");
+  renderBorderSlots(); renderFileThumbs();
+  const achuSeg = state.segments.find(x => x.kind === "achu" && x.count > 0);
+  el("#borderAchuNote").innerHTML = achuSeg
+    ? `<p class="achu-note">The achu ${borderFilesLoaded()
+        ? "is generated into this file, because a border is loaded."
+        : "will be generated here once a border file is loaded. Without one it goes in the body file."}</p>`
+    : "";
+  el("#combineBorder").disabled = !renderChecksInto(el("#borderChecks"), validateBorder(),
+    "The border files match their groups. Combine them.");
   renderSteps();
 }
+
+function renderBodyScreen() {
+  if (!state.wefts.length) state.wefts = freshWefts();
+  banner("#bodyBanner");
+  renderSummary();
+  renderBodySlots(); renderFileThumbs(); renderBoxEditor(); renderChips();
+  el("#combineBody").disabled = !renderChecksInto(el("#bodyChecks"), validateBody(),
+    "The body wefts match their group. Combine them.");
+  renderSteps();
+}
+
+el("#combineBorder").onclick = () => {
+  if (validateBorder().errs.length) return;
+  try {
+    state.builtBorder = compose("border");
+    renderBorderPreview();
+    el("#downloadBorder").disabled = false;
+    notify("Border file built.");
+  } catch (err) { alert("Could not combine the border: " + err.message); }
+};
+
+el("#combineBody").onclick = () => {
+  if (validateBody().errs.length) return;
+  try {
+    state.built = compose("body");
+    renderPreview();
+    notify("Body file built.");
+  } catch (err) { alert("Could not combine the body: " + err.message); }
+};
+
+el("#clearBorder").onclick = () => {
+  if (!Object.keys(state.borderFiles).length) return;
+  if (!confirm("Remove the border files?")) return;
+  state.borderFiles = {};
+  state.builtBorder = null;
+  renderBorderScreen();
+  el("#borderPvWrap").hidden = true;
+  el("#downloadBorder").disabled = true;
+};
+
+let borderZoom = "fit";
+els("[data-bzoomv=border]").forEach(b => b.onclick = () => {
+  borderZoom = b.dataset.zoom;
+  const cv = el("#borderPv");
+  if (!cv) return;
+  if (borderZoom === "fit") { cv.style.width = "100%"; cv.style.height = "auto"; }
+  else { const f = parseFloat(borderZoom); cv.style.width = (cv.width * f) + "px"; cv.style.height = (cv.height * f) + "px"; }
+});
+
+function renderBorderPreview() {
+  const b = state.builtBorder;
+  const wrap = el("#borderPvWrap");
+  if (!b) { wrap.hidden = true; el("#downloadBorder").disabled = true; return; }
+  wrap.hidden = false;
+  const step = Math.max(1, Math.ceil(Math.sqrt((b.width * b.height) / 12e6)));
+  const w = Math.ceil(b.width / step), h = Math.ceil(b.height / step);
+  const cv = el("#borderPv"), ctx = cv.getContext("2d");
+  cv.width = w; cv.height = h;
+  const img = ctx.createImageData(w, h);
+  for (let y = 0; y < h; y++) {
+    const sy = Math.min(b.height - 1, y * step);
+    for (let x = 0; x < w; x++) {
+      const sx = Math.min(b.width - 1, x * step);
+      const p = (y * w + x) * 4;
+      const up = b.bits[sy * b.width + sx];
+      let r, g, bl;
+      if (up) [r, g, bl] = REGION_COLOUR[b.region[sx]] || [20, 24, 28];
+      else r = g = bl = 255;
+      img.data[p] = r; img.data[p+1] = g; img.data[p+2] = bl; img.data[p+3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  if (borderZoom === "fit") { cv.style.width = "100%"; cv.style.height = "auto"; }
+  el("#borderDims").textContent =
+    `${b.width} pins × ${b.height} lines${step > 1 ? ` · preview reduced ${step}×` : ""}`;
+  el("#downloadBorder").disabled = false;
+}
+
+el("#downloadBorder").onclick = () => {
+  const b = state.builtBorder; if (!b) return;
+  const bytes = encodeBMP1(b.bits, b.width, b.height, state.opts.blackIsIndexZero);
+  const safe = (state.loomName || "loom").replace(/[^A-Za-z0-9_-]+/g, "_").replace(/^_|_$/g, "");
+  const url = URL.createObjectURL(new Blob([bytes], { type: "image/bmp" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = `${safe}_${b.width}pins_border_${b.height}.bmp`; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+};
 
 /* ============================================================
    Screen 04 — build
@@ -3133,8 +3277,8 @@ el("#opts").addEventListener("click", e => {
   const t = e.target.closest("button"); if (!t || t.dataset.act !== "opt") return;
   const raw = t.dataset.val;
   state.opts[t.dataset.key] = raw === "true" ? true : raw === "false" ? false : raw;
-  state.built = null;
-  renderOpts(); renderPreview(); renderBuildScreen();
+  state.built = null; state.builtBorder = null;
+  renderOpts(); renderPreview(); renderBorderPreview(); renderBodyScreen();
 });
 
 const REGION_COLOUR = {
@@ -3150,7 +3294,7 @@ const REGION_COLOUR = {
 let pvStep = 1;
 
 function renderSummary() {
-  const host = el("#buildSummary");
+  const host = el("#bodySummary");
   const K = filledWefts().length;
   const ref = anyFile();
   const H = ref ? ref.height : 0;
@@ -3247,15 +3391,6 @@ el("#pv").addEventListener("mouseleave", () => {
   el("#inspector").textContent = "Point at the picture to read the pin and line under the cursor.";
 });
 
-el("#build").onclick = () => {
-  if (validateJob().errs.length) return;
-  try {
-    state.built = compose();
-    renderPreview();
-    el("#pvWrap").scrollIntoView({ behavior: "smooth", block: "nearest" });
-  } catch (err) { alert("Could not build the file: " + err.message); }
-};
-
 el("#download").onclick = () => {
   const b = state.built; if (!b) return;
   const bytes = encodeBMP1(b.bits, b.width, b.height, state.opts.blackIsIndexZero);
@@ -3263,17 +3398,12 @@ el("#download").onclick = () => {
   const url = URL.createObjectURL(new Blob([bytes], { type: "image/bmp" }));
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${safe}_${b.width}pins_${b.weftCount}weft_${normalBoxMotion(state.boxMotion)}_${b.height}.bmp`;
+  a.download = `${safe}_${b.width}pins_body_${b.weftCount}weft_${normalBoxMotion(state.boxMotion)}_${b.height}.bmp`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 };
 
-function renderBuildScreen() {
-  banner("#buildBanner");
-  renderSummary();
-  el("#build").disabled = !renderChecksInto(el("#checksHost"), validateJob(), "Pin map and files agree.");
-  renderSteps();
-}
+
 
 /* ============================================================
    Autosave triggers — every click, edit and choice
@@ -3297,13 +3427,14 @@ window.addEventListener("beforeunload", () => {
    Router
    ============================================================ */
 
-const SCREENS = { looms: "#sc-looms", loom: "#sc-loom", job: "#sc-job", build: "#sc-build" };
+const SCREENS = { looms: "#sc-looms", loom: "#sc-loom", border: "#sc-border", body: "#sc-body" };
 
 function canGo(name) {
   if (name === "looms") return true;
   if (name === "loom")  return state.segments.length > 0 || state.editing !== null || state.screen === "loom";
-  if (name === "job")   return state.segments.length > 0 && state.loomName.trim() !== "" && !!state.totalDeclared;
-  if (name === "build") return canGo("job") && !!state.built;
+  const ready = state.segments.length > 0 && state.loomName.trim() !== "" && !!state.totalDeclared;
+  if (name === "border") return ready && borderSlots().length > 0;
+  if (name === "body")   return ready && bodySlots().length > 0;
   return false;
 }
 
@@ -3324,8 +3455,8 @@ function go(name) {
   Object.entries(SCREENS).forEach(([k, sel]) => { el(sel).hidden = k !== name; });
   if (name === "looms") renderLoomList();
   if (name === "loom")  renderLoomScreen();
-  if (name === "job")   renderJobScreen();
-  if (name === "build") { renderOpts(); renderBuildScreen(); renderPreview(); }
+  if (name === "border") { renderBorderScreen(); renderBorderPreview(); }
+  if (name === "body")   { renderOpts(); renderBodyScreen(); renderPreview(); }
   renderSteps();
   window.scrollTo(0, 0);
 }

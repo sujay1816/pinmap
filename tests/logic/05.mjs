@@ -27,7 +27,7 @@ const setup = (segs, total) => {
 head('body only: three wefts merged onto one line each');
 setup([{ id:'bd', kind:'body', count:500 }], 500);
 state.wefts[0].file=men; state.wefts[1].file=res; state.wefts[2].file=jar;
-let out = compose();
+let out = compose('body');
 ok('flagged as overlay', out.overlay === true);
 ok('height stays at the design height', out.height === 720, out.height);
 ok('width 500', out.width === 500);
@@ -68,14 +68,14 @@ head('the merge is lossless because the wefts never clash');
 head('one and two wefts');
 setup([{ id:'bd', kind:'body', count:500 }], 500);
 state.wefts[0].file=men;
-out = compose();
+out = compose('body');
 ok('single weft passes straight through', (() => {
   for (let i=0;i<men.bits.length;i++) if (out.bits[i]!==men.bits[i]) return false;
   return true;
 })());
 ok('height unchanged at 720', out.height===720);
 state.wefts[1].file=res;
-out = compose();
+out = compose('body');
 ok('two wefts still 720 lines', out.height===720);
 {
   let exact=true;
@@ -99,7 +99,7 @@ const segs=[
 setup(segs, 720);
 state.wefts[0].file=men; state.wefts[1].file=res; state.wefts[2].file=jar;
 state.borderFiles.lb = crop(men,100); state.borderFiles.rb = crop(res,100);
-out = compose();
+out = compose('body');
 const at={}; { let a=0; segs.forEach(s=>{at[s.id]=a;a+=s.count;}); }
 ok('720 pins wide, 720 lines tall', out.width===720 && out.height===720);
 {
@@ -112,23 +112,32 @@ ok('720 pins wide, 720 lines tall', out.width===720 && out.height===720);
   ok('body region is the merged design', exact);
 }
 {
+  const bOut = compose('border');
   const lf=crop(men,100);
   let exact=true;
-  for (let y=0;y<720 && exact;y++)
+  for (let y=0;y<bOut.height && exact;y++)
     for (let x=0;x<100;x++)
-      if (out.bits[y*720+at.lb+x]!==lf.bits[y*100+x]){exact=false;break;}
-  ok('border reads line for line alongside', exact);
+      if (bOut.bits[y*bOut.width+at.lb+x]!==lf.bits[y*100+x]){exact=false;break;}
+  ok('the border file reads line for line', exact);
+  ok('and the body file leaves the border pins down', (()=>{
+    for (let y=0;y<out.height;y++) for (let x=0;x<100;x++) if (out.bits[y*720+at.lb+x]) return false;
+    return true; })());
 }
 {
   let lk=0;
   for (let y=0;y<720;y++) for (let x=0;x<8;x++) if (out.bits[y*720+at.lk+x]) lk++;
   ok('locking satin still one pin per line', lk===720, String(lk));
 }
-ok('achu still generates', Array.from(out.bits.slice(at.a1,at.a1+4)).join('')==='1100');
+ok('achu is in the border file, not the body', (()=>{
+  const bOut = compose('border');
+  const inBorder = Array.from(bOut.bits.slice(at.a1,at.a1+4)).join('')==='1100';
+  let inBody=false;
+  for (let y=0;y<out.height && !inBody;y++) for (let x=0;x<4;x++) if (out.bits[y*720+at.a1+x]) inBody=true;
+  return inBorder && !inBody; })());
 
 head('interleave is still available');
 state.opts.stackMode = 'interleave';
-out = compose();
+out = compose('body');
 ok('interleave gives a line per weft again', out.height===2160, out.height);
 ok('not flagged as overlay', out.overlay === false);
 state.opts.stackMode = 'overlay';
@@ -136,7 +145,7 @@ state.opts.stackMode = 'overlay';
 head('achu ground under a merged body');
 setup([{ id:'a1', kind:'achu', count:4 },{ id:'bd', kind:'body', count:500 }], 504);
 state.wefts[0].file=men;                       // no border, no ground weft
-out = compose();
+out = compose('body');
 {
   const g0=achuRow(4,0,true);
   let good=true;
@@ -147,7 +156,7 @@ out = compose();
   ok('achu fills the gaps of a merged body too', good);
 }
 
-out = compose();
+out = compose('body');
 fs.writeFileSync('overlay.bmp', Buffer.from(encodeBMP1(out.bits,out.width,out.height,true)));
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail?1:0);

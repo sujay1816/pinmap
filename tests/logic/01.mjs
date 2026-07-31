@@ -157,16 +157,27 @@ ok('line 3 body is Zari design line 1', bodyMatches(2, jar, 0));
 ok('line 4 body is Meena design line 2', bodyMatches(3, men, 1));
 ok('line 543 body is Zari design line 181', bodyMatches(181 * 3 + 2, jar, 181));
 
-head('one border file serves every weft pick');
+head('the border file, built on its own');
+const Bfile = compose('border');
+const borderMatchesB = (outY, base, f, designRow) => {
+  for (let x = 0; x < 100; x++)
+    if (Bfile.bits[outY * Bfile.width + base + x] !== f.bits[designRow * 100 + x]) return false;
+  return true;
+};
 const borderMatches = (outY, base, f, designRow) => {
   for (let x = 0; x < 100; x++)
     if (out.bits[outY * 732 + base + x] !== f.bits[designRow * 100 + x]) return false;
   return true;
 };
-ok('left border same on all three picks of line 1',
-   borderMatches(0, at.lb, leftF, 0) && borderMatches(1, at.lb, leftF, 0) && borderMatches(2, at.lb, leftF, 0));
-ok('left border advances on the next design line', borderMatches(3, at.lb, leftF, 1));
-ok('right border carries its own file', borderMatches(0, at.rb, rightF, 0));
+ok('the left border is carried line for line',
+   borderMatchesB(0, at.lb, leftF, 0) && borderMatchesB(1, at.lb, leftF, 1));
+ok('the right border carries its own file', borderMatchesB(0, at.rb, rightF, 0));
+ok('the border file is as tall as the border designs', Bfile.height === leftF.height,
+   `${Bfile.height} vs ${leftF.height}`);
+ok('and carries no body', (()=>{
+   for (let y=0;y<Bfile.height;y++) for (let x=0;x<500;x++)
+     if (Bfile.bits[y*Bfile.width + at.bd + x]) return false;
+   return true; })());
 {
   let differ = false;
   for (let i = 0; i < leftF.bits.length; i++) if (leftF.bits[i] !== rightF.bits[i]) { differ = true; break; }
@@ -184,12 +195,18 @@ head('groups that never lift');
   ok('empty stays down', em === 0, String(em));
 }
 
-head('achu at both edges');
-ok('first achu = 1100', Array.from(out.bits.slice(at.a1, at.a1 + 4)).join('') === '1100');
-ok('second achu = 1100 too', Array.from(out.bits.slice(at.a2, at.a2 + 4)).join('') === '1100');
+head('achu at both edges — in the border file, since a border is loaded');
+ok('first achu = 1100', Array.from(Bfile.bits.slice(at.a1, at.a1 + 4)).join('') === '1100',
+   Array.from(Bfile.bits.slice(at.a1, at.a1+4)).join(''));
+ok('second achu = 1100 too', Array.from(Bfile.bits.slice(at.a2, at.a2 + 4)).join('') === '1100');
 ok('both flip on line 2',
-   Array.from(out.bits.slice(732 + at.a1, 732 + at.a1 + 4)).join('') === '0011' &&
-   Array.from(out.bits.slice(732 + at.a2, 732 + at.a2 + 4)).join('') === '0011');
+   Array.from(Bfile.bits.slice(Bfile.width + at.a1, Bfile.width + at.a1 + 4)).join('') === '0011' &&
+   Array.from(Bfile.bits.slice(Bfile.width + at.a2, Bfile.width + at.a2 + 4)).join('') === '0011');
+ok('and the body file leaves those pins down', (()=>{
+   for (let y=0;y<out.height;y++)
+     for (const a of [at.a1, at.a2])
+       for (let x=0;x<4;x++) if (out.bits[y*out.width + a + x]) return false;
+   return true; })());
 
 head('region map');
 ok('box 1, left border 2, right border 3, achu 4, locking 5, body 6, empty 7',

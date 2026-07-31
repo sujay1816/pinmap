@@ -154,23 +154,33 @@ await step('save the loom', async () => {
   if ($('#saveLoom').disabled) throw new Error('save disabled: ' + $('#loomChecks').textContent.replace(/\s+/g,' ').slice(0,200));
   click($('#saveLoom'));
   await new Promise(r => setTimeout(r, 150));
-  if ($('#sc-job').hidden) throw new Error('did not advance to weft files');
+  if ($('#sc-border').hidden) throw new Error('did not advance to the border file');
 });
-await step('border and body slots render', () => {
+await step('the border screen offers its uploads', () => {
   if (!$('#borderHost').textContent.trim()) throw new Error('no border slots');
-  if (!$('#bodyHost').textContent.trim()) throw new Error('no body slots');
+  const n = $$('#borderHost input[type=file]').length;
+  if (n !== 2) throw new Error('expected 2 border slots, found ' + n);
+  if (!/achu/i.test($('#borderAchuNote').textContent)) throw new Error('no achu note');
+});
+await step('combining a border is blocked with no files', () => {
+  if (!$('#combineBorder').disabled) throw new Error('should be disabled');
+});
+await step('the body screen offers four weft slots', () => {
+  click($$('nav.steps button').find(x => x.dataset.go === 'body'));
+  if ($('#sc-body').hidden) throw new Error('did not reach the body screen');
   const n = $$('#bodyHost input[type=file]').length;
   if (n !== 4) throw new Error('expected 4 weft slots, found ' + n);
 });
 await step('weft names are editable', () => {
   const el = $$('#bodyHost input[type=text]')[0]; setVal(el, 'Rani');
 });
-await step('combine is blocked until files load', () => {
-  if (!$('#combine').disabled) throw new Error('combine should be disabled with no files');
+await step('combining a body is blocked with no files', () => {
+  if (!$('#combineBody').disabled) throw new Error('combine should be disabled with no files');
 });
-await step('step nav respects prerequisites', () => {
-  const b = $$('nav.steps button').find(x => x.dataset.go === 'build');
-  if (!b.disabled) throw new Error('build step should be locked');
+await step('the two files have separate downloads', () => {
+  if (!$('#downloadBorder') || !$('#download')) throw new Error('missing a download button');
+  if (!$('#downloadBorder').disabled || !$('#download').disabled)
+    throw new Error('downloads should be disabled before anything is built');
 });
 await step('go back to the loom list', () => {
   click($$('nav.steps button').find(x => x.dataset.go === 'looms'));
@@ -186,11 +196,11 @@ await step('duplicate a loom', () => { click($('button[data-act=dupe]')); if ($(
 await step('back and use the loom', async () => {
   click($$('nav.steps button').find(x => x.dataset.go === 'looms'));
   click($('button[data-act=use]'));
-  await new Promise(r => setTimeout(r, 150));
-  if ($('#sc-job').hidden) throw new Error('did not reach weft files');
+  await new Promise(r => setTimeout(r, 200));
+  if ($('#sc-border').hidden && $('#sc-body').hidden) throw new Error('did not reach a file screen');
 });
-await step('options render on the build screen', () => {
-  click($$('nav.steps button').find(x => x.dataset.go === 'job'));
+await step('the loom conventions sit with the body file', () => {
+  click($$('nav.steps button').find(x => x.dataset.go === 'body'));
   const opts = $$('#opts .opt').length;
   if (opts < 5) throw new Error('only ' + opts + ' options');
 });
