@@ -87,6 +87,37 @@ console.log('\n== the keyboard does the same ==');
   ok('the top row will not go higher', order() === before, order());
 }
 
+console.log('\n== the line showing where it will land ==');
+{
+  const marks = () => $$('#segTable .seg-row').map(r =>
+    r.classList.contains('dropbefore') ? 'before' :
+    r.classList.contains('dropafter')  ? 'after'  : '.').join(',');
+  const hover = (fromIdx, toIdx) => {
+    const from = rowFor(fromIdx), to = rowFor(toIdx);
+    from.querySelector('button[data-grip]').dispatchEvent(new w.MouseEvent('mousedown',{bubbles:true}));
+    const dt = { effectAllowed:'', dropEffect:'', setData(){}, getData(){return '';} };
+    const ev = (type, target) => { const e=new w.Event(type,{bubbles:true,cancelable:true}); e.dataTransfer=dt; target.dispatchEvent(e); };
+    ev('dragstart', from); ev('dragover', to);
+    return { end: () => ev('dragend', from) };
+  };
+
+  let h = hover(0, 4);
+  ok('dragging down marks the row below', marks().split(',')[5] === 'after', marks());
+  h.end(); await wait(80);
+
+  h = hover(6, 2);
+  ok('dragging up marks the row above', marks().split(',')[3] === 'before', marks());
+  h.end(); await wait(80);
+
+  ok('the mark is cleared afterwards', !/before|after/.test(marks()), marks());
+
+  const css = w.document.querySelector('style').textContent;
+  ok('the line is drawn inside the row, so nothing paints over it',
+     /\.seg-row\.dropafter\s*\{\s*box-shadow:\s*inset/.test(css.replace(/\s+/g,' ')) ||
+     /dropafter\s*\{ box-shadow: inset/.test(css.replace(/\s+/g,' ')),
+     'outer shadow still in use');
+}
+
 console.log('\n== the pin ranges follow the new order ==');
 {
   drag(2, 0); await wait(200);          // the 500-pin left border to the front

@@ -216,8 +216,11 @@
   }
   .seg-row[data-row] { transition: opacity .12s ease; }
   .seg-row.dragging { opacity: 0.4; }
-  .seg-row.dropafter { box-shadow: 0 2px 0 0 var(--ink); }
-  .seg-row.dropbefore { box-shadow: 0 -2px 0 0 var(--ink); }
+  /* Drawn inside the row. An outer shadow below gets painted over by the next
+     row's background, so the line only ever appeared when moving up. */
+  .seg-row.dropafter, .seg-row.dropbefore { position: relative; z-index: 1; }
+  .seg-row.dropafter  { box-shadow: inset 0 -3px 0 0 var(--ink); }
+  .seg-row.dropbefore { box-shadow: inset 0 3px 0 0 var(--ink); }
   .griphold { display: flex; align-items: center; gap: 4px; }
   .grip {
     border: 0; background: transparent; color: var(--ink-3); cursor: grab;
