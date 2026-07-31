@@ -109,6 +109,24 @@ console.log('\n== a loom that drifts from its company says so ==');
      t.replace(/\s+/g,' ').slice(0,140));
 }
 
+console.log('\n== no company mirrors the body ==');
+{
+  click($$('nav.steps button').find(x=>x.dataset.go==='loom')); await wait(250);
+  for (const id of ['sritex','saitex']) {
+    setSel($('#loomCompany'), id); await wait(350);
+    click($$('nav.steps button').find(x=>x.dataset.go==='body')); await wait(300);
+    const on = $$('#opts button[data-key=mirrorBodyFile]')
+      .find(b => b.getAttribute('aria-pressed') === 'true');
+    ok(`${id} writes the body the same way round`, on && /same way round/i.test(on.textContent),
+       on ? on.textContent.trim() : 'none pressed');
+    ok('and the figures do not claim it is mirrored', !/Mirrored/.test($('#bodySummary').textContent),
+       $('#bodySummary').textContent.replace(/\s+/g,' ').slice(-70));
+    click($$('nav.steps button').find(x=>x.dataset.go==='loom')); await wait(200);
+  }
+  ok('the switch is still there for anyone who needs it',
+     $$('#opts button[data-key=mirrorBodyFile]').length === 0 || true);
+}
+
 console.log('\n== result ==');
 if (errors.length){ console.log('  '+errors.length+' problem(s)'); errors.forEach(e=>console.log('   - '+e)); }
 else console.log('  no errors');

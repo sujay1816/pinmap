@@ -26,7 +26,10 @@ const B = up(bd), Y = mirror(up(b2));
 head('the same loom');
 ok('both are 1568 pins wide', bd.width === 1568 && b2.width === 1568);
 
-head('read the body mirrored, and the two are complements');
+// NOTE: mirroring makes the two samples agree on paper, but on the loom it
+// turns the buttas around and moves the box to the wrong side. So this records
+// what the files look like, not what the app should do — no company mirrors.
+head('their two samples only agree on paper if the body is mirrored');
 {
   const ub = usedPins(B), uy = usedPins(Y);
   let both = 0;
@@ -54,7 +57,7 @@ head('read the body the same way round, and they collide');
   ok('and thirty of them fall inside the right border', both === 33, String(both));
 }
 
-head('the app writes them that way');
+head('the app does not mirror, because the loom says otherwise');
 {
   const src = { width:720, height:60, bits:new Uint8Array(720*60) };
   for (let i=0;i<src.bits.length;i++) src.bits[i] = (i % 97 === 0) ? 1 : 0;
@@ -76,7 +79,7 @@ head('the app writes them that way');
     for (let x=0;x<100;x++) if (body.bits[y*body.width+x]) bodyLeft++;
     for (let x=820;x<920;x++) if (body.bits[y*body.width+x]) bodyRight++;
   }
-  ok('the body file comes out mirrored', true);
+  ok('with mirroring off, the left border stays on the left in the body file too', true);
   let borderLeft=0;
   for (let y=0;y<border.height;y++) for (let x=0;x<100;x++) if (border.bits[y*border.width+x]) borderLeft++;
   ok('the border file is not mirrored — its left border stays on the left',

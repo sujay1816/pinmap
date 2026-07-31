@@ -940,7 +940,7 @@ function labelFor(segs, i) {
   for (let j = 0; j <= i; j++) if (segs[j].kind === k) n++;
   return `${base} ${n}`;
 }
-const BUILD = "2026-07-31.11";      // bump when the file changes, so a stale page shows
+const BUILD = "2026-07-31.12";      // bump when the file changes, so a stale page shows
 /* ============================================================
    Whose software wrote the file
 
@@ -953,8 +953,17 @@ const BUILD = "2026-07-31.11";      // bump when the file changes, so a stale pa
    Box motion (4 by 4 or 4 by 1) belongs to the loom, not the software,
    so it stays a separate choice whichever company is picked.
 
-   Sri Tex differs in exactly one way: white is the lifted pin, where we
-   write black. Everything else — pin 1 at the left, the top line first,
+   Sri Tex differs in one way that is settled: white is the lifted pin,
+   where we write black. This was read off their border file and is not
+   in doubt.
+
+   Their two sample files also disagree with each other by thirty pins.
+   The border file puts locking + body + locking at 394-1145; the body
+   file puts it at 424-1175. Mirroring the body makes the two line up on
+   paper, but on the loom it turns the buttas around and moves the box to
+   the wrong side, so it is wrong. The switch below is left in place for
+   anyone who needs it, but no company turns it on. Which of the two
+   layouts the machine really uses is still an open question. Everything else — pin 1 at the left, the top line first,
    the achu half up and half down flipping each line, the border file
    holding the achu while the body and locking pins stay down — is the
    same, and was read off their border file:
@@ -981,8 +990,7 @@ const COMPANIES = [
   { id: "",       name: "Not set", opts: null },
   { id: "saitex", name: "Sai Tex", opts: { ...COMPANY_BASE } },
   { id: "sritex", name: "Sri Tex", opts: { ...COMPANY_BASE,
-      blackIsIndexZero: false,    // white is the lifted pin
-      mirrorBodyFile: true } }    // and the body file is written mirrored
+      blackIsIndexZero: false } } // white is the lifted pin
 ];
 
 const companyById = (id) => COMPANIES.find(c => c.id === (id || "")) || COMPANIES[0];
