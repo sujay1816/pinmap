@@ -159,6 +159,27 @@
   }
   #board { display: block; }
   .board-empty { border: 1px dashed var(--rule); background: #fff; padding: 30px; text-align: center; font-size: 13px; color: var(--ink-3); }
+  .sideboard { margin-bottom: 18px; }
+  .sideboard .sb-bar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px;
+  }
+  .sideboard .sb-cap {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--ink-3);
+  }
+  .sideboard .sb-keys { display: flex; gap: 5px; flex-wrap: wrap; margin-left: auto; }
+  .sbkey {
+    display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.05em; text-transform: uppercase; border: 1px solid var(--rule);
+    background: #fff; color: var(--ink-3); padding: 3px 8px; cursor: pointer; border-radius: 0;
+  }
+  .sbkey i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; opacity: 0.35; }
+  .sbkey[aria-pressed=true] { border-color: var(--ink); color: var(--ink); }
+  .sbkey[aria-pressed=true] i { opacity: 1; }
+  .sbkey:hover { color: var(--ink); background: #fff; }
+  .sideboard .sb-read {
+    font-family: var(--mono); font-size: 11px; color: var(--ink-3);
+    font-variant-numeric: tabular-nums; margin-top: 7px; min-height: 1.4em;
+  }
   .board-sel {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 9px;
     min-height: 22px;
@@ -717,6 +738,7 @@
       <span class="hint">Its own file, as long as the border design needs</span>
     </div>
     <div class="loombanner" id="borderBanner"></div>
+    <div class="sideboard" data-board="border"></div>
     <div id="borderHost"></div>
     <div id="borderAchuNote"></div>
     <div id="borderChecks" style="margin-top:20px"></div>
@@ -755,6 +777,7 @@
       <span class="hint">Up to four body wefts, with the box and locking</span>
     </div>
     <div class="loombanner" id="bodyBanner"></div>
+    <div class="sideboard" data-board="body"></div>
     <div class="summary" id="bodySummary"></div>
     <details class="note" id="bodyOpts">
       <summary>How this loom is read</summary>
@@ -2545,27 +2568,35 @@ function groupRects(from, to, pitch, GUT, RULE) {
   return out;
 }
 
-function drawBoard() {
-  const host = el("#boardHost");
+// The same map, drawn wherever it is wanted. On the pin map it can be worked on;
+// elsewhere it is there to be read, with whatever matters on that screen picked out.
+function paintBoard(host, canvasId, opts) {
+  opts = opts || {};
+  const zoom = opts.zoom || "fit";
+  const highlight = opts.highlight || null;      // a set of group kinds, or nothing
+  const hoverIdx = opts.hover === undefined ? -1 : opts.hover;
+  const selIdx = opts.sel === undefined ? -1 : opts.sel;
+  const interactive = !!opts.interactive;
+
   const T = totalPins();
   if (!T) {
     host.innerHTML = `<div class="board-empty">Enter the total pins to draw the board</div>`;
-    boardGeom = null; return;
+    return null;
   }
   if (T > 20000) {
-    host.innerHTML = `<div class="board-empty">${T.toLocaleString()} pins is too many to draw as balls. The groups below still apply.</div>`;
-    boardGeom = null; return;
+    host.innerHTML = `<div class="board-empty">${T.toLocaleString()} pins is too many to draw as balls.</div>`;
+    return null;
   }
 
   const cols = Math.ceil(T / PINS_PER_COLUMN);
-  const pitch = boardZoom === "fit"
+  const pitch = zoom === "fit"
     ? Math.max(4, Math.min(24, (Math.max(260, host.clientWidth - 28) - 40) / cols))
-    : parseFloat(boardZoom);
+    : parseFloat(zoom);
   const RULE = 22, GUT = 40, FOOT = 18;
   const W = GUT + cols * pitch + 8, H = RULE + PINS_PER_COLUMN * pitch + FOOT;
 
-  host.innerHTML = `<div class="board-wrap"><canvas id="board" tabindex="0"></canvas></div>`;
-  const cv = el("#board");
+  host.innerHTML = `<div class="board-wrap"><canvas id="${canvasId}"${interactive ? ' tabindex="0"' : ""}></canvas></div>`;
+  const cv = el("#" + canvasId);
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
   cv.style.width = W + "px"; cv.style.height = H + "px";
@@ -2575,6 +2606,13 @@ function drawBoard() {
   const owners = pinOwners();
   const spans = groupSpans();
   const colourOf = (i) => KINDS[state.segments[i].kind].colour;
+  const lit = (i) => {
+    if (i < 0) return false;
+    if (hoverIdx >= 0) return i === hoverIdx;
+    if (highlight && highlight.size) return highlight.has(state.segments[i].kind);
+    return true;
+  };
+  const anyDim = hoverIdx >= 0 || (highlight && highlight.size > 0);
   const xy = (i) => ({ col: Math.floor(i / PINS_PER_COLUMN), row: i % PINS_PER_COLUMN });
   const cx = (i) => GUT + xy(i).col * pitch + pitch / 2;
   const cy = (i) => RULE + xy(i).row * pitch + pitch / 2;
@@ -2589,14 +2627,14 @@ function drawBoard() {
   spans.forEach(sp => {
     const rects = groupRects(sp.from, sp.to, pitch, GUT, RULE);
     const col = colourOf(sp.i);
-    const on = boardHover === sp.i || boardSel === sp.i;
+    const on = lit(sp.i) || selIdx === sp.i;
     ctx.fillStyle = col;
-    ctx.globalAlpha = on ? 0.26 : 0.14;
+    ctx.globalAlpha = on ? 0.26 : (anyDim ? 0.05 : 0.14);
     rects.forEach(r => ctx.fillRect(r.x, r.y, r.w, r.h));
     ctx.globalAlpha = 1;
 
     if (on) {
-      ctx.strokeStyle = col; ctx.lineWidth = boardSel === sp.i ? 2 : 1.5;
+      ctx.strokeStyle = col; ctx.lineWidth = selIdx === sp.i ? 2 : 1.5;
       rects.forEach(r => ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1));
     }
 
@@ -2625,7 +2663,7 @@ function drawBoard() {
   const r = Math.max(1.4, pitch * 0.33);
   for (let i = 0; i < T; i++) {
     const oi = owners[i];
-    const dim = boardHover >= 0 && boardHover !== oi;
+    const dim = anyDim && !lit(oi);
     ctx.beginPath();
     ctx.arc(cx(i), cy(i), r, 0, Math.PI * 2);
     if (oi < 0) {
@@ -2696,6 +2734,7 @@ function drawBoard() {
   }
 
   bounds.forEach(b => {
+    if (!interactive) return;
     const on = (dragging && dragging.left === b.left) || nearBoundary === b.pin;
     ctx.strokeStyle = on ? "#14181C" : "rgba(20,24,28,0.5)";
     ctx.lineWidth = on ? 3 : 1.5;
@@ -2717,7 +2756,7 @@ function drawBoard() {
     const x0 = GUT + (at / T) * (cols * pitch);
     const x1 = GUT + ((at + sp.count) / T) * (cols * pitch);
     ctx.fillStyle = colourOf(sp.i);
-    ctx.globalAlpha = boardHover < 0 || boardHover === sp.i ? 1 : 0.3;
+    ctx.globalAlpha = lit(sp.i) ? 1 : 0.25;
     ctx.fillRect(x0, fy, Math.max(1, x1 - x0 - 1), 6);
     ctx.globalAlpha = 1;
     at += sp.count;
@@ -2727,8 +2766,14 @@ function drawBoard() {
     ctx.strokeRect(GUT + (at / T) * (cols * pitch) + 0.5, fy + 0.5, Math.max(1, ((T - at) / T) * (cols * pitch) - 1), 5);
   }
 
-  boardGeom = { pitch, T, owners, W, H, spans, bounds, cols, GUT, RULE, cx, cy, xy };
-  cv.style.cursor = boardCursor;
+  return { pitch, T, owners, W, H, spans, bounds, cols, GUT, RULE, cx, cy, xy };
+}
+
+function drawBoard() {
+  boardGeom = paintBoard(el("#boardHost"), "board",
+    { zoom: boardZoom, hover: boardHover, sel: boardSel, interactive: true });
+  const cv = el("#board");
+  if (cv) cv.style.cursor = boardCursor;
   els("[data-bzoom]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.bzoom === boardZoom)));
 }
 
@@ -3215,6 +3260,7 @@ function handleSegInput(e) {
     s.kind = t.value;
     if (s.kind === "locking" && !s.weave) { s.weave = "satin:8:3"; s.count = 8; }
     if (s.kind !== "locking") delete s.weave;
+    forgetSideHighlights();
     if (s.kind === "achu" && !s.count) s.count = 4;
     if (s.kind === "box" && !s.count) s.count = 4;
     delete state.borderFiles[s.id];
@@ -3225,6 +3271,8 @@ function handleSegInput(e) {
 /* ---------- reordering by dragging, with the keyboard as a fallback ---------- */
 
 let dragRowId = null;
+
+function forgetSideHighlights() { sideBoards.border.highlight = null; sideBoards.body.highlight = null; }
 
 function moveGroup(fromId, toIndex) {
   const from = state.segments.findIndex(x => x.id === fromId);
@@ -3768,9 +3816,96 @@ el("#bodyHost").addEventListener("change", e => {
   if (e.target.dataset.act === "file") readInto(e.target);
 });
 
+/* ---------- the shared map, on the screens that read it ---------- */
+
+const SIDE_DEFAULTS = {
+  border: ["leftBorder", "rightBorder", "achu"],
+  body:   ["body", "box", "locking"]
+};
+const sideBoards = {
+  border: { highlight: null, hover: -1, zoom: "fit" },
+  body:   { highlight: null, hover: -1, zoom: "fit" }
+};
+
+function sideKinds(which) {
+  // whatever this screen is about, limited to the groups this loom actually has
+  const present = new Set(state.segments.map(sg => sg.kind));
+  return SIDE_DEFAULTS[which].filter(k => present.has(k));
+}
+
+function drawSideBoard(which) {
+  const block = el(`.sideboard[data-board="${which}"]`);
+  if (!block) return;
+  const b = sideBoards[which];
+  if (!b.highlight) b.highlight = new Set(sideKinds(which));
+
+  const present = [];
+  state.segments.forEach(sg => { if (!present.includes(sg.kind)) present.push(sg.kind); });
+
+  block.innerHTML =
+    `<div class="sb-bar">
+       <span class="sb-cap">Pin map</span>
+       <span class="sb-keys">
+         ${present.map(k => `<button class="sbkey" data-lit="${k}" aria-pressed="${b.highlight.has(k)}"
+             ><i style="background:${KINDS[k].colour}"></i>${KINDS[k].label}</button>`).join("")}
+       </span>
+     </div>
+     <div class="sb-host"></div>
+     <div class="sb-read"></div>`;
+
+  const host = block.querySelector(".sb-host");
+  b.geom = paintBoard(host, `board-${which}`, { zoom: b.zoom, highlight: b.highlight, hover: b.hover });
+  const lit = [...b.highlight].map(k => KINDS[k].label).join(", ");
+  block.querySelector(".sb-read").textContent = b.hover >= 0
+    ? sideHoverText(which, b.hover)
+    : (lit ? `Showing ${lit}. Tap a name to add or remove one.` : "Nothing picked out — tap a name to show a group.");
+}
+
+function sideHoverText(which, oi) {
+  const sg = state.segments[oi];
+  if (!sg) return "";
+  let at = 0;
+  for (let k = 0; k < oi; k++) at += state.segments[k].count || 0;
+  return `${labelFor(state.segments, oi)} · ${sg.count} pins · ${at + 1}–${at + sg.count}`;
+}
+
+["border", "body"].forEach(which => {
+  const block = () => el(`.sideboard[data-board="${which}"]`);
+  document.addEventListener("click", e => {
+    const key = e.target.closest(`.sideboard[data-board="${which}"] .sbkey`);
+    if (!key) return;
+    const b = sideBoards[which];
+    if (!b.highlight) b.highlight = new Set(sideKinds(which));
+    if (b.highlight.has(key.dataset.lit)) b.highlight.delete(key.dataset.lit);
+    else b.highlight.add(key.dataset.lit);
+    drawSideBoard(which);
+  });
+  document.addEventListener("mousemove", e => {
+    const bl = block(); if (!bl) return;
+    const cv = bl.querySelector("canvas");
+    if (!cv || e.target !== cv) return;
+    const b = sideBoards[which];
+    if (!b.geom) return;
+    const rect = cv.getBoundingClientRect();
+    const col = Math.floor((e.clientX - rect.left - b.geom.GUT) / b.geom.pitch);
+    const row = Math.floor((e.clientY - rect.top - b.geom.RULE) / b.geom.pitch);
+    let oi = -1;
+    if (col >= 0 && row >= 0 && row < PINS_PER_COLUMN) {
+      const i = col * PINS_PER_COLUMN + row;
+      if (i < b.geom.T) oi = b.geom.owners[i];
+    }
+    if (oi !== b.hover) { b.hover = oi; drawSideBoard(which); }
+  });
+  document.addEventListener("mouseleave", () => {
+    const b = sideBoards[which];
+    if (b.hover !== -1) { b.hover = -1; drawSideBoard(which); }
+  }, true);
+});
+
 function renderBorderScreen() {
   if (!state.wefts.length) state.wefts = freshWefts();
   banner("#borderBanner");
+  drawSideBoard("border");
   renderBorderSlots(); renderFileThumbs();
   const achuSeg = state.segments.find(x => x.kind === "achu" && x.count > 0);
   el("#borderAchuNote").innerHTML = achuSeg
@@ -3820,6 +3955,7 @@ function renderBodyScreen() {
   banner("#bodyBanner");
   renderSummary();
   renderBodyAchu();
+  drawSideBoard("body");
   renderBodySlots(); renderFileThumbs(); renderBoxEditor(); renderChips();
   el("#combineBody").disabled = !renderChecksInto(el("#bodyChecks"), validateBody(),
     "The body wefts match their group. Combine them.");
