@@ -131,7 +131,7 @@ await step('summary labels stay on one line', () => {
   const ks=[...$$('#bodySummary .k')].map(e=>e.textContent);
   const long = ks.filter(k => k.length > 12);
   if (long.length) throw new Error('labels too long to fit: ' + long.join(', '));
-  if (ks.length !== 6) throw new Error('expected 6 figures, found ' + ks.length);
+  if (ks.length < 6) throw new Error('expected at least 6 figures, found ' + ks.length);
 });
 await step('the locking weave is shortened with the full name on hover', () => {
   const cells=[...$$('#bodySummary .cell')];

@@ -940,7 +940,7 @@ function labelFor(segs, i) {
   for (let j = 0; j <= i; j++) if (segs[j].kind === k) n++;
   return `${base} ${n}`;
 }
-const BUILD = "2026-07-31.8";      // bump when the file changes, so a stale page shows
+const BUILD = "2026-07-31.9";      // bump when the file changes, so a stale page shows
 /* ============================================================
    Whose software wrote the file
 
@@ -1787,7 +1787,31 @@ function validateBorder() {
     warns.push(`The borders are ${heights.join(" and ")} lines. The file takes the longer, and the shorter simply stops.`);
   if (loaded && loaded < slots.length)
     warns.push("Only one border loaded, so the other border's pins stay down.");
+  companyDrift().forEach(d => warns.push(d));
   return { errs, warns };
+}
+
+// A loom carries a company, but its settings can be changed one by one. If they
+// no longer agree, say which — silently writing the wrong way round is worse.
+function companyDrift() {
+  const c = companyById(state.company);
+  if (!c.opts) return [];
+  const NAMES = {
+    blackIsIndexZero: ["A lifted pin is written", v => v === false ? "White" : "Black"],
+    pinOneLeft:       ["Pin 1 sits", v => v ? "at the left" : "at the right"],
+    topRowFirstPick:  ["The top line is", v => v ? "the first pick" : "the last pick"],
+    stackMode:        ["Body wefts combine", v => v === "interleave" ? "a line each" : "merged"],
+    weavePerDesignLine: ["Locking steps", v => v ? "once per design line" : "on every pick"]
+  };
+  const out = [];
+  Object.keys(NAMES).forEach(k => {
+    if (!(k in c.opts)) return;
+    if (state.opts[k] !== c.opts[k]) {
+      const [label, show] = NAMES[k];
+      out.push(`${label}: this loom says ${show(state.opts[k])}, ${c.name} expects ${show(c.opts[k])}.`);
+    }
+  });
+  return out;
 }
 
 function validateBody() {
@@ -1838,6 +1862,7 @@ function validateBody() {
   }
   if (!state.segments.some(s => s.kind === "box") && wefts.length > 1)
     warns.push("No box pins in the pin map, so nothing tells the loom which shuttle each pick uses.");
+  companyDrift().forEach(d => warns.push(d));
   return { errs, warns };
 }
 
@@ -3560,7 +3585,7 @@ el("#loomCompany").addEventListener("change", e => {
   state.company = e.target.value;
   const applied = applyCompany(state.company);
   state.built = null; state.builtBorder = null;
-  renderLoomChecks(); renderSteps(); scheduleSave();
+  renderOpts(); renderLoomChecks(); renderSteps(); scheduleSave();
   notify(applied
     ? `Set to ${companyName(state.company)}. Its conventions are in place — change any of them under How this loom is read.`
     : "No company set. The loom keeps whatever conventions it has.");
@@ -4558,6 +4583,10 @@ function renderSummary() {
     ${cell("Per shuttle", perShuttle === 2 ? "2 lines" : "1 line", true)}
     ${cell("Locking",     esc(lockShort), true, lw ? lw.name : "")}
     ${state.company ? cell("Company", esc(companyName(state.company)), true) : ""}
+    ${cell("Lifted pin", state.opts.blackIsIndexZero === false ? "White" : "Black", true,
+           state.opts.blackIsIndexZero === false
+             ? "The file will be mostly black with the design in white"
+             : "The file will be mostly white with the design in black")}
   </div>`;
 }
 

@@ -78,6 +78,37 @@ ok('the loom follows', $('#loomCompany').value === 'saitex');
 setSel($('#loomCompany'), ''); await wait(250);
 ok('and can be cleared again', $('#loomCompany').value === '');
 
+console.log('\n== the company sets how the file is written ==');
+{
+  click($$('nav.steps button').find(x=>x.dataset.go==='loom')); await wait(250);
+  setSel($('#loomCompany'), 'sritex'); await wait(350);
+  click($$('nav.steps button').find(x=>x.dataset.go==='body')); await wait(300);
+  const on = $$('#opts button[data-key=blackIsIndexZero]')
+    .find(b => b.getAttribute('aria-pressed') === 'true');
+  ok('Sri Tex writes a lifted pin white', on && on.textContent.trim() === 'White',
+     on ? on.textContent.trim() : 'none pressed');
+  ok('and the figures say so', /Lifted pin/.test($('#bodySummary').textContent) &&
+     /White/.test($('#bodySummary').textContent),
+     $('#bodySummary').textContent.replace(/\s+/g,' ').slice(-60));
+
+  click($$('nav.steps button').find(x=>x.dataset.go==='loom')); await wait(250);
+  setSel($('#loomCompany'), 'saitex'); await wait(350);
+  click($$('nav.steps button').find(x=>x.dataset.go==='body')); await wait(300);
+  const on2 = $$('#opts button[data-key=blackIsIndexZero]')
+    .find(b => b.getAttribute('aria-pressed') === 'true');
+  ok('Sai Tex writes it black', on2 && on2.textContent.trim() === 'Black',
+     on2 ? on2.textContent.trim() : 'none pressed');
+}
+
+console.log('\n== a loom that drifts from its company says so ==');
+{
+  const other = $$('#opts button[data-key=blackIsIndexZero]').find(b => b.textContent.trim() === 'White');
+  click(other); await wait(300);
+  const t = $('#bodyChecks').textContent;
+  ok('it names the setting and both sides', /lifted pin is written/i.test(t) && /Sai Tex expects/i.test(t),
+     t.replace(/\s+/g,' ').slice(0,140));
+}
+
 console.log('\n== result ==');
 if (errors.length){ console.log('  '+errors.length+' problem(s)'); errors.forEach(e=>console.log('   - '+e)); }
 else console.log('  no errors');
