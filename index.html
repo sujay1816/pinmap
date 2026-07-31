@@ -269,6 +269,25 @@
   .whoami { display: flex; align-items: center; gap: 8px; }
   .whoami .nm2 { font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
   .whoami img { width: 20px; height: 20px; border-radius: 50%; }
+  .viewer {
+    position: fixed; inset: 0; background: rgba(20,24,28,0.82); z-index: 60;
+    display: flex; flex-direction: column; padding: 18px;
+  }
+  .viewer[hidden] { display: none; }
+  .viewer-bar {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    background: #fff; border: 1px solid var(--ink); padding: 9px 12px;
+  }
+  .viewer-title {
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.06em;
+    color: var(--ink-2); word-break: break-all;
+  }
+  .viewer-body {
+    flex: 1; min-height: 0; background: #fff; border: 1px solid var(--ink);
+    border-top: 0; overflow: auto; padding: 10px;
+  }
+  #viewerCanvas { display: block; image-rendering: pixelated; }
+  .slot .acts2 { display: flex; gap: 5px; margin-top: 7px; }
   .savestate {
     font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
     color: var(--ink-3); display: flex; align-items: center; gap: 6px; flex-basis: 100%;
@@ -425,6 +444,19 @@
 </style>
 
 <div id="toast" role="status" aria-live="polite"></div>
+
+<div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="Design viewer">
+  <div class="viewer-bar">
+    <span class="viewer-title" id="viewerTitle"></span>
+    <div class="spacer" style="display:flex;gap:6px">
+      <button class="tiny ghost" data-vzoom="fit">Fit</button>
+      <button class="tiny ghost" data-vzoom="1">1:1</button>
+      <button class="tiny ghost" data-vzoom="3">3×</button>
+      <button class="tiny" id="viewerClose">Close</button>
+    </div>
+  </div>
+  <div class="viewer-body"><canvas id="viewerCanvas"></canvas></div>
+</div>
 
 <main class="gate" id="gate">
   <div class="gate-card">
@@ -720,8 +752,9 @@ const KINDS = {
   rightBorder: { label: "Right border", cls: "k-rightBorder", colour: "#3E7A8F", code: 3, source: "border"    },
   empty:       { label: "Empty",        cls: "k-empty",       colour: "#B9C3C8", code: 7, source: "down"      }
 };
-const WEFT_SLOTS = 4;
-const WEFT_NAMES = ["Meena", "Rani", "Zari", "Weft 4"];
+const WEFT_SLOTS = 4;                 // how many slots you start with
+const MAX_WEFTS = 8;                  // and how many you may add up to
+const WEFT_NAMES = ["Rani", "Zari", "Meena 1", "Meena 2"];
 const UNALLOCATED = { label: "Not allocated", colour: "#FFFFFF", code: 8 };
 
 // A group's name is its group. Where the same group is used twice, number them.
@@ -806,6 +839,13 @@ const bodySlots   = () => state.segments.map((s, i) => ({ s, i })).filter(o => K
 const filledWefts = () => state.wefts.filter(w => w.file && !w.file.error);
 function freshWefts() {
   return WEFT_NAMES.map((n, i) => ({ id: "w" + (i + 1), name: n, file: null }));
+}
+
+function addWeftSlot() {
+  if (state.wefts.length >= MAX_WEFTS) return false;
+  const n = state.wefts.length + 1;
+  state.wefts.push({ id: "w" + n, name: "Weft " + n, file: null });
+  return true;
 }
 function anyFile() {
   const w = filledWefts()[0];
@@ -1401,7 +1441,9 @@ function validateBody() {
   if (heights.length > 1 && new Set(heights).size > 1)
     errs.push(`The wefts are ${heights.join(" and ")} lines tall. They must match.`);
   if (bodies.length > 1) warns.push("More than one Body group. Every weft file fills each of them.");
-  if (wefts.length > WEFT_SLOTS) errs.push(`${WEFT_SLOTS} body wefts is the maximum.`);
+  if (wefts.length > MAX_WEFTS) errs.push(`${MAX_WEFTS} body wefts is the maximum.`);
+  else if (wefts.length > WEFT_SLOTS)
+    warns.push(`The standard box pattern only covers ${WEFT_SLOTS} wefts. Beyond that the box stays white until you set each one by hand under Box pins.`);
 
   const H = heights[0];
   if (normalBoxMotion(state.boxMotion) === "4x1" && H && H % 2)
@@ -2912,11 +2954,17 @@ function slotHTML(cls, title, sub, target, key, f, expected) {
     meta = `${f.width} × ${f.height}${f.rotated ? " · turned to fit" : ""}${bad ? ` — needs ${expected} wide` : ""} · ${f.name}`;
     thumb = `<div class="thumb"><canvas data-thumb="${target}|${key}"></canvas></div>`;
   }
+  const acts = (f && !f.error)
+    ? `<div class="acts2">
+         <button class="tiny ghost" data-view="${target}|${key}">View</button>
+         <button class="tiny ghost danger" data-clearfile="${target}|${key}">Clear</button>
+       </div>` : "";
   return `<div class="${state_}">
     <div class="body">
       <div class="name">${esc(title)}</div>
       <input type="file" accept=".bmp,image/bmp,image/*" data-act="file" data-target="${target}" data-key="${key}">
       <div class="meta ${f && (f.error || f.width !== expected) ? "err" : ""}">${esc(meta)}</div>
+      ${acts}
     </div>${thumb}</div>`;
 }
 
@@ -2953,8 +3001,116 @@ function renderBodySlots() {
         </div>
         ${slotHTML("slot", `${esc(w.name || "Weft " + (i + 1))} · ${count} pins`,
                    `needs a ${count}-pin wide BMP`, "weft", w.id, w.file, count)}
-      </div>`).join("") + `</div>`;
+      </div>`).join("") + `</div>
+     <div class="btn-row">
+       <button class="ghost" id="addWeftSlot" ${state.wefts.length >= MAX_WEFTS ? "disabled" : ""}>+ Another weft</button>
+       ${state.wefts.length > WEFT_SLOTS && !state.wefts[state.wefts.length - 1].file
+         ? `<button class="ghost danger" id="removeWeftSlot">Remove the last one</button>` : ""}
+     </div>`;
 }
+
+let viewerZoom = "fit";
+let viewerFile = null;
+
+function fileFor(target, key) {
+  if (target === "border") return state.borderFiles[key];
+  const w = state.wefts.find(x => x.id === key);
+  return w && w.file;
+}
+
+function applyViewerZoom() {
+  const cv = el("#viewerCanvas");
+  if (!cv || !viewerFile) return;
+  if (viewerZoom === "fit") { cv.style.width = "100%"; cv.style.height = "auto"; cv.style.maxWidth = "100%"; }
+  else {
+    const f = parseFloat(viewerZoom);
+    cv.style.maxWidth = "none";
+    cv.style.width = (cv.width * f) + "px";
+    cv.style.height = (cv.height * f) + "px";
+  }
+}
+
+function openViewer(target, key, title) {
+  const f = fileFor(target, key);
+  if (!f || f.error || !f.bits) return;
+  viewerFile = f;
+
+  // keep the drawing under a few megapixels; a 6144-pin design is large
+  const step = Math.max(1, Math.ceil(Math.sqrt((f.width * f.height) / 8e6)));
+  const w = Math.ceil(f.width / step), h = Math.ceil(f.height / step);
+  const cv = el("#viewerCanvas"), ctx = cv.getContext("2d");
+  cv.width = w; cv.height = h;
+  const img = ctx.createImageData(w, h);
+  for (let y = 0; y < h; y++) {
+    const sy = Math.min(f.height - 1, y * step);
+    for (let x = 0; x < w; x++) {
+      const sx = Math.min(f.width - 1, x * step);
+      const p = (y * w + x) * 4, c = f.bits[sy * f.width + sx] ? 20 : 255;
+      img.data[p] = c; img.data[p + 1] = c; img.data[p + 2] = c; img.data[p + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+
+  el("#viewerTitle").textContent =
+    `${title} · ${f.width} × ${f.height}${f.rotated ? " · turned to fit" : ""}${step > 1 ? ` · shown ${step}× smaller` : ""} · ${f.name || ""}`;
+  el("#viewer").hidden = false;
+  applyViewerZoom();
+  el("#viewerClose").focus();
+}
+
+function closeViewer() { el("#viewer").hidden = true; viewerFile = null; }
+
+el("#viewerClose").onclick = closeViewer;
+el("#viewer").addEventListener("click", e => { if (e.target === el("#viewer")) closeViewer(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !el("#viewer").hidden) closeViewer(); });
+els("[data-vzoom]").forEach(b => b.onclick = () => { viewerZoom = b.dataset.vzoom; applyViewerZoom(); });
+
+// View and Clear, on both the border and body slots
+["#borderHost", "#bodyHost"].forEach(sel => {
+  el(sel).addEventListener("click", e => {
+    const view = e.target.closest("button[data-view]");
+    if (view) {
+      const [target, key] = view.dataset.view.split("|");
+      const card = view.closest(".slot");
+      const title = card ? card.querySelector(".name").textContent.trim() : "Design";
+      openViewer(target, key, title);
+      return;
+    }
+    const clear = e.target.closest("button[data-clearfile]");
+    if (clear) {
+      const [target, key] = clear.dataset.clearfile.split("|");
+      if (target === "border") {
+        delete state.borderFiles[key];
+        state.builtBorder = null;
+        renderBorderScreen();
+        el("#borderPvWrap").hidden = true;
+        el("#downloadBorder").disabled = true;
+      } else {
+        const w = state.wefts.find(x => x.id === key);
+        if (w) w.file = null;
+        state.built = null;
+        renderBodyScreen();
+        el("#pvWrap").hidden = true;
+        el("#download").disabled = true;
+      }
+      scheduleSave();
+    }
+  });
+});
+
+el("#bodyHost").addEventListener("click", e => {
+  if (e.target.closest("#addWeftSlot")) {
+    if (addWeftSlot()) { state.built = null; renderBodyScreen(); scheduleSave(); }
+    return;
+  }
+  if (e.target.closest("#removeWeftSlot")) {
+    const last = state.wefts[state.wefts.length - 1];
+    if (state.wefts.length > WEFT_SLOTS && last && !last.file) {
+      state.wefts.pop();
+      state.built = null; renderBodyScreen(); scheduleSave();
+    }
+  }
+});
 
 function renderFileThumbs() {
   els("canvas[data-thumb]").forEach(cv => {

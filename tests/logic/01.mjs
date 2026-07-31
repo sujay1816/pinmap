@@ -99,8 +99,8 @@ ok('codes and colours are unique',
 ok('standard order preloaded',
    DEFAULT_LAYOUT.map(g => g[0]).join(',') === 'achu,box,leftBorder,locking,body,rightBorder,achu,empty',
    DEFAULT_LAYOUT.map(g => g[0]).join(','));
-ok('four weft slots named Meena, Rani, Zari',
-   WEFT_SLOTS === 4 && WEFT_NAMES.slice(0, 3).join(',') === 'Meena,Rani,Zari', WEFT_NAMES.join(','));
+ok('four slots to start with, in shuttle order',
+   WEFT_SLOTS === 4 && WEFT_NAMES.join(',') === 'Rani,Zari,Meena 1,Meena 2', WEFT_NAMES.join(','));
 {
   const std = DEFAULT_LAYOUT.map(([kind]) => ({ kind }));
   ok('repeated groups are numbered', labelFor(std, 0) === 'Achu 1' && labelFor(std, 6) === 'Achu 2');
@@ -135,7 +135,7 @@ let out = compose();
 const at = {}; { let a = 0; segs.forEach(s => { at[s.id] = a; a += s.count; }); }
 ok('width 732', out.width === 732, out.width);
 ok('height 720 x 3 wefts = 2160', out.height === 2160, out.height);
-ok('weft names recorded', out.weftNames.join(',') === 'Meena,Rani,Zari', out.weftNames.join(','));
+ok('weft names recorded', out.weftNames.join(',') === 'Rani,Zari,Meena 1', out.weftNames.join(','));
 
 head('box cycles once per weft pick  (design line 1 carries butta here)');
 ok('line 1 box = 1111', Array.from(out.bits.slice(at.bx, at.bx + 4)).join('') === '1111');
