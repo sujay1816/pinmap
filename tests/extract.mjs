@@ -37,7 +37,8 @@ const slice = (from, to) => {
 const constants = slice("const KINDS", "let uid = 0;");
 const merging  = slice("function normalBoxMotion(", BANNER("The shared store"));
 const helpers   = slice("const allocated =", BANNER("BMP decoding"));
-const core      = slice(BANNER("BMP decoding"), BANNER("Validation"));
+const core      = slice(BANNER("BMP decoding"), BANNER("Checking a built file against one you already trust"));
+const verify    = slice(BANNER("Checking a built file against one you already trust"), BANNER("Validation"));
 
 const stub = `
 // A stand-in for the app's state, so the logic can run without a page.
@@ -56,13 +57,14 @@ export {
   satinRow, satinStep, stepIsValid, gcd,
   rotateCCW, fitToPins,
   SATIN_LIBRARY, BUILTIN_WEAVES, allWeaves, weaveById, weaveRow, satinName,
-  BOX_TABLE, compose, borderFilesLoaded, state, KINDS, DEFAULT_LAYOUT, labelFor,
+  BOX_TABLE, compose, borderFilesLoaded, compareToReference, bitsDiffer,
+  mirrorBits, flipBits, invertBits, state, KINDS, DEFAULT_LAYOUT, labelFor,
   mergeLibraries, newerOf, normalBoxMotion,
   freshWefts, filledWefts, borderSlots, bodySlots,
   WEFT_SLOTS, WEFT_NAMES, totalPins, allocated
 };
 `;
 
-const out = constants + stub + helpers + core + merging + exports;
+const out = constants + stub + helpers + core + verify + merging + exports;
 fs.writeFileSync(path.join(here, "core.mjs"), out);
 console.log(`extracted ${out.length.toLocaleString()} characters to tests/core.mjs`);

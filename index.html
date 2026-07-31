@@ -395,6 +395,25 @@
     opacity: 0; pointer-events: none; transition: opacity .18s ease, transform .18s ease; z-index: 50;
   }
   #toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .verify { border: 1px solid var(--rule); background: #fff; padding: 13px 14px; margin: 20px 0; }
+  .vf-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+  .vf-note { font-size: 12.5px; color: var(--ink-3); }
+  .verify input[type=file] { font-size: 11.5px; font-family: var(--mono); }
+  .vf-out { margin-top: 12px; }
+  .vf-out:empty { display: none; }
+  .vf-verdict {
+    font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 8px 11px; border-left: 3px solid var(--rule);
+  }
+  .vf-verdict.same { border-left-color: var(--ok); color: var(--ok); }
+  .vf-verdict.differs { border-left-color: var(--meena); color: var(--meena); }
+  .vf-body { font-size: 13px; color: var(--ink-2); margin-top: 11px; line-height: 1.6; }
+  .vf-body ul { margin: 6px 0 0; padding-left: 18px; }
+  .vf-body li { margin-bottom: 3px; }
+  .vf-fix {
+    border: 1px solid var(--ink); background: #FBFCFC; padding: 10px 12px; margin-top: 12px; font-size: 13px;
+  }
+  .vf-fix strong { font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; }
   .achubox {
     display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
     border: 1px solid var(--rule); background: #fff; padding: 11px 13px; margin-bottom: 16px;
@@ -757,6 +776,15 @@
       <button id="downloadBorder" disabled>Download BMP</button>
       <button class="ghost danger" id="clearBorder">Clear border files</button>
     </div>
+    <div class="verify" data-verify="border">
+      <div class="vf-head">
+        <span class="cap" style="margin:0">Check against a file you trust</span>
+        <span class="vf-note">Load the border file the jacquard company's software made for this same design.</span>
+      </div>
+      <input type="file" accept=".bmp,image/bmp,image/*" data-vfile="border">
+      <div class="vf-out"></div>
+    </div>
+
     <div id="borderPvWrap" hidden style="margin-top:20px">
       <div class="pv-bar">
         <span class="pv-dims" id="borderDims"></span>
@@ -802,6 +830,15 @@
       <button id="download" disabled>Download BMP</button>
       <button class="ghost danger" id="clearFiles">Clear body files</button>
     </div>
+    <div class="verify" data-verify="body">
+      <div class="vf-head">
+        <span class="cap" style="margin:0">Check against a file you trust</span>
+        <span class="vf-note">Load the body file the jacquard company's software made for this same design.</span>
+      </div>
+      <input type="file" accept=".bmp,image/bmp,image/*" data-vfile="body">
+      <div class="vf-out"></div>
+    </div>
+
     <div id="pvWrap" hidden style="margin-top:20px">
       <div class="pv-bar">
         <span class="pv-dims" id="pvDims"></span>
@@ -1472,6 +1509,123 @@ function compose(target) {
   return { target, bits, width: W, height: outH, region, regionSeg, rowWeft, rowDesign,
            overlay, figureOnLine, perShuttle, achuHere,
            weftCount: Math.max(1, K), weftNames: wefts.map(w => w.name), designHeight: H };
+}
+
+/* ============================================================
+   Checking a built file against one you already trust
+
+   Load the file the jacquard company's software produced for the same
+   job and this says whether ours matches, and if not, where and why.
+   The useful part is the last step: it tries the handful of things that
+   are usually wrong — mirrored, upside down, inverted — and tells you
+   which setting would make the two agree.
+   ============================================================ */
+
+function bitsDiffer(a, b) {
+  let n = 0;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) n++;
+  return n;
+}
+
+function mirrorBits(bits, w, h) {
+  const out = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) out[y * w + x] = bits[y * w + (w - 1 - x)];
+  return out;
+}
+
+function flipBits(bits, w, h) {
+  const out = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) out.set(bits.subarray((h - 1 - y) * w, (h - 1 - y) * w + w), y * w);
+  return out;
+}
+
+function invertBits(bits) {
+  const out = new Uint8Array(bits.length);
+  for (let i = 0; i < bits.length; i++) out[i] = bits[i] ? 0 : 1;
+  return out;
+}
+
+// The things that go wrong often enough to be worth trying automatically.
+const NUDGES = [
+  { key: "mirror", label: "Pin 1 sits at the other edge",        apply: (b, w, h) => mirrorBits(b, w, h) },
+  { key: "flip",   label: "The top line is the last pick",       apply: (b, w, h) => flipBits(b, w, h) },
+  { key: "invert", label: "Black means the other colour index",  apply: (b) => invertBits(b) }
+];
+
+function compareToReference(built, ref, segments) {
+  const out = {
+    ours: { width: built.width, height: built.height },
+    theirs: { width: ref.width, height: ref.height },
+    sameSize: built.width === ref.width && built.height === ref.height
+  };
+  if (!out.sameSize) {
+    out.note = built.width !== ref.width
+      ? `Different widths — ours is ${built.width} pins, theirs ${ref.width}. Check the loom's total pins.`
+      : `Same width, different lengths — ours is ${built.height} lines, theirs ${ref.height}. Check how many wefts are loaded, and the box motion.`;
+    return out;
+  }
+
+  const total = built.bits.length;
+  out.total = total;
+  out.differing = bitsDiffer(built.bits, ref.bits);
+  out.percent = (out.differing / total) * 100;
+  out.identical = out.differing === 0;
+  if (out.identical) return out;
+
+  // which groups disagree — this is usually the whole answer
+  const W = built.width;
+  const starts = []; let acc = 0;
+  (segments || []).forEach(sg => { starts.push(acc); acc += sg.count || 0; });
+  out.byGroup = (segments || []).map((sg, i) => {
+    let n = 0;
+    for (let y = 0; y < built.height; y++) {
+      const base = y * W + starts[i];
+      for (let x = 0; x < (sg.count || 0); x++) if (built.bits[base + x] !== ref.bits[base + x]) n++;
+    }
+    return { index: i, kind: sg.kind, differing: n, of: (sg.count || 0) * built.height };
+  }).filter(g => g.differing > 0);
+
+  // and whether one weft is at fault, rather than all of them
+  const K = built.weftCount || 1;
+  if (K > 1) {
+    out.byWeft = [];
+    for (let k = 0; k < K; k++) {
+      let n = 0;
+      for (let y = 0; y < built.height; y++) {
+        if ((built.rowWeft && built.rowWeft[y]) !== k) continue;
+        for (let x = 0; x < W; x++) if (built.bits[y * W + x] !== ref.bits[y * W + x]) n++;
+      }
+      out.byWeft.push({ weft: k, name: (built.weftNames || [])[k] || `Weft ${k + 1}`, differing: n });
+    }
+  }
+
+  // the first place they part company
+  for (let i = 0; i < total; i++) {
+    if (built.bits[i] !== ref.bits[i]) {
+      out.firstDiff = {
+        line: Math.floor(i / W) + 1, pin: (i % W) + 1,
+        ours: built.bits[i] ? "up" : "down", theirs: ref.bits[i] ? "up" : "down"
+      };
+      break;
+    }
+  }
+
+  // would one of the usual mistakes explain it?
+  out.nudges = [];
+  for (let mask = 1; mask < (1 << NUDGES.length); mask++) {
+    let b = built.bits;
+    const used = [];
+    NUDGES.forEach((n, i) => {
+      if (mask & (1 << i)) { b = n.apply(b, built.width, built.height); used.push(n.label); }
+    });
+    const d = bitsDiffer(b, ref.bits);
+    if (d < out.differing) out.nudges.push({ labels: used, differing: d, exact: d === 0 });
+  }
+  out.nudges.sort((a, b) => a.differing - b.differing);
+  out.nudges = out.nudges.slice(0, 3);
+
+  return out;
 }
 
 /* ============================================================
@@ -3913,6 +4067,90 @@ function sideHoverText(which, oi) {
     const b = sideBoards[which];
     if (b.hover !== -1) { b.hover = -1; drawSideBoard(which); }
   }, true);
+});
+
+/* ---------- reading the report back to you ---------- */
+
+function renderVerdict(which, rep) {
+  const out = el(`.verify[data-verify="${which}"] .vf-out`);
+  if (!out) return;
+  if (!rep) { out.innerHTML = ""; return; }
+
+  if (!rep.sameSize) {
+    out.innerHTML = `<div class="vf-verdict differs">Different shape</div>
+      <div class="vf-body">Ours is ${rep.ours.width} × ${rep.ours.height}, theirs is
+        ${rep.theirs.width} × ${rep.theirs.height}.<br>${esc(rep.note)}</div>`;
+    return;
+  }
+  if (rep.identical) {
+    out.innerHTML = `<div class="vf-verdict same">The same, pin for pin</div>
+      <div class="vf-body">${rep.total.toLocaleString()} pins across
+        ${rep.ours.height.toLocaleString()} lines, with nothing between them.</div>`;
+    return;
+  }
+
+  const pct = rep.percent < 0.01 ? "under 0.01" : rep.percent.toFixed(2);
+  let html = `<div class="vf-verdict differs">${rep.differing.toLocaleString()} pins differ · ${pct}%</div>
+    <div class="vf-body">`;
+
+  if (rep.firstDiff) {
+    html += `First at <strong>line ${rep.firstDiff.line}, pin ${rep.firstDiff.pin}</strong> —
+      ours ${rep.firstDiff.ours}, theirs ${rep.firstDiff.theirs}.`;
+  }
+  if (rep.byGroup && rep.byGroup.length) {
+    html += `<br>By group:<ul>` + rep.byGroup.map(g =>
+      `<li>${esc(labelFor(state.segments, g.index))} — ${g.differing.toLocaleString()} of ${g.of.toLocaleString()}</li>`
+    ).join("") + `</ul>`;
+    const clean = state.segments.length - rep.byGroup.length;
+    if (clean > 0) html += `The other ${clean} group${clean === 1 ? "" : "s"} match.`;
+  }
+  if (rep.byWeft && rep.byWeft.some(x => x.differing > 0)) {
+    const bad = rep.byWeft.filter(x => x.differing > 0);
+    if (bad.length < rep.byWeft.length) {
+      html += `<br>Only ${bad.map(x => esc(x.name)).join(", ")} disagree${bad.length === 1 ? "s" : ""},
+        so the trouble is with that weft rather than all of them.`;
+    }
+  }
+  html += `</div>`;
+
+  if (rep.nudges && rep.nudges.length) {
+    const best = rep.nudges[0];
+    html += `<div class="vf-fix">`;
+    if (best.exact) {
+      html += `They would match exactly with <strong>${best.labels.map(esc).join(" and ")}</strong>.
+        That setting is under <em>How this loom is read</em>.`;
+    } else {
+      html += `Closest of the usual mistakes: <strong>${best.labels.map(esc).join(" and ")}</strong>
+        brings it down to ${best.differing.toLocaleString()} pins.`;
+    }
+    html += `</div>`;
+  }
+  out.innerHTML = html;
+}
+
+async function runVerify(which, file) {
+  const built = which === "border" ? state.builtBorder : state.built;
+  if (!built) {
+    renderVerdict(which, null);
+    notify(`Combine the ${which} file first, then check it.`);
+    return;
+  }
+  let ref;
+  try { ref = decodeBMP(await file.arrayBuffer()); }
+  catch (err) {
+    el(`.verify[data-verify="${which}"] .vf-out`).innerHTML =
+      `<div class="vf-verdict differs">Could not read that file</div><div class="vf-body">${esc(err.message)}</div>`;
+    return;
+  }
+  renderVerdict(which, compareToReference(built, ref, state.segments));
+}
+
+["border", "body"].forEach(which => {
+  document.addEventListener("change", e => {
+    const inp = e.target.closest(`input[data-vfile="${which}"]`);
+    if (!inp || !inp.files || !inp.files[0]) return;
+    runVerify(which, inp.files[0]);
+  });
 });
 
 function renderBorderScreen() {
