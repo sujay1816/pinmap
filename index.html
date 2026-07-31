@@ -867,7 +867,7 @@ function labelFor(segs, i) {
 }
 const PINS_PER_COLUMN = 16;   // how the pins sit on the machine: sixteen to a column
 const BOARD_MAX_PX = 16000;   // keep the canvas inside browser limits
-const BOARD_HELP = "One ball for each pin, sixteen to a column. Point at a group to pick it out, click to jump to its count, or drag a join to shift pins from one group into the next.";
+const BOARD_HELP = "Pin 1 is top left. Sixteen to a column, down and then on to the right. Point at a group to pick it out, click to jump to its count, or drag a join to shift pins from one group into the next.";
 
 // The order these groups run on the machine, used for a fresh registration.
 const DEFAULT_LAYOUT = [
@@ -2758,6 +2758,14 @@ function paintBoard(host, canvasId, opts) {
     }
   });
 
+  /* ---- which way the map runs, said outright ---- */
+  ctx.font = "9px ui-monospace, Menlo, Consolas, monospace";
+  ctx.fillStyle = "#4A555E";
+  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+  ctx.fillText("pin 1", GUT, RULE - 7);
+  ctx.textAlign = "right";
+  ctx.fillText("pin " + T.toLocaleString() + " \u2192", GUT + cols * pitch, RULE - 7);
+
   /* ---- a scale along the foot, so the shape of the loom is readable ---- */
   const fy = RULE + PINS_PER_COLUMN * pitch + 7;
   let at = 0;
@@ -3857,9 +3865,13 @@ function drawSideBoard(which) {
   const host = block.querySelector(".sb-host");
   b.geom = paintBoard(host, `board-${which}`, { zoom: b.zoom, highlight: b.highlight, hover: b.hover });
   const lit = [...b.highlight].map(k => KINDS[k].label).join(", ");
+  const mirrored = state.opts.pinOneLeft === false
+    ? " The written file is mirrored, since this loom has pin 1 at the right edge."
+    : "";
   block.querySelector(".sb-read").textContent = b.hover >= 0
     ? sideHoverText(which, b.hover)
-    : (lit ? `Showing ${lit}. Tap a name to add or remove one.` : "Nothing picked out — tap a name to show a group.");
+    : (lit ? `Pin 1 at the left, running right. Showing ${lit}. Tap a name to add or remove one.${mirrored}`
+           : `Pin 1 at the left, running right. Nothing picked out — tap a name to show a group.${mirrored}`);
 }
 
 function sideHoverText(which, oi) {

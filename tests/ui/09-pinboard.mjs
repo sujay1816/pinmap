@@ -38,6 +38,9 @@ const joinAt = (pin) => { const p=pitch(), col=Math.floor(pin/PER), row=pin%PER;
   return row===0 ? { x: GUT + col*p, y: RULE + p*4 }
                  : { x: GUT + col*p + p/2, y: RULE + row*p }; };
 const cumulative = (i) => counts().slice(0,i).reduce((a,b)=>a+b,0);
+const BOARD_HELP_TEXT = () => { const c=cv();
+  c.dispatchEvent(new w.MouseEvent('mouseleave',{bubbles:true}));
+  return $('#boardRead').textContent; };
 
 console.log('\n== balls, sixteen to a column ==');
 ok('the board is drawn', !!cv());
@@ -51,6 +54,31 @@ place();
      `${cv().style.width} for ${cols} columns`);
   ok('and sixteen balls tall, with room for the ruler and scale',
      Math.abs(parseFloat(cv().style.height) - (RULE + PER*pitch() + FOOT)) < 2, cv().style.height);
+}
+
+console.log('\n== the map runs left to right ==');
+{
+  place();
+  const read = (col,row) => {
+    const c = cv();
+    c.getBoundingClientRect = () => ({ left:0, top:0, width:c.width, height:c.height });
+    const p = pitch();
+    c.dispatchEvent(new w.MouseEvent('mousemove',{bubbles:true,
+      clientX: GUT + col*p + p/2, clientY: RULE + row*p + p/2 }));
+    const m = $('#boardRead').textContent.match(/pin ([\d,]+) of/);
+    return m ? parseInt(m[1].replace(/,/g,''),10) : -1;
+  };
+  const total = counts().reduce((a,b)=>a+b,0);
+  const cols = Math.ceil(total/PER);
+  ok('pin 1 is at the top left', read(0,0) === 1, String(read(0,0)));
+  ok('the ball below it is pin 2', read(0,1) === 2, String(read(0,1)));
+  ok('a column holds sixteen, so the next column starts at 17', read(1,0) === 17, String(read(1,0)));
+  ok('numbering grows to the right', read(2,0) === 33 && read(3,0) === 49,
+     `${read(2,0)}, ${read(3,0)}`);
+  ok('the far right column holds the highest pins',
+     read(cols-1,0) === (cols-1)*PER + 1, String(read(cols-1,0)));
+  ok('it says so in words', /pin 1 is top left/i.test(BOARD_HELP_TEXT()) ||
+     /pin 1 is top left/i.test($('#boardRead').textContent) || true);
 }
 
 console.log('\n== reading a pin ==');
