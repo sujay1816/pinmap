@@ -186,7 +186,23 @@
   .legend i.hollow { background: #fff; border: 1px dashed var(--ink-3); }
 
   /* ---------- segment table ---------- */
-  .seg-row { display: grid; grid-template-columns: 22px minmax(130px,0.9fr) minmax(150px,1.1fr) 118px 92px 108px; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--rule-2); }
+  .seg-row {
+    display: grid; grid-template-columns: 40px minmax(130px,0.9fr) minmax(150px,1.1fr) 118px 108px 40px;
+    gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--rule-2);
+    background: var(--paper);
+  }
+  .seg-row[data-row] { transition: opacity .12s ease; }
+  .seg-row.dragging { opacity: 0.4; }
+  .seg-row.dropafter { box-shadow: 0 2px 0 0 var(--ink); }
+  .seg-row.dropbefore { box-shadow: 0 -2px 0 0 var(--ink); }
+  .griphold { display: flex; align-items: center; gap: 4px; }
+  .grip {
+    border: 0; background: transparent; color: var(--ink-3); cursor: grab;
+    font-size: 15px; line-height: 1; padding: 3px 2px; letter-spacing: -1px;
+  }
+  .grip:hover { color: var(--ink); background: transparent; }
+  .grip:active { cursor: grabbing; }
+  .seg-row .seg-idx { font-variant-numeric: tabular-nums; }
   .seg-row.head { border-bottom: 1px solid var(--rule); padding-bottom: 6px; }
   .seg-row.head div { font-family: var(--mono); font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--ink-3); }
   .seg-idx { font-family: var(--mono); font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
@@ -687,6 +703,7 @@
         <p><strong>Achu is different.</strong> It alternates on every pick, so it reads the same whether you combine one weft or four.</p>
         <p><strong>Body</strong> takes the uploaded weft files. <strong>Empty</strong> pins stay down.</p>
         <p>A group's name is simply its group, so there is nothing extra to type. Where the same group appears twice, as achu does, they are numbered Achu 1 and Achu 2.</p>
+        <p>To change the order, take hold of the grip at the left of a row and drag it where it belongs. With the keyboard, tab to the grip and use the up and down arrows.</p>
         <p>Groups start in the order these pins run on the machine — achu, box, left border, locking, body, right border, achu, empty. Change any count, reorder with the arrows, or add and remove groups as a particular loom needs.</p>
         <p>Pins you never allocate show as hollow balls and are still written into the file, kept down, at the far end.</p>
       </div>
@@ -1127,9 +1144,22 @@ function allWeaves() { return BUILTIN_WEAVES.concat(state.weaves || []); }
 function weaveById(id) { return allWeaves().find(w => w.id === id) || null; }
 
 // One line of a weave, tiled across however many pins the group has.
+//
+// A weave has a repeat of its own. Given more pins than that, it repeats —
+// an eight-end satin across sixteen pins binds twice, it does not stretch
+// into a sixteen-end satin.
 function weaveRow(weave, count, rowIndex, warpFaced) {
-  if (!weave || weave.kind === "satin")
-    return satinRow(count, rowIndex, warpFaced, weave ? weave.step : undefined);
+  if (!weave) return satinRow(count, rowIndex, warpFaced);
+
+  if (weave.kind === "satin") {
+    const n = weave.repeat || count;
+    if (n >= count) return satinRow(count, rowIndex, warpFaced, weave.step);
+    const base = satinRow(n, rowIndex, warpFaced, weave.step);
+    const row = new Uint8Array(count);
+    for (let x = 0; x < count; x++) row[x] = base[x % n];
+    return row;
+  }
+
   const row = new Uint8Array(count);
   const src = (rowIndex % weave.height) * weave.width;
   for (let x = 0; x < count; x++) {
@@ -3062,7 +3092,7 @@ function renderSegs() {
   }
   const weaves = allWeaves();
   let html = `<div class="seg-row head">
-    <div>#</div><div>Group</div><div>Content</div><div class="h-range">Pins</div><div>Count</div><div></div></div>`;
+    <div></div><div>Group</div><div>Content</div><div class="h-range">Pins</div><div>Count</div><div></div></div>`;
   let at = 1;
   state.segments.forEach((sg, i) => {
     const from = at, to = at + (sg.count || 0) - 1; at += (sg.count || 0);
@@ -3083,8 +3113,12 @@ function renderSegs() {
     } else {
       content = `<span class="content-note">${CONTENT_NOTE[sg.kind] || ""}</span>`;
     }
-    html += `<div class="seg-row">
-      <div class="seg-idx">${i + 1}</div>
+    html += `<div class="seg-row" data-row="${sg.id}">
+      <div class="griphold">
+        <button class="grip" data-grip="${sg.id}" aria-label="Move ${esc(labelFor(state.segments, i))}"
+                title="Drag to move, or use the arrow keys">⠿</button>
+        <span class="seg-idx">${i + 1}</span>
+      </div>
       <div style="display:flex;align-items:center;gap:7px">
         <span class="swatch" style="background:${KINDS[sg.kind].colour};margin:0"></span>
         <select data-act="kind" data-id="${sg.id}" style="flex:1">
@@ -3099,9 +3133,7 @@ function renderSegs() {
         <button class="stepper" data-step="1" data-id="${sg.id}" aria-label="more pins" tabindex="-1">+</button>
       </div>
       <div class="seg-acts">
-        <button class="tiny ghost" data-act="up" data-id="${sg.id}" ${i === 0 ? "disabled" : ""} aria-label="Move up">↑</button>
-        <button class="tiny ghost" data-act="down" data-id="${sg.id}" ${i === state.segments.length - 1 ? "disabled" : ""} aria-label="Move down">↓</button>
-        <button class="tiny ghost danger" data-act="del" data-id="${sg.id}" aria-label="Remove">✕</button>
+        <button class="tiny ghost danger" data-act="del" data-id="${sg.id}" aria-label="Remove ${esc(labelFor(state.segments, i))}">✕</button>
       </div></div>`;
   });
   host.innerHTML = html;
@@ -3190,6 +3222,93 @@ function handleSegInput(e) {
   }
 }
 
+/* ---------- reordering by dragging, with the keyboard as a fallback ---------- */
+
+let dragRowId = null;
+
+function moveGroup(fromId, toIndex) {
+  const from = state.segments.findIndex(x => x.id === fromId);
+  if (from < 0) return false;
+  const to = Math.max(0, Math.min(state.segments.length - 1, toIndex));
+  if (to === from) return false;
+  const [seg] = state.segments.splice(from, 1);
+  state.segments.splice(to, 0, seg);
+  state.built = null; state.builtBorder = null;
+  boardSel = -1;
+  renderLoomScreen();
+  scheduleSave();
+  return true;
+}
+
+function clearDropMarks() {
+  els("#segTable .seg-row").forEach(r => r.classList.remove("dropbefore", "dropafter", "dragging"));
+}
+
+// a row is only draggable while its grip is held, so the fields inside stay usable
+el("#segTable").addEventListener("mousedown", e => {
+  const grip = e.target.closest("button[data-grip]");
+  if (!grip) return;
+  const row = grip.closest(".seg-row");
+  if (row) row.setAttribute("draggable", "true");
+});
+
+el("#segTable").addEventListener("dragstart", e => {
+  const row = e.target.closest && e.target.closest(".seg-row[data-row]");
+  if (!row) return;
+  dragRowId = row.dataset.row;
+  row.classList.add("dragging");
+  if (e.dataTransfer) { e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", dragRowId); } catch {} }
+});
+
+el("#segTable").addEventListener("dragover", e => {
+  if (!dragRowId) return;
+  const row = e.target.closest && e.target.closest(".seg-row[data-row]");
+  if (!row || row.dataset.row === dragRowId) return;
+  e.preventDefault();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+  const from = state.segments.findIndex(x => x.id === dragRowId);
+  const over = state.segments.findIndex(x => x.id === row.dataset.row);
+  els("#segTable .seg-row").forEach(r => r.classList.remove("dropbefore", "dropafter"));
+  row.classList.add(over > from ? "dropafter" : "dropbefore");
+});
+
+el("#segTable").addEventListener("drop", e => {
+  if (!dragRowId) return;
+  const row = e.target.closest && e.target.closest(".seg-row[data-row]");
+  e.preventDefault();
+  if (row && row.dataset.row !== dragRowId) {
+    const to = state.segments.findIndex(x => x.id === row.dataset.row);
+    const id = dragRowId;
+    dragRowId = null;
+    clearDropMarks();
+    if (moveGroup(id, to)) notify("Group moved.");
+    return;
+  }
+  dragRowId = null;
+  clearDropMarks();
+});
+
+el("#segTable").addEventListener("dragend", () => {
+  dragRowId = null;
+  clearDropMarks();
+  els("#segTable .seg-row").forEach(r => r.removeAttribute("draggable"));
+});
+
+// the same move, for anyone not using a mouse
+el("#segTable").addEventListener("keydown", e => {
+  const grip = e.target.closest("button[data-grip]");
+  if (!grip) return;
+  const dir = e.key === "ArrowUp" ? -1 : e.key === "ArrowDown" ? 1 : 0;
+  if (!dir) return;
+  e.preventDefault();
+  const id = grip.dataset.grip;
+  const at = state.segments.findIndex(x => x.id === id);
+  if (moveGroup(id, at + dir)) {
+    const again = el(`#segTable button[data-grip="${id}"]`);
+    if (again) again.focus();
+  }
+});
+
 el("#segTable").addEventListener("click", e => {
   const st = e.target.closest("button[data-step]");
   if (st) {
@@ -3214,9 +3333,7 @@ el("#segTable").addEventListener("click", e => {
   const t = e.target.closest("button"); if (!t) return;
   const { act, id } = t.dataset;
   const i = state.segments.findIndex(x => x.id === id); if (i < 0) return;
-  if (act === "up" && i > 0) [state.segments[i-1], state.segments[i]] = [state.segments[i], state.segments[i-1]];
-  if (act === "down" && i < state.segments.length - 1) [state.segments[i+1], state.segments[i]] = [state.segments[i], state.segments[i+1]];
-  if (act === "del") { state.segments.splice(i, 1); delete state.borderFiles[id]; }
+  if (act === "del") { state.segments.splice(i, 1); delete state.borderFiles[id]; boardSel = -1; }
   state.built = null; state.builtBorder = null; renderLoomScreen();
 });
 

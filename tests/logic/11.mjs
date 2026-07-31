@@ -80,5 +80,20 @@ head('the standard layout ships with a weave');
   ok('and to an 8-end satin', lk[2]==='satin:8:3', String(lk[2]));
 }
 state.weaves = [];
+head('a weave given more pins than its repeat');
+{
+  const w8 = weaveById('satin:8:3');
+  const str8 = (n,r) => Array.from(weaveRow(w8, n, r, false)).join('');
+  ok('across its own eight pins it lifts once', str8(8,0).split('1').length-1 === 1);
+  ok('across sixteen it binds twice, not once', str8(16,0).split('1').length-1 === 2, str8(16,0));
+  ok('the second repeat mirrors the first', (()=>{
+    for (let r=0;r<8;r++) { const s=str8(16,r); if (s.slice(0,8) !== s.slice(8)) return false; }
+    return true; })());
+  ok('across twenty-four it binds three times', str8(24,0).split('1').length-1 === 3);
+  ok('a real sixteen-end satin still lifts once across sixteen',
+     Array.from(weaveRow(weaveById('satin:16:7'), 16, 0, false)).join('').split('1').length-1 === 1);
+  ok('fewer pins than the repeat still works', str8(4,0).length === 4);
+}
+
 console.log(`\n${pass} passed, ${fail} failed\n`);
 process.exit(fail?1:0);

@@ -144,7 +144,23 @@ await step('add and remove a group', () => {
   click($('[data-add=empty]'));
   const dels = $$('#segTable button[data-act=del]'); click(dels[dels.length-1]);
 });
-await step('reorder a group', () => { click($$('#segTable button[data-act=down]')[0]); click($$('#segTable button[data-act=up]')[1]); });
+await step('the arrows are gone, replaced by a grip', () => {
+  if ($('#segTable button[data-act=up]') || $('#segTable button[data-act=down]'))
+    throw new Error('arrows still present');
+  if ($$('#segTable button[data-grip]').length !== $$('#segTable .seg-row').length - 1)
+    throw new Error('not every row has a grip');
+});
+await step('a group can be moved with the keyboard', () => {
+  const order = () => $$('#segTable select[data-act=kind]').map(e => e.value).join(',');
+  const before = order();
+  const grip = $$('#segTable button[data-grip]')[0];
+  grip.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+  const after = order();
+  if (after === before) throw new Error('nothing moved: ' + before);
+  const back = $$('#segTable button[data-grip]')[1];
+  back.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+  if (order() !== before) throw new Error('did not come back: ' + order() + ' vs ' + before);
+});
 await step('re-fill counts after the weave change', () => fillCounts([4,4,150,12,1096,150,4,372]));
 await step('validation reports readiness', () => {
   const txt = $('#loomChecks').textContent;
