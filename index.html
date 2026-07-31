@@ -777,6 +777,8 @@ const KINDS = {
 const WEFT_SLOTS = 4;                 // how many slots you start with
 const MAX_WEFTS = 8;                  // and how many you may add up to
 const WEFT_NAMES = ["Rani", "Zari", "Meena 1", "Meena 2"];
+// what the slots used to be called, so a session saved then can be brought forward
+const OLD_WEFT_NAMES = ["Meena", "Rani", "Zari", "Weft 4"];
 const UNALLOCATED = { label: "Not allocated", colour: "#FFFFFF", code: 8 };
 
 // A group's name is its group. Where the same group is used twice, number them.
@@ -1694,9 +1696,16 @@ async function loadSession() {
   if (doc.activeName) state.activeName = doc.activeName;
   if (doc.loomSort) state.loomSort = doc.loomSort;
   if (Array.isArray(doc.weftNames)) {
+    let names = doc.weftNames;
+    // Only when every one still matches the old defaults — a name you typed
+    // yourself is left exactly as you left it.
+    const untouched = names.length >= OLD_WEFT_NAMES.length &&
+      OLD_WEFT_NAMES.every((n, i) => (names[i] || "").trim().toLowerCase() === n.toLowerCase());
+    if (untouched) names = WEFT_NAMES.concat(names.slice(OLD_WEFT_NAMES.length));
+
     state.wefts = freshWefts();
-    while (state.wefts.length < Math.min(MAX_WEFTS, doc.weftNames.length)) addWeftSlot();
-    doc.weftNames.forEach((n, i) => { if (state.wefts[i] && n) state.wefts[i].name = n; });
+    while (state.wefts.length < Math.min(MAX_WEFTS, names.length)) addWeftSlot();
+    names.forEach((n, i) => { if (state.wefts[i] && n) state.wefts[i].name = n; });
   }
   const d = doc.draft;
   if (d && Array.isArray(d.segments) && d.segments.length) {
@@ -3164,6 +3173,7 @@ function renderBodySlots() {
       </div>`).join("") + `</div>
      <div class="btn-row">
        <button class="ghost" id="addWeftSlot" ${state.wefts.length >= MAX_WEFTS ? "disabled" : ""}>+ Another weft</button>
+       <button class="ghost" id="resetWeftNames">Reset the names</button>
        ${state.wefts.length > WEFT_SLOTS && !state.wefts[state.wefts.length - 1].file
          ? `<button class="ghost danger" id="removeWeftSlot">Remove the last one</button>` : ""}
      </div>`;
@@ -3261,6 +3271,12 @@ els("[data-vzoom]").forEach(b => b.onclick = () => { viewerZoom = b.dataset.vzoo
 el("#bodyHost").addEventListener("click", e => {
   if (e.target.closest("#addWeftSlot")) {
     if (addWeftSlot()) { state.built = null; renderBodyScreen(); scheduleSave(); }
+    return;
+  }
+  if (e.target.closest("#resetWeftNames")) {
+    state.wefts.forEach((wf, i) => { wf.name = WEFT_NAMES[i] || ("Weft " + (i + 1)); });
+    renderBodyScreen(); scheduleSave();
+    notify("Weft names back to rani, zari, meena.");
     return;
   }
   if (e.target.closest("#removeWeftSlot")) {
