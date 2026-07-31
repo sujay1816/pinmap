@@ -940,7 +940,7 @@ function labelFor(segs, i) {
   for (let j = 0; j <= i; j++) if (segs[j].kind === k) n++;
   return `${base} ${n}`;
 }
-const BUILD = "2026-07-31.10";      // bump when the file changes, so a stale page shows
+const BUILD = "2026-07-31.11";      // bump when the file changes, so a stale page shows
 /* ============================================================
    Whose software wrote the file
 
@@ -973,14 +973,16 @@ const BUILD = "2026-07-31.10";      // bump when the file changes, so a stale pa
 const COMPANY_BASE = {
   pinOneLeft: true, topRowFirstPick: true, blackIsIndexZero: true,
   achuStartsBlack: true, stackMode: "interleave", weavePerDesignLine: true,
-  satinWarpFaced: false, boxWholeBand: true, autoRotate: true
+  satinWarpFaced: false, boxWholeBand: true, autoRotate: true,
+  mirrorBodyFile: false
 };
 
 const COMPANIES = [
   { id: "",       name: "Not set", opts: null },
   { id: "saitex", name: "Sai Tex", opts: { ...COMPANY_BASE } },
   { id: "sritex", name: "Sri Tex", opts: { ...COMPANY_BASE,
-      blackIsIndexZero: false } } // white is the lifted pin
+      blackIsIndexZero: false,    // white is the lifted pin
+      mirrorBodyFile: true } }    // and the body file is written mirrored
 ];
 
 const companyById = (id) => COMPANIES.find(c => c.id === (id || "")) || COMPANIES[0];
@@ -1041,6 +1043,7 @@ const state = {
     stackMode: "interleave",
     achuOnBody: false,
     achuInBody: true,
+    mirrorBodyFile: false,
     boxWholeBand: true,
     autoRotate: true,
     weavePerDesignLine: true,
@@ -1588,7 +1591,12 @@ function compose(target) {
     });
   }
 
-  if (!o.pinOneLeft) {
+  // Sri Tex write the body file mirrored and the border file the right way
+  // round. Their two files are exact complements only when read that way:
+  // the border's blank 394-1145 is precisely where the body does its work.
+  const mirrored = (o.pinOneLeft === false) !== (target === "body" && o.mirrorBodyFile === true);
+
+  if (mirrored) {
     for (let y = 0; y < outH; y++) {
       const b = y * W;
       for (let x = 0, j = W - 1; x < j; x++, j--) {
@@ -4528,6 +4536,8 @@ const OPTS = [
     why: "Mirrors every line. Check the border lands on the correct side." },
   { key: "topRowFirstPick", cap: "Top line of the file", a: [true, "First pick"], b: [false, "Last pick"],
     why: "Flip if the design weaves upside down." },
+  { key: "mirrorBodyFile", cap: "The body file is written", a: [false, "The same way round"], b: [true, "Mirrored"],
+    why: "Sri Tex write the body file mirrored while the border file stays the right way round — their two files only line up pin for pin when read that way. Sai Tex write both the same." },
   { key: "blackIsIndexZero", cap: "A lifted pin is written", a: [true, "Black"], b: [false, "White"],
     why: "Sai Tex reads a lifted pin as black. Sri Tex reads it as white, so their files look mostly black with the design picked out in white. If a built file opens looking inverted, this is the one to change." }
 ];
@@ -4590,6 +4600,8 @@ function renderSummary() {
     ${cell("Per shuttle", perShuttle === 2 ? "2 lines" : "1 line", true)}
     ${cell("Locking",     esc(lockShort), true, lw ? lw.name : "")}
     ${state.company ? cell("Company", esc(companyName(state.company)), true) : ""}
+    ${state.opts.mirrorBodyFile ? cell("Body file", "Mirrored", true,
+        "Pin 1 sits at the right in the body file, as Sri Tex write it") : ""}
     ${cell("Lifted pin", state.opts.blackIsIndexZero === false ? "White" : "Black", true,
            state.opts.blackIsIndexZero === false
              ? "The file will be mostly black with the design in white"
