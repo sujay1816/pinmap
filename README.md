@@ -151,6 +151,29 @@ A dot in the header shows *synced*, *syncing* or *not synced*.
 Leave the meta tags empty and none of this loads. The app behaves exactly as it
 did before, keeping everything on the machine.
 
+## Jacquard companies
+
+Different companies' software writes files with different conventions. A company
+is a named bundle of settings, picked when a loom is registered, and any single
+setting can still be overridden for that loom. Box motion belongs to the loom
+rather than the software, so it stays a separate choice.
+
+| | Sai Tex | Sri Tex |
+| --- | --- | --- |
+| A lifted pin is | black | white |
+| Pin 1 sits at | the left | the left |
+| Everything else | the same | the same |
+
+Sri Tex was read off their own border file, in `tests/fixtures`. That file also
+confirms three rules the app had only been told about: the achu belongs to the
+border file, the body and locking pins stay down in it, and the achu is half up
+and half down, flipping every line.
+
+To add a company, build a job, load one of their files into **Check against a
+file you trust**, and change whatever it names until the two agree. Then save
+those settings as a new entry in the `COMPANIES` table near the top of the
+script.
+
 ## Where the data lives
 
 | What | Kept in |

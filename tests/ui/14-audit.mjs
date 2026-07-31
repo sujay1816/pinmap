@@ -117,6 +117,39 @@ note('the pin map still draws', !$('#board'));
 goTo('looms'); await wait(200);
 note('the loom is listed', !/Audit/.test($('#loomList').textContent));
 
+console.log('\n== the sync state ==');
+{
+  const src = fs.readFileSync(process.argv[2],'utf8');
+  const m = src.match(/function explainSyncError[\s\S]*?\n}/);
+  note('there is an explainer for sync failures', !m);
+  if (m) {
+    const fn = new Function('location', m[0] + '; return explainSyncError;')({hostname:'example.test'});
+    const cases = {
+      'permission-denied': /rules/i,
+      'auth/unauthorized-domain': /authorised domains/i,
+      'auth/configuration-not-found': /sign-in is not switched on/i,
+      'Failed to fetch': /reach Firebase/i
+    };
+    const bad = Object.entries(cases).filter(([code, want]) => !want.test(fn({ code })));
+    note('each common failure gets a useful message', bad.length > 0, bad.map(b=>b[0]).join(', '));
+    note('it never returns nothing', !fn(null));
+  }
+  note('a reconnect can be triggered without a page reload', !/function forceReconnect/.test(src));
+  note('there is somewhere to show the reason', !src.includes('id="syncWhy"'));
+}
+
+console.log('\n== type ==');
+{
+  const css = w.document.querySelector('style').textContent;
+  const strays = [...css.matchAll(/font-size:\s*([\d.]+)px/g)].map(m => parseFloat(m[1]));
+  const small = strays.filter(v => v < 15.5);
+  note('nothing sets a small size outside the scale', small.length > 0, small.join(', '));
+  note('the scale is actually used', (css.match(/var\(--t-/g) || []).length < 40);
+  const build = w.document.querySelector('#appBuild, #gateBuild');
+  note('the build is shown, so a stale page is obvious', !build || !/build /.test(build.textContent),
+       build ? build.textContent : 'missing');
+}
+
 console.log('\n== stylesheet hygiene ==');
 {
   const css = w.document.querySelector('style').textContent;
