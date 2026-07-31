@@ -144,7 +144,9 @@
   .alloc {
     font-family: var(--mono); font-variant-numeric: tabular-nums;
     display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; margin-bottom: 16px;
+    line-height: 1.4;
   }
+  .alloc > * { flex: 0 0 auto; }
   .alloc .n { font-size: 28px; font-weight: 700; line-height: 1; }
   .alloc .of { font-size: 13px; color: var(--ink-3); }
   .alloc .tag { font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; padding: 3px 8px; }
@@ -400,22 +402,28 @@
     font-size: 12.5px; color: var(--ink-2); background: #FBFCFC;
     border-left: 3px solid var(--c-achu); padding: 9px 12px; margin-top: 14px;
   }
-  .summary { border: 1px solid var(--ink); background: #fff; padding: 14px; margin-bottom: 18px; }
-  .summary .grid { display: flex; flex-wrap: wrap; gap: 14px 30px; align-items: flex-start; }
-  .summary .cell { min-width: 0; flex: 0 1 auto; }
+  /* A row of figures that must never overlap or clip, whatever the font does.
+     Each cell refuses to shrink past its own width and wraps to the next line
+     instead, and nothing is given a fixed height. */
+  .summary { border: 1px solid var(--ink); background: #fff; padding: 6px 14px 12px; margin-bottom: 18px; }
+  .summary .grid { display: flex; flex-wrap: wrap; }
+  .summary .cell {
+    flex: 1 0 auto; min-width: 132px; padding: 8px 22px 0 0; box-sizing: border-box;
+  }
   .summary .cell .k {
-    font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.13em; text-transform: uppercase;
-    color: var(--ink-3); white-space: nowrap; line-height: 1.2;
+    display: block;
+    font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--ink-3); line-height: 1.4; white-space: nowrap;
   }
   .summary .cell .v {
+    display: block;
     font-family: var(--mono); font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums;
-    margin-top: 4px; line-height: 1.2; white-space: nowrap;
-    overflow: hidden; text-overflow: ellipsis; max-width: 230px;
+    line-height: 1.4; margin-top: 2px; word-break: break-word;
   }
   .summary .cell .v.sm { font-size: 12.5px; font-weight: 600; letter-spacing: 0.01em; }
   @media (max-width: 560px) {
-    .summary .grid { gap: 12px 20px; }
-    .summary .cell .v { font-size: 14px; max-width: 150px; }
+    .summary .cell { min-width: 108px; padding-right: 14px; }
+    .summary .cell .v { font-size: 13.5px; }
   }
   .weavelib { border: 1px solid var(--rule); background: #fff; padding: 14px; margin-top: 20px; }
   .wl-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 11px; }
