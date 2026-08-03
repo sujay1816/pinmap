@@ -1005,7 +1005,7 @@ function labelFor(segs, i) {
   for (let j = 0; j <= i; j++) if (isOne(segs[j])) n++;
   return `${base} ${n}`;
 }
-const BUILD = "2026-08-03.26";      // bump when the file changes, so a stale page shows
+const BUILD = "2026-08-03.27";      // bump when the file changes, so a stale page shows
 /* ============================================================
    Whose software wrote the file
 
@@ -2481,6 +2481,8 @@ function clutchSideOf(doc, segs) {
   const list = segs || [];
   const at = list.findIndex(s => s && s.role === "clutch");
   if (at < 0) return "none";                 // no group, so no clutch was set
+  // Looms saved before the side was recorded: read it from where the group
+  // was put at the time. New looms always place it at the left regardless.
   return at >= list.length - 1 ? "right" : "left";
 }
 
@@ -3194,8 +3196,12 @@ function applyDefaultLayout() {
 const clutchAt = (segs) => (segs || []).findIndex(s => s && s.role === "clutch");
 const clutchSeg = () => state.segments[clutchAt(state.segments)] || null;
 
-// Put the empty group at the clutch end, or carry the existing one across.
-// A count that has been changed is kept — the end moves, the size is yours.
+// Put the empty group in, or carry the existing one across.
+//
+// It always goes at the left of the board, whichever side the clutch is on.
+// The clutch end is a fact about the loom and worth recording, but it does not
+// decide where these pins sit: on a Sri Tex loom they are the first thirty-two
+// either way. A count that has been changed is kept — the size is yours.
 function applyClutchGroup(side) {
   const segs = state.segments;
   const at = clutchAt(segs);
@@ -3205,7 +3211,7 @@ function applyClutchGroup(side) {
   seg.role = "clutch";
   seg.kind = "empty";
   if (!seg.count || seg.count < 1) seg.count = CLUTCH_PINS;
-  if (normalClutch(side) === "right") segs.push(seg); else segs.unshift(seg);
+  segs.unshift(seg);
   return seg;
 }
 
@@ -4045,7 +4051,7 @@ function renderClutch() {
   const seg = clutchSeg();
   if (note) note.textContent =
       side === "none" ? "No pins set aside. Say which end only if this loom really gives pins up to a clutch."
-    : seg ? `${seg.count} pins kept empty at the ${side} end — move or resize the group like any other.`
+    : seg ? `${seg.count} pins kept empty at the left of the board, whichever end the clutch is on — move or resize the group like any other.`
     : "The group has been removed. Pick an end again to put it back.";
 }
 
@@ -4055,7 +4061,7 @@ el("#loomCompany").addEventListener("change", e => {
   let clutchMsg = "";
   if (companyHasClutch(state.company) && normalClutch(state.clutch) !== "none") {
     const seg = applyClutchGroup(state.clutch);
-    clutchMsg = ` ${seg.count} pins held at the ${normalClutch(state.clutch)} end.`;
+    clutchMsg = ` ${seg.count} pins held at the left of the board.`;
   } else if (removeClutchGroup(true)) {
     clutchMsg = " Clutch group removed.";
   }
@@ -4075,7 +4081,7 @@ el("#loomClutch").addEventListener("change", e => {
     msg = removeClutchGroup(false) ? "Clutch group removed." : "No clutch pins.";
   } else {
     const seg = applyClutchGroup(state.clutch);
-    msg = `${clutchLabel(state.clutch)} — ${seg.count} pins at the ${state.clutch} end.`;
+    msg = `${clutchLabel(state.clutch)} — ${seg.count} pins at the left of the board.`;
   }
   state.built = null; state.builtBorder = null;
   renderLoomScreen(); scheduleSave();

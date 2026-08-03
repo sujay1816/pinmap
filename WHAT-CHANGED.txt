@@ -1,16 +1,17 @@
-Pinmap — build 2026-08-03.26
+Pinmap — build 2026-08-03.27
 ============================
 
 Everything since build .22 on GitHub: fonts and buttons, the Sri Tex box
-rule, the weave library guidance, and now the border preview switch.
+rule, weave library guidance, the border preview switch, and now the
+clutch pins always sitting at the left of the board.
 
-  index.html                  border preview reads black and white;
-                              plus everything above
-  README.md                   box rule and confirmed loom layout
+  index.html                  all of the above
+  README.md                   clutch and box behaviour written up
   tests/extract.mjs           exports SRITEX_BOX
   tests/logic/25.mjs          NEW: the Sri Tex box rule
   tests/logic/24.mjs          one assertion narrowed off the box columns
+  tests/ui/17-clutch.mjs      updated: the group no longer moves ends
   tests/ui/20-inputs.mjs      weave library path
-  tests/ui/21-border-mono.mjs NEW: the border preview and what gets written
+  tests/ui/21-border-mono.mjs NEW: border preview and what gets written
 
   npm test  ->  471 checks, all passing

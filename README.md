@@ -238,13 +238,15 @@ script.
 A Sri Tex loom carries its clutch at one end, and the thirty-two pins sitting
 over it cannot take a design. Registering a loom as Sri Tex therefore asks one
 more question — **left clutch or right clutch** — and puts an empty group of
-thirty-two pins at that end. Nothing else asks it, because nothing else needs
-to; the field is not shown for any other company.
+thirty-two pins **at the left of the board**, whichever end the clutch is on.
+The end is a fact about the loom and worth recording, but it does not decide
+where the pins sit: on a Sri Tex loom they are the first thirty-two either way.
+Nothing else asks the question, because nothing else needs to; the field is not
+shown for any other company.
 
 After that it is an ordinary group. Drag it somewhere else, change its count,
-or take it out entirely — nothing reaches back in and corrects it. The only
-thing that moves it is changing the clutch end itself, and that carries your
-count across rather than resetting it.
+or take it out entirely — nothing reaches back in and corrects it. Changing the
+clutch end keeps a count you set yourself rather than resetting it.
 
 Changing the loom to a company with no clutch takes the group away again, but
 only while it is still thirty-two pins. A count you set yourself is yours, so

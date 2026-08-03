@@ -1,7 +1,7 @@
 Only in ../verify: CHANGES.diff
 diff -ru -x node_modules -x .git -x core.mjs ../verify/README.md ../pinmap/README.md
 --- ../verify/README.md	2026-08-03 11:34:51.543374973 +0000
-+++ ../pinmap/README.md	2026-08-03 16:26:50.826026512 +0000
++++ ../pinmap/README.md	2026-08-03 17:23:28.277764000 +0000
 @@ -171,6 +171,35 @@
  border file, the body and locking pins stay down in it, and the achu is half up
  and half down, flipping every line.
@@ -38,10 +38,31 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/README.md ../pinmap/READM
  ### Why the Sri Tex body file is turned round
  
  This was wrong for a long time and is worth writing down, because a mirrored
+@@ -209,13 +238,15 @@
+ A Sri Tex loom carries its clutch at one end, and the thirty-two pins sitting
+ over it cannot take a design. Registering a loom as Sri Tex therefore asks one
+ more question — **left clutch or right clutch** — and puts an empty group of
+-thirty-two pins at that end. Nothing else asks it, because nothing else needs
+-to; the field is not shown for any other company.
++thirty-two pins **at the left of the board**, whichever end the clutch is on.
++The end is a fact about the loom and worth recording, but it does not decide
++where the pins sit: on a Sri Tex loom they are the first thirty-two either way.
++Nothing else asks the question, because nothing else needs to; the field is not
++shown for any other company.
+ 
+ After that it is an ordinary group. Drag it somewhere else, change its count,
+-or take it out entirely — nothing reaches back in and corrects it. The only
+-thing that moves it is changing the clutch end itself, and that carries your
+-count across rather than resetting it.
++or take it out entirely — nothing reaches back in and corrects it. Changing the
++clutch end keeps a count you set yourself rather than resetting it.
+ 
+ Changing the loom to a company with no clutch takes the group away again, but
+ only while it is still thirty-two pins. A count you set yourself is yours, so
 Only in ../verify: WHAT-CHANGED.txt
 diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/index.html
 --- ../verify/index.html	2026-08-03 11:34:51.543374973 +0000
-+++ ../pinmap/index.html	2026-08-03 17:08:13.106511782 +0000
++++ ../pinmap/index.html	2026-08-03 17:20:01.984212871 +0000
 @@ -59,6 +59,7 @@
      --t-body:  15.5px;   /* prose */
      --t-field: 15px;     /* what you type into */
@@ -138,7 +159,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    return `${base} ${n}`;
  }
 -const BUILD = "2026-08-03.22";      // bump when the file changes, so a stale page shows
-+const BUILD = "2026-08-03.26";      // bump when the file changes, so a stale page shows
++const BUILD = "2026-08-03.27";      // bump when the file changes, so a stale page shows
  /* ============================================================
     Whose software wrote the file
  
@@ -284,7 +305,40 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
          const r = active ? pat : new Uint8Array(seg.count);
          for (let x = 0; x < seg.count; x++) bits[rowBase + at + x] = r[x];
  
-@@ -3779,7 +3862,13 @@
+@@ -2398,6 +2481,8 @@
+   const list = segs || [];
+   const at = list.findIndex(s => s && s.role === "clutch");
+   if (at < 0) return "none";                 // no group, so no clutch was set
++  // Looms saved before the side was recorded: read it from where the group
++  // was put at the time. New looms always place it at the left regardless.
+   return at >= list.length - 1 ? "right" : "left";
+ }
+ 
+@@ -3111,8 +3196,12 @@
+ const clutchAt = (segs) => (segs || []).findIndex(s => s && s.role === "clutch");
+ const clutchSeg = () => state.segments[clutchAt(state.segments)] || null;
+ 
+-// Put the empty group at the clutch end, or carry the existing one across.
+-// A count that has been changed is kept — the end moves, the size is yours.
++// Put the empty group in, or carry the existing one across.
++//
++// It always goes at the left of the board, whichever side the clutch is on.
++// The clutch end is a fact about the loom and worth recording, but it does not
++// decide where these pins sit: on a Sri Tex loom they are the first thirty-two
++// either way. A count that has been changed is kept — the size is yours.
+ function applyClutchGroup(side) {
+   const segs = state.segments;
+   const at = clutchAt(segs);
+@@ -3122,7 +3211,7 @@
+   seg.role = "clutch";
+   seg.kind = "empty";
+   if (!seg.count || seg.count < 1) seg.count = CLUTCH_PINS;
+-  if (normalClutch(side) === "right") segs.push(seg); else segs.unshift(seg);
++  segs.unshift(seg);
+   return seg;
+ }
+ 
+@@ -3779,7 +3868,13 @@
      host.innerHTML = `<div class="wl-empty">Nothing uploaded. The built-in satins and twills are always in the Locking row.</div>`;
      return;
    }
@@ -299,7 +353,34 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
      <div class="wl-item">
        <canvas data-weave="${esc(w.id)}" role="img" aria-label="The ${esc(w.name)} weave, ${w.pins} pins"></canvas>
        <div style="flex:1;min-width:0">
-@@ -4922,8 +5011,9 @@
+@@ -3956,7 +4051,7 @@
+   const seg = clutchSeg();
+   if (note) note.textContent =
+       side === "none" ? "No pins set aside. Say which end only if this loom really gives pins up to a clutch."
+-    : seg ? `${seg.count} pins kept empty at the ${side} end — move or resize the group like any other.`
++    : seg ? `${seg.count} pins kept empty at the left of the board, whichever end the clutch is on — move or resize the group like any other.`
+     : "The group has been removed. Pick an end again to put it back.";
+ }
+ 
+@@ -3966,7 +4061,7 @@
+   let clutchMsg = "";
+   if (companyHasClutch(state.company) && normalClutch(state.clutch) !== "none") {
+     const seg = applyClutchGroup(state.clutch);
+-    clutchMsg = ` ${seg.count} pins held at the ${normalClutch(state.clutch)} end.`;
++    clutchMsg = ` ${seg.count} pins held at the left of the board.`;
+   } else if (removeClutchGroup(true)) {
+     clutchMsg = " Clutch group removed.";
+   }
+@@ -3986,7 +4081,7 @@
+     msg = removeClutchGroup(false) ? "Clutch group removed." : "No clutch pins.";
+   } else {
+     const seg = applyClutchGroup(state.clutch);
+-    msg = `${clutchLabel(state.clutch)} — ${seg.count} pins at the ${state.clutch} end.`;
++    msg = `${clutchLabel(state.clutch)} — ${seg.count} pins at the left of the board.`;
+   }
+   state.built = null; state.builtBorder = null;
+   renderLoomScreen(); scheduleSave();
+@@ -4922,8 +5017,9 @@
        const p = (y * w + x) * 4;
        const up = b.bits[sy * b.width + sx];
        let r, g, bl;
@@ -311,7 +392,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
        img.data[p] = r; img.data[p+1] = g; img.data[p+2] = bl; img.data[p+3] = 255;
      }
    }
-@@ -4931,9 +5021,24 @@
+@@ -4931,9 +5027,24 @@
    if (borderZoom === "fit") { cv.style.width = "100%"; cv.style.height = "auto"; }
    el("#borderDims").textContent =
      `${b.width} pins × ${b.height} lines${step > 1 ? ` · preview reduced ${step}×` : ""}`;
@@ -398,6 +479,95 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/tests/ui/14-audit.mjs ../
  console.log('\n== result ==');
  if (found.length){ console.log('  '+found.length+' problem(s)'); found.forEach(e=>console.log('   - '+e)); }
  else console.log('  no errors');
+diff -ru -x node_modules -x .git -x core.mjs ../verify/tests/ui/17-clutch.mjs ../pinmap/tests/ui/17-clutch.mjs
+--- ../verify/tests/ui/17-clutch.mjs	2026-08-03 11:34:51.581800249 +0000
++++ ../pinmap/tests/ui/17-clutch.mjs	2026-08-03 17:19:42.325923370 +0000
+@@ -52,40 +52,41 @@
+ console.log('\n== saying which end ==');
+ setSel($('#loomClutch'), 'left'); await wait(350);
+ ok('an empty group arrives', /the clutch/.test($('#segTable').textContent));
+-ok('at the front, for a left clutch', kinds()[0] === 'empty', kinds().join(','));
++ok('at the left of the board', kinds()[0] === 'empty', kinds().join(','));
+ ok('holding 32 pins', counts()[0] === '32', counts()[0]);
+ ok('the note says where they are', /32 pins/.test($('#clutchNote').textContent) && /left/.test($('#clutchNote').textContent),
+    $('#clutchNote').textContent);
+ 
+-console.log('\n== the other end ==');
++console.log('\n== the clutch end does not move them ==');
++// The end the clutch sits on is worth recording, but on a Sri Tex loom the
++// pins are the first thirty-two either way.
+ setSel($('#loomClutch'), 'right'); await wait(350);
+-ok('the group moves to the back', kinds().slice(-1)[0] === 'empty' && counts().slice(-1)[0] === '32',
+-   kinds().join(',')+' / '+counts().slice(-1)[0]);
+-ok('and is no longer at the front', counts()[0] !== '32' || kinds()[0] !== 'empty', counts()[0]);
++ok('a right clutch keeps them at the left', kinds()[0] === 'empty' && counts()[0] === '32',
++   kinds().join(',')+' / '+counts()[0]);
++ok('nothing is left at the back', counts().slice(-1)[0] !== '32' || kinds().slice(-1)[0] !== 'empty',
++   kinds().slice(-1)[0]+'/'+counts().slice(-1)[0]);
+ ok('only one of them exists', $$('#segTable .content-note').filter(n=>/the clutch/.test(n.textContent)).length === 1);
+-ok('the note follows it', /right/.test($('#clutchNote').textContent), $('#clutchNote').textContent);
++ok('and the choice is remembered', $('#loomClutch').value === 'right');
++ok('the note says the left of the board, whichever end',
++   /left of the board/.test($('#clutchNote').textContent), $('#clutchNote').textContent.slice(0,70));
+ 
+ console.log('\n== the pins are yours to change ==');
+ {
+-  const at = kinds().length - 1;
+-  setVal($$('#segTable input[data-act=count]')[at], '40'); await wait(300);
+-  ok('the count can be changed', counts().slice(-1)[0] === '40', counts().slice(-1)[0]);
++  setVal($$('#segTable input[data-act=count]')[0], '40'); await wait(300);
++  ok('the count can be changed', counts()[0] === '40', counts()[0]);
+   setSel($('#loomClutch'), 'left'); await wait(350);
+-  ok('and a changed count is carried across, not reset', counts()[0] === '40', counts()[0]);
+-  setSel($('#loomClutch'), 'right'); await wait(350);
+-  setVal($$('#segTable input[data-act=count]').slice(-1)[0], '32'); await wait(300);
++  ok('and a changed count is kept, not reset', counts()[0] === '40', counts()[0]);
++  setVal($$('#segTable input[data-act=count]')[0], '32'); await wait(300);
+ }
+ 
+ console.log('\n== it can be taken off ==');
+ {
+   const before = kinds().length;
+-  const del = $$('#segTable button[data-act=del]').slice(-1)[0];
+-  click(del); await wait(300);
++  click($$('#segTable button[data-act=del]')[0]); await wait(300);
+   ok('the group deletes like any other', kinds().length === before - 1, kinds().length+' of '+before);
+   ok('and the note says how to get it back', /removed/.test($('#clutchNote').textContent), $('#clutchNote').textContent);
+-  setSel($('#loomClutch'), 'left'); await wait(350);
+-  ok('changing the end puts it back', counts()[0] === '32', counts()[0]);
+   setSel($('#loomClutch'), 'right'); await wait(350);
++  ok('picking an end puts it back at the left', counts()[0] === '32', counts()[0]);
+ }
+ 
+ console.log('\n== and taking it off again ==');
+@@ -111,8 +112,10 @@
+ }
+ 
+ console.log('\n== it stays put ==');
+-// the eight standard groups, with the clutch sitting behind them
+-[4,4,500,8,720,500,4,52].forEach((v,i)=>{ const e=$$('#segTable input[data-act=count]')[i]; if(e) setVal(e,String(v)); });
++// the clutch is row 0, so the eight standard groups start at row 1
++ok('the clutch is the first group', kinds()[0] === 'empty' && counts()[0] === '32',
++   kinds()[0]+'/'+counts()[0]);
++[4,4,500,8,720,500,4,52].forEach((v,i)=>{ const e=$$('#segTable input[data-act=count]')[i+1]; if(e) setVal(e,String(v)); });
+ setVal($('#totalDeclared'),'1824'); await wait(500);
+ ok('they add up with the clutch included', /1,824 of 1,824/.test($('#alloc').textContent.replace(/\s+/g,' ')),
+    $('#alloc').textContent.replace(/\s+/g,' ').slice(0,90));
+@@ -128,8 +131,12 @@
+ ok('the end survives a reload', $('#loomClutch') && $('#loomClutch').value === 'right', ($('#loomClutch')||{}).value);
+ ok('the field is still shown', $('#clutchField') && $('#clutchField').hidden === false);
+ ok('and the group came back as the clutch', /the clutch/.test($('#segTable').textContent));
+-ok('still at the back', $$('#segTable input[data-act=count]').slice(-1)[0].value === '32',
+-   $$('#segTable input[data-act=count]').slice(-1)[0].value);
++ok('still the first group, at the left of the board',
++   $$('#segTable input[data-act=count]')[0].value === '32',
++   $$('#segTable input[data-act=count]')[0].value);
++ok('and still marked as the clutch',
++   /the clutch/.test($$('#segTable .seg-row[data-row]')[0].textContent),
++   $$('#segTable .seg-row[data-row]')[0].textContent.replace(/\s+/g,' ').slice(0,70));
+ 
+ console.log('\n== result ==');
+ if (errors.length){ console.log('  '+errors.length+' problem(s)'); errors.forEach(e=>console.log('   - '+e)); }
 diff -ru -x node_modules -x .git -x core.mjs ../verify/tests/ui/20-inputs.mjs ../pinmap/tests/ui/20-inputs.mjs
 --- ../verify/tests/ui/20-inputs.mjs	2026-08-03 11:34:51.581800249 +0000
 +++ ../pinmap/tests/ui/20-inputs.mjs	2026-08-03 16:45:05.971566579 +0000
