@@ -87,7 +87,7 @@ for (const [nm, f] of [['menna', men], ['resham', res]]) {
 
 /* ------------------------------------------------------- groups and names */
 head('groups');
-ok('seven groups', Object.keys(KINDS).length === 7, String(Object.keys(KINDS).length));
+ok('eight groups', Object.keys(KINDS).length === 8, String(Object.keys(KINDS).length));
 ok('only the borders take a single file',
    Object.entries(KINDS).filter(([, v]) => v.source === 'border').map(([k]) => k).join(',') === 'leftBorder,rightBorder');
 ok('only body takes weft files',
@@ -96,9 +96,13 @@ ok('achu and box are generated',
    KINDS.achu.source === 'generated' && KINDS.box.source === 'generated');
 ok('locking is generated, empty never lifts',
    KINDS.locking.source === 'generated' && KINDS.empty.source === 'down');
+// Locking works a built-in satin; Weave library works an uploaded one. Same
+// behaviour, different list to pick from.
+ok('the weave library group is worked the same way as locking',
+   KINDS.weaveLib.source === 'generated');
 ok('codes and colours are unique',
-   new Set(Object.values(KINDS).map(k => k.code)).size === 7 &&
-   new Set(Object.values(KINDS).map(k => k.colour)).size === 7);
+   new Set(Object.values(KINDS).map(k => k.code)).size === 8 &&
+   new Set(Object.values(KINDS).map(k => k.colour)).size === 8);
 ok('standard order preloaded',
    DEFAULT_LAYOUT.map(g => g[0]).join(',') === 'achu,box,leftBorder,locking,body,rightBorder,achu,empty',
    DEFAULT_LAYOUT.map(g => g[0]).join(','));

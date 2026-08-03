@@ -237,14 +237,19 @@ script.
 
 ### Choosing a weave
 
-A Locking group is the only one that takes a weave, and it offers two lists:
-**Satins and twills**, which are built in, and **Weave library**, which holds
-whatever has been uploaded.
+Two groups are worked from a weave, and they differ only in where the weave
+comes from:
 
-They are two separate boxes on purpose. The library used to be a heading part
-way down the built-in list, where somebody who had just uploaded a weave would
-never think to look. The library box is shown even when it is empty, saying so,
-rather than being absent until something is in it.
+- **Locking** — the built-in satins and twills
+- **Weave library** — whatever has been uploaded to the library
+
+Pick the group in the Group column and its weaves are in the Content column
+beside it. Nothing else changes between them; they are composed identically.
+
+They are separate groups on purpose. An uploaded weave used to be a heading
+part way down the Locking row's list of satins, where somebody who had just
+uploaded one would never think to look. A Weave library group with nothing
+uploaded says so in its own list rather than sitting empty and unexplained.
 
 Choosing a weave sets the group's pin count to the weave's width.
 

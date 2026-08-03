@@ -47,6 +47,7 @@
     --c-body:   #52737E;
     --c-empty:  #B9C3C8;
     --c-lock:   #7A4E86;
+    --c-weavelib: #9A5E52;
     --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
     --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
@@ -309,7 +310,7 @@
   }
   .ruler-seg .c { font-family: var(--mono); font-size: var(--t-small); font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; }
   .k-empty .k, .k-empty .c, .k-none .k, .k-none .c { color: var(--ink-2); }
-  .k-box .c, .k-leftBorder .c, .k-rightBorder .c, .k-achu .c, .k-body .c, .k-locking .c { color: #fff; }
+  .k-box .c, .k-leftBorder .c, .k-rightBorder .c, .k-achu .c, .k-body .c, .k-locking .c, .k-weaveLib .c { color: #fff; }
   .k-empty .c { color: var(--ink-2); }
   .k-box { background: var(--c-box); }
   .k-leftBorder { background: var(--c-lborder); }
@@ -318,6 +319,7 @@
   .k-body { background: var(--c-body); }
   .k-empty { background: var(--c-empty); }
   .k-locking { background: var(--c-lock); }
+  .k-weaveLib { background: var(--c-weavelib); }
   .k-none { background: #fff; }
 
   /* ---------- layers ---------- */
@@ -811,7 +813,7 @@
     <div class="weavelib">
       <div class="wl-head">
         <span class="cap" style="margin:0">Weave library</span>
-        <span class="wl-note">A named BMP here can then be chosen on any <strong>Locking</strong> group, on this loom or any other.</span>
+        <span class="wl-note">A named BMP here can then be chosen on any <strong>Weave library</strong> group, on this loom or any other.</span>
       </div>
       <div class="wl-add">
         <input type="text" id="weaveName" placeholder="name it, e.g. Murthy lock 8">
@@ -826,6 +828,7 @@
       <button data-add="box">+ Box</button>
       <button data-add="leftBorder">+ Left border</button>
       <button data-add="locking">+ Locking</button>
+      <button data-add="weaveLib">+ Weave library</button>
       <button data-add="body">+ Body</button>
       <button data-add="rightBorder">+ Right border</button>
       <button data-add="empty">+ Empty</button>
@@ -986,10 +989,17 @@ const KINDS = {
   box:         { label: "Box",          cls: "k-box",         colour: "#2E3A45", code: 1, source: "generated" },
   leftBorder:  { label: "Left border",  cls: "k-leftBorder",  colour: "#1F4E6B", code: 2, source: "border"    },
   locking:     { label: "Locking",      cls: "k-locking",     colour: "#7A4E86", code: 5, source: "generated" },
+  weaveLib:    { label: "Weave library", cls: "k-weaveLib",    colour: "#9A5E52", code: 9, source: "generated" },
   body:        { label: "Body",         cls: "k-body",        colour: "#52737E", code: 6, source: "weft"      },
   rightBorder: { label: "Right border", cls: "k-rightBorder", colour: "#3E7A8F", code: 3, source: "border"    },
   empty:       { label: "Empty",        cls: "k-empty",       colour: "#B9C3C8", code: 7, source: "down"      }
 };
+// Locking works a built-in satin or twill; Weave library works an uploaded one.
+// They behave the same in every other way, so ask this rather than naming
+// either of them.
+const WEAVE_KINDS = ["locking", "weaveLib"];
+const usesWeave = (k) => WEAVE_KINDS.indexOf(k) >= 0;
+
 const WEFT_SLOTS = 4;                 // how many slots you start with
 const MAX_WEFTS = 8;                  // and how many you may add up to
 const WEFT_NAMES = ["Rani", "Zari", "Meena 1", "Meena 2"];
@@ -1007,7 +1017,7 @@ function labelFor(segs, i) {
   for (let j = 0; j <= i; j++) if (isOne(segs[j])) n++;
   return `${base} ${n}`;
 }
-const BUILD = "2026-08-03.30";      // bump when the file changes, so a stale page shows
+const BUILD = "2026-08-03.31";      // bump when the file changes, so a stale page shows
 /* ============================================================
    Whose software wrote the file
 
@@ -1721,8 +1731,8 @@ function compose(target) {
         const r = achuRow(seg.count, achuRowIndex, o.achuStartsBlack);
         for (let x = 0; x < seg.count; x++) bits[rowBase + at + x] = r[x];
 
-      } else if (seg.kind === "locking") {
-        if (target !== "body") return;              // locking lives in the body file only
+      } else if (usesWeave(seg.kind)) {
+        if (target !== "body") return;              // a woven group lives in the body file only
         const r = weaveRow(weaveById(seg.weave), seg.count, lockRowIndex, o.satinWarpFaced);
         for (let x = 0; x < seg.count; x++) bits[rowBase + at + x] = r[x];
 
@@ -1953,7 +1963,7 @@ function validatePinMap() {
     if (!s.count || s.count < 1) errs.push(`${where}: enter a pin count above zero.`);
     if (s.kind === "achu" && s.count % 2) errs.push(`${where}: achu needs an even count — ${s.count} cannot split in half.`);
     if (s.kind === "box" && s.count % 2) errs.push(`${where}: ${s.count} box pins cannot split into two sides. Enter an even number.`);
-    if (s.kind === "locking") {
+    if (usesWeave(s.kind)) {
       const w = weaveById(s.weave);
       if (!w) warns.push(`${where}: no weave chosen, so a satin is worked out from the pin count.`);
       else if (s.count % w.pins)
@@ -3680,7 +3690,7 @@ function snapCount(idx, n) {
   const sg = state.segments[idx];
   if (!sg) return n;
   if (sg.kind === "achu") return Math.max(2, Math.round(n / 2) * 2);
-  if (sg.kind === "locking") {
+  if (usesWeave(sg.kind)) {
     const wv = weaveById(sg.weave);
     if (wv && wv.pins) return Math.max(wv.pins, Math.round(n / wv.pins) * wv.pins);
   }
@@ -3807,7 +3817,7 @@ function stepFor(idx) {
   const sg = state.segments[idx];
   if (!sg) return 1;
   if (sg.kind === "achu") return 2;
-  if (sg.kind === "locking") { const wv = weaveById(sg.weave); return wv && wv.pins ? wv.pins : 1; }
+  if (usesWeave(sg.kind)) { const wv = weaveById(sg.weave); return wv && wv.pins ? wv.pins : 1; }
   return 1;
 }
 
@@ -3899,9 +3909,9 @@ function renderWeaveLibrary() {
   }
   // An uploaded weave is only ever chosen on a Locking group. Say so when there
   // is nowhere to put one, or the weave looks as though it went nowhere.
-  const noLocking = !state.segments.some(sg => sg.kind === "locking");
-  const where = noLocking
-    ? `<div class="wl-empty">This pin map has no Locking group, so there is nowhere to use these yet. Add one with <strong>+ Locking</strong> and the weave appears in its list.</div>`
+  const noHome = !state.segments.some(sg => sg.kind === "weaveLib");
+  const where = noHome
+    ? `<div class="wl-empty">Nowhere to use these yet. Add a <strong>Weave library</strong> group to the pin map and these appear in its list.</div>`
     : "";
   host.innerHTML = where + `<div class="wl-grid">` + state.weaves.map(w => `
     <div class="wl-item">
@@ -3981,30 +3991,25 @@ function renderSegs() {
   state.segments.forEach((sg, i) => {
     const from = at, to = at + (sg.count || 0) - 1; at += (sg.count || 0);
     let content;
-    if (sg.kind === "locking") {
+    if (usesWeave(sg.kind)) {
+      // Each of the two groups offers its own weaves and nothing else. Locking
+      // works a built-in satin or twill; Weave library works one that has been
+      // uploaded. Mixing them in a single list is how an uploaded weave came to
+      // be invisible to anyone who had not been shown where it hides.
+      const lib   = sg.kind === "weaveLib";
+      const list  = lib ? state.weaves : BUILTIN_WEAVES;
+      const empty = lib && !state.weaves.length;
       const chosen = weaveById(sg.weave);
-      // Two lists, not one. The library used to be a heading part way down the
-      // built-in list, where somebody who had just uploaded a weave would never
-      // think to look for it. It gets a box of its own now, and says so even
-      // when it is empty.
-      const fromLib  = !!(chosen && state.weaves.some(w => w.id === chosen.id));
-      const fromBuilt = !!chosen && !fromLib;
-      const opts = (list, sel) => list.map(w =>
-        `<option value="${esc(w.id)}" ${sel && w.id === sg.weave ? "selected" : ""}>${esc(w.name)} · ${w.pins} pins</option>`).join("");
+      const mine = !!(chosen && list.some(w => w.id === chosen.id));
       content = `<div class="weave-cell">
         <canvas data-rowweave="${sg.id}" role="img" aria-label="The weave chosen for this group"></canvas>
-        <div class="weave-picks">
-          <select data-act="weave" data-id="${sg.id}" aria-label="Satins and twills for ${esc(labelFor(state.segments, i))}">
-            <option value="" ${fromBuilt ? "" : "selected"}>Satins and twills…</option>
-            ${opts(BUILTIN_WEAVES, fromBuilt)}
-          </select>
-          <select data-act="weave" data-id="${sg.id}" aria-label="Weave library for ${esc(labelFor(state.segments, i))}"
-                  ${state.weaves.length ? "" : "disabled"}>
-            <option value="" ${fromLib ? "" : "selected"}>${state.weaves.length
-              ? "Weave library…" : "Weave library — nothing uploaded"}</option>
-            ${opts(state.weaves, fromLib)}
-          </select>
-        </div></div>`;
+        <select data-act="weave" data-id="${sg.id}" style="flex:1" ${empty ? "disabled" : ""}
+                aria-label="Weave for ${esc(labelFor(state.segments, i))}">
+          <option value="" ${mine ? "" : "selected"}>${empty
+            ? "Nothing uploaded yet — add one above"
+            : (lib ? "Choose from the library…" : "Choose a satin or twill…")}</option>
+          ${list.map(w => `<option value="${esc(w.id)}" ${mine && w.id === sg.weave ? "selected" : ""}>${esc(w.name)} · ${w.pins} pins</option>`).join("")}
+        </select></div>`;
     } else {
       const note = (sg.role === "clutch" && companyHasClutch(state.company))
         ? `the clutch — stays down` : (CONTENT_NOTE[sg.kind] || "");
@@ -4182,7 +4187,12 @@ function handleSegInput(e) {
     s.kind = t.value;
     if (s.kind !== "empty") delete s.role;      // it has been made into something else
     if (s.kind === "locking" && !s.weave) { s.weave = "satin:8:3"; s.count = 8; }
-    if (s.kind !== "locking") delete s.weave;
+    if (s.kind === "weaveLib") {
+      // only a library weave belongs here, so a built-in carried over is dropped
+      const w = weaveById(s.weave);
+      if (!w || !state.weaves.some(x => x.id === w.id)) delete s.weave;
+    }
+    if (!usesWeave(s.kind)) delete s.weave;
     forgetSideHighlights();
     if (s.kind === "achu" && !s.count) s.count = 4;
     if (s.kind === "box" && !s.count) s.count = 4;
@@ -4291,7 +4301,7 @@ el("#segTable").addEventListener("click", e => {
     const idx = state.segments.indexOf(sg);
     let jump = 1;
     if (sg.kind === "achu") jump = 2;
-    else if (sg.kind === "locking") {
+    else if (usesWeave(sg.kind)) {
       const wv = weaveById(sg.weave);
       jump = wv && wv.pins ? wv.pins : 1;
     }
@@ -4658,7 +4668,7 @@ function renderChips() {
   const wefts = filledWefts();
   let html = "";
 
-  const lockSeg = state.segments.find(s => s.kind === "locking" && s.count > 0);
+  const lockSeg = state.segments.find(s => usesWeave(s.kind) && s.count > 0);
   if (lockSeg) {
     const lw = weaveById(lockSeg.weave);
     const n = lockSeg.count;
@@ -5153,7 +5163,8 @@ const REGION_COLOUR = {
   5: [122,78,134],  // locking
   6: [82,115,126],  // body
   7: [185,195,200], // empty
-  8: [235,240,242]  // not allocated
+  8: [235,240,242], // not allocated
+  9: [154,94,82]    // weave library
 };
 let pvStep = 1;
 
@@ -5164,7 +5175,7 @@ function renderSummary() {
   const H = ref ? ref.height : 0;
   const perShuttle = (state.opts.stackMode === "interleave" && normalBoxMotion(state.boxMotion) === "4x1") ? 2 : 1;
   const lines = !H ? 0 : (state.opts.stackMode === "overlay" ? H : H * Math.max(1, K));
-  const lockSeg = state.segments.find(x => x.kind === "locking");
+  const lockSeg = state.segments.find(x => usesWeave(x.kind));
   const lw = lockSeg ? weaveById(lockSeg.weave) : null;
   const cell = (k, v, sm, full) =>
     `<div class="cell"><div class="k">${k}</div>

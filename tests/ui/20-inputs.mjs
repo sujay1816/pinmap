@@ -125,7 +125,7 @@ console.log('\n== an uploaded weave has somewhere to go ==');
   // nowhere on screen, so an uploaded weave looked as though it vanished.
   click($$('nav.steps button').find(b=>b.dataset.go==='loom')); await wait(400);
   const note = $('.wl-note');
-  ok('the library says where a weave gets used', note && /Locking/.test(note.textContent),
+  ok('the library says where a weave gets used', note && /Weave library/.test(note.textContent),
      note ? note.textContent.trim().slice(0,70) : '(no note)');
 
   // add one, then check it reaches the Locking row's list
@@ -138,48 +138,55 @@ console.log('\n== an uploaded weave has somewhere to go ==');
   click($('#addWeave')); await wait(700);
 
   ok('it lands in the library', /Shed twill/.test($('#weaveList').textContent));
-  const picks = $$('#segTable select[data-act=weave]');
-  ok('a Locking group offers two pickers', picks.length === 2, String(picks.length));
-  // The library used to be a heading part way down the built-in list, where
-  // nobody who had just uploaded a weave would think to look.
-  const lib = picks[1];
-  ok('the second is the weave library, named as such',
-     lib && /weave library/i.test(lib.options[0].text), lib ? lib.options[0].text : '(none)');
-  ok('and the uploaded weave is in it', lib && /Shed twill/.test(lib.textContent),
-     lib ? lib.textContent.replace(/\s+/g,' ').slice(0,90) : '(no picker)');
-  ok('the built-in satins stay in their own list',
-     picks[0] && /satins/i.test(picks[0].options[0].text) && !/Shed twill/.test(picks[0].textContent),
-     picks[0] ? picks[0].options[0].text : '');
 
-  // choosing from the library sets the group's weave, and the built-in list
-  // falls back to its placeholder
+  // The library is a group of its own now. It used to be a heading part way
+  // down the Locking row's list of satins, where nobody who had just uploaded
+  // a weave would think to look.
+  ok('Weave library is offered as a group',
+     [...$$('#segTable select[data-act=kind]')[0].options].some(o=>/weave library/i.test(o.text)),
+     [...$$('#segTable select[data-act=kind]')[0].options].map(o=>o.text).join('|'));
+  ok('and there is a button to add one', !!$('button[data-add="weaveLib"]'));
+
+  click($('button[data-add="weaveLib"]')); await wait(500);
+  const kinds = $$('#segTable select[data-act=kind]').map(x=>x.value);
+  ok('adding one puts it on the pin map', kinds.includes('weaveLib'), kinds.join(','));
+
+  const picks = $$('#segTable select[data-act=weave]');
+  ok('both woven groups have a picker', picks.length === 2, String(picks.length));
+  ok('Locking offers satins and twills only',
+     /satin or twill/i.test(picks[0].options[0].text) && !/Shed twill/.test(picks[0].textContent),
+     picks[0].options[0].text);
+  ok('Weave library offers the uploaded weaves only',
+     /from the library/i.test(picks[1].options[0].text) && /Shed twill/.test(picks[1].textContent),
+     picks[1].options[0].text);
+
   {
-    const lib2 = $$('#segTable select[data-act=weave]')[1];
-    const o = [...lib2.options].find(x=>/Shed twill/.test(x.text));
-    lib2.value = o.value;
-    lib2.dispatchEvent(new w.Event('input',{bubbles:true}));
+    const lib = picks[1];
+    lib.value = [...lib.options].find(x=>/Shed twill/.test(x.text)).value;
+    lib.dispatchEvent(new w.Event('input',{bubbles:true}));
     await wait(500);
     const after = $$('#segTable select[data-act=weave]');
     ok('choosing from the library takes',
        after[1].options[after[1].selectedIndex].text.includes('Shed twill'),
        after[1].options[after[1].selectedIndex].text);
-    ok('and the other list shows nothing chosen',
-       after[0].selectedIndex === 0, after[0].options[after[0].selectedIndex].text);
+    const at = $$('#segTable select[data-act=kind]').findIndex(x=>x.value==='weaveLib');
+    ok('and the group takes the weave\'s pin count',
+       $$('#segTable input[data-act=count]')[at].value === '8',
+       $$('#segTable input[data-act=count]')[at].value);
   }
 
-
-  // with nowhere to use it, the library says so
-  let guard=0;
-  while ($$('#segTable button[data-act=del]').length && guard++<40) {
-    click($$('#segTable button[data-act=del]')[0]); await wait(70);
+  // take the group away again and the library says where to put one
+  {
+    const at = $$('#segTable select[data-act=kind]').findIndex(x=>x.value==='weaveLib');
+    click($$('#segTable button[data-act=del]')[at]); await wait(500);
+    ok('with no Weave library group, it says to add one',
+       /Nowhere to use/.test($('#weaveList').textContent),
+       $('#weaveList').textContent.replace(/\s+/g,' ').slice(0,90));
+    click($('button[data-add="weaveLib"]')); await wait(500);
+    ok('and the hint goes once there is one again',
+       !/Nowhere to use/.test($('#weaveList').textContent),
+       $('#weaveList').textContent.replace(/\s+/g,' ').slice(0,60));
   }
-  await wait(400);
-  ok('with no Locking group, it says where to add one',
-     /no Locking group/.test($('#weaveList').textContent),
-     $('#weaveList').textContent.replace(/\s+/g,' ').slice(0,80));
-  click($('#starter')); await wait(500);
-  ok('and the hint goes once there is one again',
-     !/no Locking group/.test($('#weaveList').textContent));
 }
 
 console.log('\n== the app never shows its own workings ==');
