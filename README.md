@@ -162,12 +162,42 @@ rather than the software, so it stays a separate choice.
 | --- | --- | --- |
 | A lifted pin is | black | white |
 | Pin 1 sits at | the left | the left |
+| The border file is written | straight ahead | straight ahead |
+| The body file is written | straight ahead | **back to front** |
 | Everything else | the same | the same |
 
 Sri Tex was read off their own border file, in `tests/fixtures`. That file also
 confirms three rules the app had only been told about: the achu belongs to the
 border file, the body and locking pins stay down in it, and the achu is half up
 and half down, flipping every line.
+
+### Why the Sri Tex body file is turned round
+
+This was wrong for a long time and is worth writing down, because a mirrored
+file still looks like a perfectly good file — nothing complains, the loom just
+weaves the design back to front.
+
+Their border sample and their body sample disagree by thirty pins: the border
+keeps 752 pins down at 394-1145, and the body works 752 pins at 424-1175. Those
+have to be the same pins. The old reading was that the body sample came off a
+different loom, thirty pins wider at the front, and that mirroring lined the two
+up by coincidence.
+
+It is not coincidence. Mirroring does not shift the block thirty pins along; it
+lands every block at once. The 752 goes to 394-1145. The body's blank goes to
+1146-1534, exactly the border's right border. And the box — six worked pins
+sitting at 1553-1558 in their file, right at the far end — comes back to 11-16,
+beside the achu, which is where the loom actually has it. A thirty-pin shift
+explains the 752 and leaves the box stranded. Mirrored, the two files overlap
+nowhere and are exact complements.
+
+Building their job with the switch on reproduces the block at 424-1175 pin for
+pin; with it off we write 394-1145. `tests/logic/24.mjs` holds that against
+their real file so it cannot quietly flip back.
+
+**Only the body is turned round.** The border file's achu sits at pins 1-10, at
+the near end, so mirroring both would throw the achu to the far end. The border
+is written straight ahead.
 
 To add a company, build a job, load one of their files into **Check against a
 file you trust**, and change whatever it names until the two agree. Then save

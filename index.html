@@ -952,7 +952,7 @@ function labelFor(segs, i) {
   for (let j = 0; j <= i; j++) if (isOne(segs[j])) n++;
   return `${base} ${n}`;
 }
-const BUILD = "2026-08-03.14";      // bump when the file changes, so a stale page shows
+const BUILD = "2026-08-03.15";      // bump when the file changes, so a stale page shows
 /* ============================================================
    Whose software wrote the file
 
@@ -969,26 +969,42 @@ const BUILD = "2026-08-03.14";      // bump when the file changes, so a stale pa
    where we write black. This was read off their border file and is not
    in doubt.
 
-   Their two sample files also disagree with each other by thirty pins.
-   The border file puts locking + body + locking at 394-1145; the body
-   file puts it at 424-1175. Mirroring the body makes the two line up on
-   paper, but on the loom it turns the buttas around and moves the box to
-   the wrong side, so it is wrong. The switch below is left in place for
-   anyone who needs it, but no company turns it on. Which of the two
-   layouts the machine really uses is still an open question. Everything else — pin 1 at the left, the top line first,
-   the achu half up and half down flipping each line, the border file
-   holding the achu while the body and locking pins stay down — is the
-   same, and was read off their border file:
+   They also write the body file back to front, and only the body file.
+   This was doubted for a long time and is now settled, so the working
+   is worth keeping.
+
+   Their border sample lays out like this, and we match it pin for pin
+   writing straight ahead, pin 1 at the left:
 
        pins    1-10    achu, five up then the other five, every line
-       pins   11-18    down
+       pins   11-18    box, down in a border file
        pins   19-393   the left border design
        pins  394-1145  down, all 752 of locking + body + locking
-       pins 1146-1520  the right border design
+       pins 1146-1534  the right border design
+       pins 1535-1568  the far achu and the spare pins
 
-   An earlier reading of a body file suggested they also mirror the pins.
-   They do not — that file came from a different loom, thirty pins wider
-   at the front, and mirroring it happened to line up by coincidence.
+   Their body sample puts the same 752-pin block at 424-1175, thirty
+   pins further along, which is what caused the doubt. The guess was
+   that the body sample came off a different loom, thirty pins wider at
+   the front, and that mirroring it lined the two up by coincidence.
+
+   It is not coincidence. Mirroring does not simply shift the block
+   thirty pins; it lands every block at once. The 752 goes to 394-1145,
+   the border's blank; the body's blank goes to 1146-1534, the border's
+   right border; and the box, six worked pins sitting at 1553-1558 in
+   their file, comes back to 11-16, right beside the achu, which is
+   where the loom puts it. A thirty-pin shift explains the 752 and
+   leaves the box stranded at the far end. Nothing overlaps once
+   mirrored, and the two files are exact complements.
+
+   Building their body file with mirrorBodyFile on reproduces the block
+   at 424-1175 exactly; with it off we write 394-1145. Weavers also
+   reported the combined file coming out back to front, which is what
+   writing it the same way round as the border does.
+
+   The border file is NOT mirrored — its achu sits at pins 1-10, at the
+   left, so mirroring both would throw the achu to the far end. Only
+   the body is turned round.
    ============================================================ */
 
 const COMPANY_BASE = {
@@ -1003,6 +1019,7 @@ const COMPANIES = [
   { id: "saitex", name: "Sai Tex", opts: { ...COMPANY_BASE } },
   { id: "sritex", name: "Sri Tex", opts: { ...COMPANY_BASE,
       blackIsIndexZero: false,     // white is the lifted pin
+      mirrorBodyFile: true,        // their body file is written back to front
       bodyGround: "satin:2:1" } }  // and a plain ground under every weft
 ];
 

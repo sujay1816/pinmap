@@ -26,9 +26,10 @@ const B = up(bd), Y = mirror(up(b2));
 head('the same loom');
 ok('both are 1568 pins wide', bd.width === 1568 && b2.width === 1568);
 
-// NOTE: mirroring makes the two samples agree on paper, but on the loom it
-// turns the buttas around and moves the box to the wrong side. So this records
-// what the files look like, not what the app should do — no company mirrors.
+// NOTE: mirroring makes the two samples exact complements, and 24.mjs shows
+// why that is not a coincidence — the box comes back beside the achu, not just
+// the 752 block. Sri Tex therefore ships with mirrorBodyFile on. The checks
+// below drive the switch by hand, so they describe both ways round.
 head('their two samples only agree on paper if the body is mirrored');
 {
   const ub = usedPins(B), uy = usedPins(Y);
@@ -57,7 +58,7 @@ head('read the body the same way round, and they collide');
   ok('and thirty of them fall inside the right border', both === 33, String(both));
 }
 
-head('the app does not mirror, because the loom says otherwise');
+head('the switch turns the body round, and leaves the border alone');
 {
   const src = { width:720, height:60, bits:new Uint8Array(720*60) };
   for (let i=0;i<src.bits.length;i++) src.bits[i] = (i % 97 === 0) ? 1 : 0;

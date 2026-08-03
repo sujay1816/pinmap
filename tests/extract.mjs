@@ -59,7 +59,8 @@ export {
   SATIN_LIBRARY, BUILTIN_WEAVES, allWeaves, weaveById, weaveRow, satinName,
   BOX_TABLE, compose, borderFilesLoaded, compareToReference, bitsDiffer,
   mirrorBits, flipBits, invertBits, state, KINDS, DEFAULT_LAYOUT, labelFor,
-  mergeLibraries, newerOf, normalBoxMotion,
+  mergeLibraries, newerOf, normalBoxMotion, normalClutch, clutchSideOf,
+  COMPANIES, COMPANY_BASE, companyById, companyHasClutch, CLUTCH_PINS,
   freshWefts, filledWefts, borderSlots, bodySlots,
   WEFT_SLOTS, WEFT_NAMES, totalPins, allocated
 };

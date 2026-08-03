@@ -1,8 +1,50 @@
 diff --git a/README.md b/README.md
-index d38823e..2a8c268 100644
+index d38823e..e4794b1 100644
 --- a/README.md
 +++ b/README.md
-@@ -174,6 +174,31 @@ file you trust**, and change whatever it names until the two agree. Then save
+@@ -162,6 +162,8 @@ rather than the software, so it stays a separate choice.
+ | --- | --- | --- |
+ | A lifted pin is | black | white |
+ | Pin 1 sits at | the left | the left |
++| The border file is written | straight ahead | straight ahead |
++| The body file is written | straight ahead | **back to front** |
+ | Everything else | the same | the same |
+ 
+ Sri Tex was read off their own border file, in `tests/fixtures`. That file also
+@@ -169,11 +171,64 @@ confirms three rules the app had only been told about: the achu belongs to the
+ border file, the body and locking pins stay down in it, and the achu is half up
+ and half down, flipping every line.
+ 
++### Why the Sri Tex body file is turned round
++
++This was wrong for a long time and is worth writing down, because a mirrored
++file still looks like a perfectly good file — nothing complains, the loom just
++weaves the design back to front.
++
++Their border sample and their body sample disagree by thirty pins: the border
++keeps 752 pins down at 394-1145, and the body works 752 pins at 424-1175. Those
++have to be the same pins. The old reading was that the body sample came off a
++different loom, thirty pins wider at the front, and that mirroring lined the two
++up by coincidence.
++
++It is not coincidence. Mirroring does not shift the block thirty pins along; it
++lands every block at once. The 752 goes to 394-1145. The body's blank goes to
++1146-1534, exactly the border's right border. And the box — six worked pins
++sitting at 1553-1558 in their file, right at the far end — comes back to 11-16,
++beside the achu, which is where the loom actually has it. A thirty-pin shift
++explains the 752 and leaves the box stranded. Mirrored, the two files overlap
++nowhere and are exact complements.
++
++Building their job with the switch on reproduces the block at 424-1175 pin for
++pin; with it off we write 394-1145. `tests/logic/24.mjs` holds that against
++their real file so it cannot quietly flip back.
++
++**Only the body is turned round.** The border file's achu sits at pins 1-10, at
++the near end, so mirroring both would throw the achu to the far end. The border
++is written straight ahead.
++
+ To add a company, build a job, load one of their files into **Check against a
+ file you trust**, and change whatever it names until the two agree. Then save
  those settings as a new entry in the `COMPANIES` table near the top of the
  script.
  
@@ -35,7 +77,7 @@ index d38823e..2a8c268 100644
  
  | What | Kept in |
 diff --git a/index.html b/index.html
-index a0e6727..572a744 100644
+index a0e6727..9b9b767 100644
 --- a/index.html
 +++ b/index.html
 @@ -89,6 +89,8 @@
@@ -77,11 +119,77 @@ index a0e6727..572a744 100644
    return `${base} ${n}`;
  }
 -const BUILD = "2026-07-31.13";      // bump when the file changes, so a stale page shows
-+const BUILD = "2026-08-03.14";      // bump when the file changes, so a stale page shows
++const BUILD = "2026-08-03.15";      // bump when the file changes, so a stale page shows
  /* ============================================================
     Whose software wrote the file
  
-@@ -997,6 +1009,26 @@ const COMPANIES = [
+@@ -957,26 +969,42 @@ const BUILD = "2026-07-31.13";      // bump when the file changes, so a stale pa
+    where we write black. This was read off their border file and is not
+    in doubt.
+ 
+-   Their two sample files also disagree with each other by thirty pins.
+-   The border file puts locking + body + locking at 394-1145; the body
+-   file puts it at 424-1175. Mirroring the body makes the two line up on
+-   paper, but on the loom it turns the buttas around and moves the box to
+-   the wrong side, so it is wrong. The switch below is left in place for
+-   anyone who needs it, but no company turns it on. Which of the two
+-   layouts the machine really uses is still an open question. Everything else — pin 1 at the left, the top line first,
+-   the achu half up and half down flipping each line, the border file
+-   holding the achu while the body and locking pins stay down — is the
+-   same, and was read off their border file:
++   They also write the body file back to front, and only the body file.
++   This was doubted for a long time and is now settled, so the working
++   is worth keeping.
++
++   Their border sample lays out like this, and we match it pin for pin
++   writing straight ahead, pin 1 at the left:
+ 
+        pins    1-10    achu, five up then the other five, every line
+-       pins   11-18    down
++       pins   11-18    box, down in a border file
+        pins   19-393   the left border design
+        pins  394-1145  down, all 752 of locking + body + locking
+-       pins 1146-1520  the right border design
+-
+-   An earlier reading of a body file suggested they also mirror the pins.
+-   They do not — that file came from a different loom, thirty pins wider
+-   at the front, and mirroring it happened to line up by coincidence.
++       pins 1146-1534  the right border design
++       pins 1535-1568  the far achu and the spare pins
++
++   Their body sample puts the same 752-pin block at 424-1175, thirty
++   pins further along, which is what caused the doubt. The guess was
++   that the body sample came off a different loom, thirty pins wider at
++   the front, and that mirroring it lined the two up by coincidence.
++
++   It is not coincidence. Mirroring does not simply shift the block
++   thirty pins; it lands every block at once. The 752 goes to 394-1145,
++   the border's blank; the body's blank goes to 1146-1534, the border's
++   right border; and the box, six worked pins sitting at 1553-1558 in
++   their file, comes back to 11-16, right beside the achu, which is
++   where the loom puts it. A thirty-pin shift explains the 752 and
++   leaves the box stranded at the far end. Nothing overlaps once
++   mirrored, and the two files are exact complements.
++
++   Building their body file with mirrorBodyFile on reproduces the block
++   at 424-1175 exactly; with it off we write 394-1145. Weavers also
++   reported the combined file coming out back to front, which is what
++   writing it the same way round as the border does.
++
++   The border file is NOT mirrored — its achu sits at pins 1-10, at the
++   left, so mirroring both would throw the achu to the far end. Only
++   the body is turned round.
+    ============================================================ */
+ 
+ const COMPANY_BASE = {
+@@ -991,12 +1019,33 @@ const COMPANIES = [
+   { id: "saitex", name: "Sai Tex", opts: { ...COMPANY_BASE } },
+   { id: "sritex", name: "Sri Tex", opts: { ...COMPANY_BASE,
+       blackIsIndexZero: false,     // white is the lifted pin
++      mirrorBodyFile: true,        // their body file is written back to front
+       bodyGround: "satin:2:1" } }  // and a plain ground under every weft
+ ];
+ 
  const companyById = (id) => COMPANIES.find(c => c.id === (id || "")) || COMPANIES[0];
  const companyName = (id) => companyById(id).name;
  
@@ -108,7 +216,7 @@ index a0e6727..572a744 100644
  function applyCompany(id) {
    const c = companyById(id);
    if (!c.opts) return false;
-@@ -1035,6 +1067,7 @@ const state = {
+@@ -1035,6 +1084,7 @@ const state = {
    totalDeclared: 0,
    boxMotion: "4x4",
    company: "",
@@ -116,7 +224,7 @@ index a0e6727..572a744 100644
    version: 1,
    segments: [],
    borderFiles: {},                 // one file per border group, keyed by group id
-@@ -1100,6 +1133,16 @@ function anyFile() {
+@@ -1100,6 +1150,16 @@ function anyFile() {
  const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
  const sumPins = (segs) => segs.reduce((n, s) => n + (s.count || 0), 0);
  
@@ -133,7 +241,7 @@ index a0e6727..572a744 100644
  /* ============================================================
     BMP decoding — returns 1 where the pin is up (black)
     ============================================================ */
-@@ -2067,9 +2110,9 @@ function sessionDoc() {
+@@ -2067,9 +2127,9 @@ function sessionDoc() {
      format: "pinmap.session", savedAt: new Date().toISOString(),
      draft: {
        name: state.loomName, totalPins: state.totalDeclared, boxMotion: state.boxMotion,
@@ -146,7 +254,7 @@ index a0e6727..572a744 100644
      },
      opts: { ...state.opts },
      activeName: state.activeName,
-@@ -2118,8 +2161,10 @@ async function loadSession() {
+@@ -2118,8 +2178,10 @@ async function loadSession() {
      state.segments = d.segments.map(sg => {
        const seg = { id: nextId(), kind: KINDS[sg.kind] ? sg.kind : "empty", count: parseInt(sg.count, 10) || 0 };
        if (sg.weave) seg.weave = sg.weave;
@@ -157,7 +265,7 @@ index a0e6727..572a744 100644
    }
  }
  
-@@ -2184,6 +2229,23 @@ function normalBoxMotion(v) {
+@@ -2184,6 +2246,23 @@ function normalBoxMotion(v) {
    return (v === "4x1" || v === "2x1") ? "4x1" : "4x4";
  }
  
@@ -181,7 +289,7 @@ index a0e6727..572a744 100644
  function newerOf(a, b) {
    return ((b && b.savedAt) || "") > ((a && a.savedAt) || "") ? b : a;
  }
-@@ -2645,9 +2707,10 @@ function pinMapDoc() {
+@@ -2645,9 +2724,10 @@ function pinMapDoc() {
      totalPins: state.totalDeclared || allocated(),
      boxMotion: normalBoxMotion(state.boxMotion),
      company: state.company || "",
@@ -193,7 +301,7 @@ index a0e6727..572a744 100644
      options: { ...state.opts },
      history: []
    };
-@@ -2673,11 +2736,13 @@ function adoptDoc(doc) {
+@@ -2673,11 +2753,13 @@ function adoptDoc(doc) {
      const seg = { id: nextId(), kind, count: parseInt(s.count, 10) || 0 };
      if (s.weave) seg.weave = s.weave;
      else if (s.step && stepIsValid(seg.count, parseInt(s.step, 10))) seg.weave = `satin:${seg.count}:${s.step}`;
@@ -207,7 +315,7 @@ index a0e6727..572a744 100644
    Object.assign(state.opts, doc.options || {});
    state.borderFiles = {};
    state.wefts = freshWefts();
-@@ -2760,7 +2825,7 @@ function renderLoomList() {
+@@ -2760,7 +2842,7 @@ function renderLoomList() {
      return `<div class="loomcard ${isActive ? "active" : ""}">
        ${isActive ? `<span class="usetag">in use</span>` : ""}
        <h3>${esc(l.name)}</h3>
@@ -216,7 +324,7 @@ index a0e6727..572a744 100644
        <div style="margin-top:11px">${miniRuler(l.segments, total)}</div>
        <div style="margin-top:10px">${pills}</div>
        <div class="when">${whenText(l.lastUsedAt)}</div>
-@@ -2820,13 +2885,48 @@ function applyDefaultLayout() {
+@@ -2820,13 +2902,48 @@ function applyDefaultLayout() {
      weave ? { id: nextId(), kind, count, weave } : { id: nextId(), kind, count });
  }
  
@@ -265,7 +373,7 @@ index a0e6727..572a744 100644
    state.built = null; state.builtBorder = null;
    go("loom");
  }
-@@ -3544,7 +3644,9 @@ function renderSegs() {
+@@ -3544,7 +3661,9 @@ function renderSegs() {
            ${chosen ? "" : `<option value="" selected>— choose a weave —</option>`}
          </select></div>`;
      } else {
@@ -276,7 +384,7 @@ index a0e6727..572a744 100644
      }
      html += `<div class="seg-row" data-row="${sg.id}">
        <div class="griphold">
-@@ -3587,6 +3689,7 @@ els("[data-add]").forEach(b => b.onclick = () => addSeg(b.dataset.add));
+@@ -3587,6 +3706,7 @@ els("[data-add]").forEach(b => b.onclick = () => addSeg(b.dataset.add));
  el("#starter").onclick = () => {
    if (state.segments.length && !confirm("Replace the current groups with the standard order?")) return;
    applyDefaultLayout();
@@ -284,7 +392,7 @@ index a0e6727..572a744 100644
    state.built = null; state.builtBorder = null; renderLoomScreen();
  };
  
-@@ -3614,14 +3717,44 @@ function renderCompany() {
+@@ -3614,14 +3734,44 @@ function renderCompany() {
      `<option value="${c.id}"${(state.company || "") === c.id ? " selected" : ""}>${esc(c.name)}</option>`).join("");
  }
  
@@ -332,7 +440,7 @@ index a0e6727..572a744 100644
  });
  
  el("#boxMotion").addEventListener("change", e => {
-@@ -3645,7 +3778,7 @@ function handleSegInput(e) {
+@@ -3645,7 +3795,7 @@ function handleSegInput(e) {
    if (act === "count") {
      s.count = Math.max(0, parseInt(t.value, 10) || 0);
      state.built = null; state.builtBorder = null;
@@ -341,7 +449,7 @@ index a0e6727..572a744 100644
      els("#segTable .seg-range").forEach((cell, i) => {
        let from = 1;
        for (let j = 0; j < i; j++) from += state.segments[j].count || 0;
-@@ -3663,6 +3796,7 @@ function handleSegInput(e) {
+@@ -3663,6 +3813,7 @@ function handleSegInput(e) {
    }
    if (act === "kind") {
      s.kind = t.value;
@@ -349,7 +457,7 @@ index a0e6727..572a744 100644
      if (s.kind === "locking" && !s.weave) { s.weave = "satin:8:3"; s.count = 8; }
      if (s.kind !== "locking") delete s.weave;
      forgetSideHighlights();
-@@ -3803,6 +3937,7 @@ function renderLoomScreen() {
+@@ -3803,6 +3954,7 @@ function renderLoomScreen() {
    el("#totalDeclared").value = state.totalDeclared || "";
    el("#boxMotion").value = normalBoxMotion(state.boxMotion);
    renderCompany();
@@ -357,8 +465,49 @@ index a0e6727..572a744 100644
    el("#boardRead").textContent = BOARD_HELP;
    renderAlloc(); drawBoard(); renderBoardLegend(); renderBoardSelection(); renderSegs(); renderWeaveLibrary(); renderLoomChecks(); renderSteps();
  }
+diff --git a/tests/extract.mjs b/tests/extract.mjs
+index dfc7753..18a13a5 100644
+--- a/tests/extract.mjs
++++ b/tests/extract.mjs
+@@ -59,7 +59,8 @@ export {
+   SATIN_LIBRARY, BUILTIN_WEAVES, allWeaves, weaveById, weaveRow, satinName,
+   BOX_TABLE, compose, borderFilesLoaded, compareToReference, bitsDiffer,
+   mirrorBits, flipBits, invertBits, state, KINDS, DEFAULT_LAYOUT, labelFor,
+-  mergeLibraries, newerOf, normalBoxMotion,
++  mergeLibraries, newerOf, normalBoxMotion, normalClutch, clutchSideOf,
++  COMPANIES, COMPANY_BASE, companyById, companyHasClutch, CLUTCH_PINS,
+   freshWefts, filledWefts, borderSlots, bodySlots,
+   WEFT_SLOTS, WEFT_NAMES, totalPins, allocated
+ };
+diff --git a/tests/logic/22.mjs b/tests/logic/22.mjs
+index f6bf01d..fd3cc4d 100644
+--- a/tests/logic/22.mjs
++++ b/tests/logic/22.mjs
+@@ -26,9 +26,10 @@ const B = up(bd), Y = mirror(up(b2));
+ head('the same loom');
+ ok('both are 1568 pins wide', bd.width === 1568 && b2.width === 1568);
+ 
+-// NOTE: mirroring makes the two samples agree on paper, but on the loom it
+-// turns the buttas around and moves the box to the wrong side. So this records
+-// what the files look like, not what the app should do — no company mirrors.
++// NOTE: mirroring makes the two samples exact complements, and 24.mjs shows
++// why that is not a coincidence — the box comes back beside the achu, not just
++// the 752 block. Sri Tex therefore ships with mirrorBodyFile on. The checks
++// below drive the switch by hand, so they describe both ways round.
+ head('their two samples only agree on paper if the body is mirrored');
+ {
+   const ub = usedPins(B), uy = usedPins(Y);
+@@ -57,7 +58,7 @@ head('read the body the same way round, and they collide');
+   ok('and thirty of them fall inside the right border', both === 33, String(both));
+ }
+ 
+-head('the app does not mirror, because the loom says otherwise');
++head('the switch turns the body round, and leaves the border alone');
+ {
+   const src = { width:720, height:60, bits:new Uint8Array(720*60) };
+   for (let i=0;i<src.bits.length;i++) src.bits[i] = (i % 97 === 0) ? 1 : 0;
 diff --git a/tests/ui/16-company.mjs b/tests/ui/16-company.mjs
-index 56e12e4..986607e 100644
+index 56e12e4..66ad7df 100644
 --- a/tests/ui/16-company.mjs
 +++ b/tests/ui/16-company.mjs
 @@ -49,6 +49,9 @@ setVal($('#loomName'),'Company'); setVal($('#totalDeclared'),'1792');
@@ -371,3 +520,45 @@ index 56e12e4..986607e 100644
  setSel($('#boxMotion'), '4x1'); await wait(250);
  ok('box motion still changes freely', $('#boxMotion').value === '4x1');
  ok('and the company is untouched by it', $('#loomCompany').value === 'sritex');
+@@ -109,22 +112,36 @@ console.log('\n== a loom that drifts from its company says so ==');
+      t.replace(/\s+/g,' ').slice(0,140));
+ }
+ 
+-console.log('\n== no company mirrors the body ==');
++console.log('\n== only Sri Tex mirrors the body ==');
+ {
++  // Their body file is written back to front against their border file. Sai
++  // Tex writes both the same way round.
++  const want = { sritex: 'mirrored', saitex: 'same way round' };
+   click($$('nav.steps button').find(x=>x.dataset.go==='loom')); await wait(250);
+   for (const id of ['sritex','saitex']) {
+     setSel($('#loomCompany'), id); await wait(350);
+     click($$('nav.steps button').find(x=>x.dataset.go==='body')); await wait(300);
+     const on = $$('#opts button[data-key=mirrorBodyFile]')
+       .find(b => b.getAttribute('aria-pressed') === 'true');
+-    ok(`${id} writes the body the same way round`, on && /same way round/i.test(on.textContent),
++    ok(`${id} writes the body ${want[id]}`,
++       on && new RegExp(want[id], 'i').test(on.textContent),
+        on ? on.textContent.trim() : 'none pressed');
+-    ok('and the figures do not claim it is mirrored', !/Mirrored/.test($('#bodySummary').textContent),
++    ok(`and the figures agree for ${id}`,
++       /Mirrored/.test($('#bodySummary').textContent) === (id === 'sritex'),
+        $('#bodySummary').textContent.replace(/\s+/g,' ').slice(-70));
+     click($$('nav.steps button').find(x=>x.dataset.go==='loom')); await wait(200);
+   }
+-  ok('the switch is still there for anyone who needs it',
+-     $$('#opts button[data-key=mirrorBodyFile]').length === 0 || true);
++}
++
++console.log('\n== and it is the body file only ==');
++{
++  setSel($('#loomCompany'), 'sritex'); await wait(350);
++  click($$('nav.steps button').find(x=>x.dataset.go==='body')); await wait(300);
++  const cap = $$('#opts .cap, #opts .optcap, #opts label')
++    .map(n=>n.textContent).join(' ');
++  ok('the setting says plainly that it is the body being turned round',
++     /body file/i.test(cap), cap.replace(/\s+/g,' ').slice(0,120));
++  click($$('nav.steps button').find(x=>x.dataset.go==='loom')); await wait(200);
+ }
+ 
+ console.log('\n== result ==');

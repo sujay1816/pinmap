@@ -112,22 +112,36 @@ console.log('\n== a loom that drifts from its company says so ==');
      t.replace(/\s+/g,' ').slice(0,140));
 }
 
-console.log('\n== no company mirrors the body ==');
+console.log('\n== only Sri Tex mirrors the body ==');
 {
+  // Their body file is written back to front against their border file. Sai
+  // Tex writes both the same way round.
+  const want = { sritex: 'mirrored', saitex: 'same way round' };
   click($$('nav.steps button').find(x=>x.dataset.go==='loom')); await wait(250);
   for (const id of ['sritex','saitex']) {
     setSel($('#loomCompany'), id); await wait(350);
     click($$('nav.steps button').find(x=>x.dataset.go==='body')); await wait(300);
     const on = $$('#opts button[data-key=mirrorBodyFile]')
       .find(b => b.getAttribute('aria-pressed') === 'true');
-    ok(`${id} writes the body the same way round`, on && /same way round/i.test(on.textContent),
+    ok(`${id} writes the body ${want[id]}`,
+       on && new RegExp(want[id], 'i').test(on.textContent),
        on ? on.textContent.trim() : 'none pressed');
-    ok('and the figures do not claim it is mirrored', !/Mirrored/.test($('#bodySummary').textContent),
+    ok(`and the figures agree for ${id}`,
+       /Mirrored/.test($('#bodySummary').textContent) === (id === 'sritex'),
        $('#bodySummary').textContent.replace(/\s+/g,' ').slice(-70));
     click($$('nav.steps button').find(x=>x.dataset.go==='loom')); await wait(200);
   }
-  ok('the switch is still there for anyone who needs it',
-     $$('#opts button[data-key=mirrorBodyFile]').length === 0 || true);
+}
+
+console.log('\n== and it is the body file only ==');
+{
+  setSel($('#loomCompany'), 'sritex'); await wait(350);
+  click($$('nav.steps button').find(x=>x.dataset.go==='body')); await wait(300);
+  const cap = $$('#opts .cap, #opts .optcap, #opts label')
+    .map(n=>n.textContent).join(' ');
+  ok('the setting says plainly that it is the body being turned round',
+     /body file/i.test(cap), cap.replace(/\s+/g,' ').slice(0,120));
+  click($$('nav.steps button').find(x=>x.dataset.go==='loom')); await wait(200);
 }
 
 console.log('\n== result ==');
