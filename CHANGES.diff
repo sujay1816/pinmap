@@ -41,7 +41,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/README.md ../pinmap/READM
 Only in ../verify: WHAT-CHANGED.txt
 diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/index.html
 --- ../verify/index.html	2026-08-03 11:34:51.543374973 +0000
-+++ ../pinmap/index.html	2026-08-03 16:45:25.160296994 +0000
++++ ../pinmap/index.html	2026-08-03 17:08:13.106511782 +0000
 @@ -59,6 +59,7 @@
      --t-body:  15.5px;   /* prose */
      --t-field: 15px;     /* what you type into */
@@ -58,7 +58,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
  
    header { border-bottom: 2px solid var(--ink); padding: 20px 0 0; margin-bottom: 26px; }
    .brandline { display: flex; align-items: flex-end; gap: 18px; flex-wrap: wrap; }
-@@ -101,7 +103,10 @@
+@@ -101,12 +103,16 @@
  
    .screen[hidden] { display: none; }
    .head-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--rule); padding-bottom: 8px; margin-bottom: 18px; }
@@ -70,7 +70,13 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    .head-row .hint { margin-left: auto; font-size: var(--t-small); color: var(--ink-3); }
  
    label.field { display: block; }
-@@ -121,14 +126,24 @@
+   label.field[hidden] { display: none; }
+   .fieldnote { display: block; margin-top: 5px; font-size: var(--t-small); color: var(--ink-3); line-height: 1.4; }
++  .pvnote { font-family: var(--mono); font-size: var(--t-small); color: var(--ink-3); margin-top: 7px; }
+   label.field > .cap, .cap {
+     display: block; font-family: var(--mono); font-size: var(--t-small); letter-spacing: var(--track);
+     text-transform: uppercase; color: var(--ink-3); margin-bottom: 5px;
+@@ -121,14 +127,24 @@
    button {
      font-family: var(--mono); font-size: var(--t-small); letter-spacing: var(--track); text-transform: uppercase;
      background: #fff; color: var(--ink); border: 1px solid var(--ink); padding: 8px 13px; cursor: pointer; border-radius: 0;
@@ -96,7 +102,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    button.danger:hover:not(:disabled) { background: var(--meena); border-color: var(--meena); color: #fff; }
    .btn-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
    .spacer { margin-left: auto; }
-@@ -608,6 +623,8 @@
+@@ -608,6 +624,8 @@
       pin count are 26px, and a mis-hit there changes the pin map. A finger wants
       nearer 44px, so give it that without moving anything on a mouse. */
    @media (pointer: coarse) {
@@ -105,7 +111,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
      button.tiny { padding: 10px 14px; }
      .stepper { width: 42px; flex: 0 0 42px; min-height: 42px; }
      .grip { padding: 11px 10px; }
-@@ -791,7 +808,7 @@
+@@ -791,7 +809,7 @@
      <div class="weavelib">
        <div class="wl-head">
          <span class="cap" style="margin:0">Weave library</span>
@@ -114,16 +120,29 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
        </div>
        <div class="wl-add">
          <input type="text" id="weaveName" placeholder="name it, e.g. Murthy lock 8">
-@@ -984,7 +1001,7 @@
+@@ -872,9 +890,12 @@
+           <button class="tiny ghost" data-bzoomv="border" data-zoom="fit">Fit</button>
+           <button class="tiny ghost" data-bzoomv="border" data-zoom="1">1:1</button>
+           <button class="tiny ghost" data-bzoomv="border" data-zoom="3">3×</button>
++          <button class="tiny ghost" id="borderPvMode" aria-pressed="true">Colour groups</button>
+         </div>
+       </div>
+       <div class="pv-frame"><canvas id="borderPv" role="img" aria-label="Preview of the border file"></canvas></div>
++      <div class="legend" id="borderPvLegend"></div>
++      <div class="pvnote" id="borderPvNote"></div>
+     </div>
+     <details class="note">
+       <summary>What goes in this file</summary>
+@@ -984,7 +1005,7 @@
    for (let j = 0; j <= i; j++) if (isOne(segs[j])) n++;
    return `${base} ${n}`;
  }
 -const BUILD = "2026-08-03.22";      // bump when the file changes, so a stale page shows
-+const BUILD = "2026-08-03.25";      // bump when the file changes, so a stale page shows
++const BUILD = "2026-08-03.26";      // bump when the file changes, so a stale page shows
  /* ============================================================
     Whose software wrote the file
  
-@@ -1043,7 +1060,7 @@
+@@ -1043,7 +1064,7 @@
    pinOneLeft: true, topRowFirstPick: true, blackIsIndexZero: true,
    achuStartsBlack: true, stackMode: "interleave", weavePerDesignLine: true,
    satinWarpFaced: false, boxWholeBand: true, autoRotate: true,
@@ -132,7 +151,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
  };
  
  const COMPANIES = [
-@@ -1051,6 +1068,7 @@
+@@ -1051,6 +1072,7 @@
    { id: "saitex", name: "Sai Tex", opts: { ...COMPANY_BASE } },
    { id: "sritex", name: "Sri Tex", opts: { ...COMPANY_BASE,
        blackIsIndexZero: false,     // white is the lifted pin
@@ -140,7 +159,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
        mirrorBodyFile: true,        // their body file is written back to front
        bodyGround: "satin:2:1" } }  // and a plain ground under every weft
  ];
-@@ -1140,7 +1158,8 @@
+@@ -1140,7 +1162,8 @@
      boxWholeBand: true,
      autoRotate: true,
      weavePerDesignLine: true,
@@ -150,7 +169,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    },
    built: null,
    builtBorder: null,
-@@ -1482,7 +1501,35 @@
+@@ -1482,7 +1505,35 @@
    }
  }
  
@@ -187,7 +206,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    if (weftCount <= 1) return "none";        // one weft: nothing to choose
    if (!figureOnLine) return "none";         // plain ground line: box stays white
    return (BOX_TABLE[weftCount] || [])[weftIndex] || "none";
-@@ -1491,7 +1538,12 @@
+@@ -1491,7 +1542,12 @@
  // Each weft may carry its own box pattern. Until the user changes one, it comes
  // from the standard table for however many wefts are loaded.
  function defaultBoxPattern(count, weftIndex, weftCount) {
@@ -201,7 +220,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
  }
  
  // A pattern set by hand is kept, first for this session and then in the
-@@ -1513,8 +1565,8 @@
+@@ -1513,8 +1569,8 @@
    return defaultBoxPattern(count, weftIndex, weftCount);
  }
  
@@ -212,7 +231,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    const row = new Uint8Array(count);
    const half = Math.ceil(count / 2);
    if (plan === "all")    row.fill(1);
-@@ -1584,6 +1636,27 @@
+@@ -1584,6 +1640,27 @@
      if (o.boxWholeBand) closeBandGaps(figureOnLine);
    }
  
@@ -240,7 +259,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    // Achu goes in the border file when there is one, otherwise in the body.
    // In the body it also waits on the rani, since that is the ground it binds.
    const raniLoaded = !!(state.wefts[0] && state.wefts[0].file && !state.wefts[0].file.error);
-@@ -1649,14 +1722,20 @@
+@@ -1649,14 +1726,20 @@
  
        } else if (seg.kind === "box") {
          if (target !== "body") return;              // and so does the box
@@ -265,7 +284,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
          const r = active ? pat : new Uint8Array(seg.count);
          for (let x = 0; x < seg.count; x++) bits[rowBase + at + x] = r[x];
  
-@@ -3779,7 +3858,13 @@
+@@ -3779,7 +3862,13 @@
      host.innerHTML = `<div class="wl-empty">Nothing uploaded. The built-in satins and twills are always in the Locking row.</div>`;
      return;
    }
@@ -280,6 +299,43 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
      <div class="wl-item">
        <canvas data-weave="${esc(w.id)}" role="img" aria-label="The ${esc(w.name)} weave, ${w.pins} pins"></canvas>
        <div style="flex:1;min-width:0">
+@@ -4922,8 +5011,9 @@
+       const p = (y * w + x) * 4;
+       const up = b.bits[sy * b.width + sx];
+       let r, g, bl;
+-      if (up) [r, g, bl] = REGION_COLOUR[b.region[sx]] || [20, 24, 28];
+-      else r = g = bl = 255;
++      if (!up) r = g = bl = 255;
++      else if (state.pvColour) [r, g, bl] = REGION_COLOUR[b.region[sx]] || [20, 24, 28];
++      else r = g = bl = 0;                    // the file as the loom reads it
+       img.data[p] = r; img.data[p+1] = g; img.data[p+2] = bl; img.data[p+3] = 255;
+     }
+   }
+@@ -4931,9 +5021,24 @@
+   if (borderZoom === "fit") { cv.style.width = "100%"; cv.style.height = "auto"; }
+   el("#borderDims").textContent =
+     `${b.width} pins × ${b.height} lines${step > 1 ? ` · preview reduced ${step}×` : ""}`;
++
++  el("#borderPvMode").setAttribute("aria-pressed", String(state.pvColour));
++  el("#borderPvMode").textContent = state.pvColour ? "True black & white" : "Colour groups";
++
++  const used = new Set(state.segments.map(sg => sg.kind));
++  el("#borderPvLegend").innerHTML = !state.pvColour ? "" :
++    [...used].map(k => `<span><i style="background:${KINDS[k].colour};border-radius:0"></i>${KINDS[k].label}</span>`).join("");
++
++  // The colours are here to read the file by. They are never written: the BMP
++  // is one bit a pin either way, which is all the loom will take.
++  el("#borderPvNote").textContent = state.pvColour
++    ? "Colours mark the groups. The downloaded BMP is black and white only."
++    : "This is the file as it downloads — one bit a pin, black and white.";
+   el("#downloadBorder").disabled = false;
+ }
+ 
++el("#borderPvMode").onclick = () => { state.pvColour = !state.pvColour; renderBorderPreview(); };
++
+ el("#downloadBorder").onclick = () => {
+   const b = state.builtBorder; if (!b) return;
+   const bytes = encodeBMP1(b.bits, b.width, b.height, state.opts.blackIsIndexZero);
 diff -ru -x node_modules -x .git -x core.mjs ../verify/tests/extract.mjs ../pinmap/tests/extract.mjs
 --- ../verify/tests/extract.mjs	2026-08-03 11:34:51.545163124 +0000
 +++ ../pinmap/tests/extract.mjs	2026-08-03 16:20:35.085928019 +0000
@@ -393,3 +449,4 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/tests/ui/20-inputs.mjs ..
  console.log('\n== the app never shows its own workings ==');
  {
    const src=fs.readFileSync(process.argv[2],'utf8');
+Only in ../pinmap/tests/ui: 21-border-mono.mjs

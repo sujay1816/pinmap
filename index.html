@@ -112,6 +112,7 @@
   label.field { display: block; }
   label.field[hidden] { display: none; }
   .fieldnote { display: block; margin-top: 5px; font-size: var(--t-small); color: var(--ink-3); line-height: 1.4; }
+  .pvnote { font-family: var(--mono); font-size: var(--t-small); color: var(--ink-3); margin-top: 7px; }
   label.field > .cap, .cap {
     display: block; font-family: var(--mono); font-size: var(--t-small); letter-spacing: var(--track);
     text-transform: uppercase; color: var(--ink-3); margin-bottom: 5px;
@@ -889,9 +890,12 @@
           <button class="tiny ghost" data-bzoomv="border" data-zoom="fit">Fit</button>
           <button class="tiny ghost" data-bzoomv="border" data-zoom="1">1:1</button>
           <button class="tiny ghost" data-bzoomv="border" data-zoom="3">3×</button>
+          <button class="tiny ghost" id="borderPvMode" aria-pressed="true">Colour groups</button>
         </div>
       </div>
       <div class="pv-frame"><canvas id="borderPv" role="img" aria-label="Preview of the border file"></canvas></div>
+      <div class="legend" id="borderPvLegend"></div>
+      <div class="pvnote" id="borderPvNote"></div>
     </div>
     <details class="note">
       <summary>What goes in this file</summary>
@@ -1001,7 +1005,7 @@ function labelFor(segs, i) {
   for (let j = 0; j <= i; j++) if (isOne(segs[j])) n++;
   return `${base} ${n}`;
 }
-const BUILD = "2026-08-03.25";      // bump when the file changes, so a stale page shows
+const BUILD = "2026-08-03.26";      // bump when the file changes, so a stale page shows
 /* ============================================================
    Whose software wrote the file
 
@@ -5007,8 +5011,9 @@ function renderBorderPreview() {
       const p = (y * w + x) * 4;
       const up = b.bits[sy * b.width + sx];
       let r, g, bl;
-      if (up) [r, g, bl] = REGION_COLOUR[b.region[sx]] || [20, 24, 28];
-      else r = g = bl = 255;
+      if (!up) r = g = bl = 255;
+      else if (state.pvColour) [r, g, bl] = REGION_COLOUR[b.region[sx]] || [20, 24, 28];
+      else r = g = bl = 0;                    // the file as the loom reads it
       img.data[p] = r; img.data[p+1] = g; img.data[p+2] = bl; img.data[p+3] = 255;
     }
   }
@@ -5016,8 +5021,23 @@ function renderBorderPreview() {
   if (borderZoom === "fit") { cv.style.width = "100%"; cv.style.height = "auto"; }
   el("#borderDims").textContent =
     `${b.width} pins × ${b.height} lines${step > 1 ? ` · preview reduced ${step}×` : ""}`;
+
+  el("#borderPvMode").setAttribute("aria-pressed", String(state.pvColour));
+  el("#borderPvMode").textContent = state.pvColour ? "True black & white" : "Colour groups";
+
+  const used = new Set(state.segments.map(sg => sg.kind));
+  el("#borderPvLegend").innerHTML = !state.pvColour ? "" :
+    [...used].map(k => `<span><i style="background:${KINDS[k].colour};border-radius:0"></i>${KINDS[k].label}</span>`).join("");
+
+  // The colours are here to read the file by. They are never written: the BMP
+  // is one bit a pin either way, which is all the loom will take.
+  el("#borderPvNote").textContent = state.pvColour
+    ? "Colours mark the groups. The downloaded BMP is black and white only."
+    : "This is the file as it downloads — one bit a pin, black and white.";
   el("#downloadBorder").disabled = false;
 }
+
+el("#borderPvMode").onclick = () => { state.pvColour = !state.pvColour; renderBorderPreview(); };
 
 el("#downloadBorder").onclick = () => {
   const b = state.builtBorder; if (!b) return;

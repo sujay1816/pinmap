@@ -1,15 +1,16 @@
-Pinmap — build 2026-08-03.25
+Pinmap — build 2026-08-03.26
 ============================
 
-Everything changed since build .22 on GitHub: the fonts and buttons,
-the Sri Tex box rule, and now the weave library guidance.
+Everything since build .22 on GitHub: fonts and buttons, the Sri Tex box
+rule, the weave library guidance, and now the border preview switch.
 
-  index.html              Sri Tex box scheme, per-weft figure test,
-                          fonts/buttons, weave library guidance
-  README.md               box rule and the confirmed loom layout
-  tests/extract.mjs       exports SRITEX_BOX
-  tests/logic/25.mjs      NEW: the box rule end to end
-  tests/logic/24.mjs      one assertion narrowed off the box columns
-  tests/ui/20-inputs.mjs  adds the weave-library path
+  index.html                  border preview reads black and white;
+                              plus everything above
+  README.md                   box rule and confirmed loom layout
+  tests/extract.mjs           exports SRITEX_BOX
+  tests/logic/25.mjs          NEW: the Sri Tex box rule
+  tests/logic/24.mjs          one assertion narrowed off the box columns
+  tests/ui/20-inputs.mjs      weave library path
+  tests/ui/21-border-mono.mjs NEW: the border preview and what gets written
 
   npm test  ->  471 checks, all passing
