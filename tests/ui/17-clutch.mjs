@@ -42,8 +42,16 @@ console.log('\n== choosing Sri Tex ==');
 setVal($('#loomName'),'Clutch loom'); setVal($('#totalDeclared'),'1824');
 setSel($('#loomCompany'), 'sritex'); await wait(350);
 ok('the field appears', $('#clutchField').hidden === false);
-ok('left is what it assumes', $('#loomClutch').value === 'left');
-ok('and an empty group arrives with it', /the clutch/.test($('#segTable').textContent));
+// Their own 1568-pin loom uses pin 1 for the achu, so nothing is set aside
+// until someone says which end the clutch is on.
+ok('nothing is assumed', $('#loomClutch').value === 'none');
+ok('and no pins are taken', !/the clutch/.test($('#segTable').textContent));
+ok('the note says so plainly', /Nothing is set aside/.test($('#clutchNote').textContent),
+   $('#clutchNote').textContent.slice(0,60));
+
+console.log('\n== saying which end ==');
+setSel($('#loomClutch'), 'left'); await wait(350);
+ok('an empty group arrives', /the clutch/.test($('#segTable').textContent));
 ok('at the front, for a left clutch', kinds()[0] === 'empty', kinds().join(','));
 ok('holding 32 pins', counts()[0] === '32', counts()[0]);
 ok('the note says where they are', /32 pins/.test($('#clutchNote').textContent) && /left/.test($('#clutchNote').textContent),
@@ -78,6 +86,14 @@ console.log('\n== it can be taken off ==');
   setSel($('#loomClutch'), 'left'); await wait(350);
   ok('changing the end puts it back', counts()[0] === '32', counts()[0]);
   setSel($('#loomClutch'), 'right'); await wait(350);
+}
+
+console.log('\n== and taking it off again ==');
+{
+  setSel($('#loomClutch'), 'none'); await wait(350);
+  ok('choosing no clutch removes the group', !/the clutch/.test($('#segTable').textContent), kinds().join(','));
+  setSel($('#loomClutch'), 'right'); await wait(350);
+  ok('and asking again brings it back', /the clutch/.test($('#segTable').textContent));
 }
 
 console.log('\n== leaving Sri Tex ==');

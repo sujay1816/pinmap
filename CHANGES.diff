@@ -77,7 +77,7 @@ index d38823e..e4794b1 100644
  
  | What | Kept in |
 diff --git a/index.html b/index.html
-index a0e6727..9b9b767 100644
+index a0e6727..1987cf8 100644
 --- a/index.html
 +++ b/index.html
 @@ -89,6 +89,8 @@
@@ -89,13 +89,14 @@ index a0e6727..9b9b767 100644
    label.field > .cap, .cap {
      display: block; font-family: var(--mono); font-size: var(--t-small); letter-spacing: var(--track);
      text-transform: uppercase; color: var(--ink-3); margin-bottom: 5px;
-@@ -727,6 +729,14 @@
+@@ -727,6 +729,15 @@
            <option value="4x1">4 by 1</option>
          </select>
        </label>
 +      <label class="field" id="clutchField" hidden>
 +        <span class="cap">Clutch end</span>
 +        <select id="loomClutch">
++          <option value="none">No clutch pins</option>
 +          <option value="left">Left clutch</option>
 +          <option value="right">Right clutch</option>
 +        </select>
@@ -104,7 +105,7 @@ index a0e6727..9b9b767 100644
      </div>
  
      <div class="alloc" id="alloc"></div>
-@@ -934,13 +944,15 @@ const UNALLOCATED = { label: "Not allocated", colour: "#FFFFFF", code: 8 };
+@@ -934,13 +945,15 @@ const UNALLOCATED = { label: "Not allocated", colour: "#FFFFFF", code: 8 };
  
  // A group's name is its group. Where the same group is used twice, number them.
  function labelFor(segs, i) {
@@ -119,11 +120,11 @@ index a0e6727..9b9b767 100644
    return `${base} ${n}`;
  }
 -const BUILD = "2026-07-31.13";      // bump when the file changes, so a stale page shows
-+const BUILD = "2026-08-03.15";      // bump when the file changes, so a stale page shows
++const BUILD = "2026-08-03.16";      // bump when the file changes, so a stale page shows
  /* ============================================================
     Whose software wrote the file
  
-@@ -957,26 +969,42 @@ const BUILD = "2026-07-31.13";      // bump when the file changes, so a stale pa
+@@ -957,26 +970,42 @@ const BUILD = "2026-07-31.13";      // bump when the file changes, so a stale pa
     where we write black. This was read off their border file and is not
     in doubt.
  
@@ -182,7 +183,7 @@ index a0e6727..9b9b767 100644
     ============================================================ */
  
  const COMPANY_BASE = {
-@@ -991,12 +1019,33 @@ const COMPANIES = [
+@@ -991,12 +1020,34 @@ const COMPANIES = [
    { id: "saitex", name: "Sai Tex", opts: { ...COMPANY_BASE } },
    { id: "sritex", name: "Sri Tex", opts: { ...COMPANY_BASE,
        blackIsIndexZero: false,     // white is the lifted pin
@@ -211,20 +212,21 @@ index a0e6727..9b9b767 100644
 +const CLUTCH_PINS = 32;                       // how many the clutch takes
 +const CLUTCH_COMPANIES = ["sritex"];          // whose looms are asked the question
 +const companyHasClutch = (id) => CLUTCH_COMPANIES.includes(id || "");
-+const clutchLabel = (v) => (v === "right" ? "Right clutch" : "Left clutch");
++const clutchLabel = (v) => v === "right" ? "Right clutch"
++                         : v === "left"  ? "Left clutch" : "No clutch pins";
 +
  function applyCompany(id) {
    const c = companyById(id);
    if (!c.opts) return false;
-@@ -1035,6 +1084,7 @@ const state = {
+@@ -1035,6 +1086,7 @@ const state = {
    totalDeclared: 0,
    boxMotion: "4x4",
    company: "",
-+  clutch: "left",
++  clutch: "none",
    version: 1,
    segments: [],
    borderFiles: {},                 // one file per border group, keyed by group id
-@@ -1100,6 +1150,16 @@ function anyFile() {
+@@ -1100,6 +1152,16 @@ function anyFile() {
  const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
  const sumPins = (segs) => segs.reduce((n, s) => n + (s.count || 0), 0);
  
@@ -241,7 +243,7 @@ index a0e6727..9b9b767 100644
  /* ============================================================
     BMP decoding — returns 1 where the pin is up (black)
     ============================================================ */
-@@ -2067,9 +2127,9 @@ function sessionDoc() {
+@@ -2067,9 +2129,9 @@ function sessionDoc() {
      format: "pinmap.session", savedAt: new Date().toISOString(),
      draft: {
        name: state.loomName, totalPins: state.totalDeclared, boxMotion: state.boxMotion,
@@ -254,7 +256,7 @@ index a0e6727..9b9b767 100644
      },
      opts: { ...state.opts },
      activeName: state.activeName,
-@@ -2118,8 +2178,10 @@ async function loadSession() {
+@@ -2118,8 +2180,10 @@ async function loadSession() {
      state.segments = d.segments.map(sg => {
        const seg = { id: nextId(), kind: KINDS[sg.kind] ? sg.kind : "empty", count: parseInt(sg.count, 10) || 0 };
        if (sg.weave) seg.weave = sg.weave;
@@ -265,14 +267,15 @@ index a0e6727..9b9b767 100644
    }
  }
  
-@@ -2184,6 +2246,23 @@ function normalBoxMotion(v) {
+@@ -2184,6 +2248,24 @@ function normalBoxMotion(v) {
    return (v === "4x1" || v === "2x1") ? "4x1" : "4x4";
  }
  
-+// Looms registered before the clutch was asked about carry nothing at all,
-+// and read as a left clutch — which is what they were drawn as.
++// Three answers, not two. Not every Sri Tex loom gives pins up to a clutch —
++// their own 1568-pin sample uses pin 1 for the achu — so the question starts
++// unanswered and nothing is added until someone says which end.
 +function normalClutch(v) {
-+  return v === "right" ? "right" : "left";
++  return v === "left" || v === "right" ? v : "none";
 +}
 +
 +// Which end the clutch is on: what the file says, or failing that, whichever
@@ -282,14 +285,14 @@ index a0e6727..9b9b767 100644
 +  if (doc && doc.clutch) return normalClutch(doc.clutch);
 +  const list = segs || [];
 +  const at = list.findIndex(s => s && s.role === "clutch");
-+  if (at < 0) return "left";
++  if (at < 0) return "none";                 // no group, so no clutch was set
 +  return at >= list.length - 1 ? "right" : "left";
 +}
 +
  function newerOf(a, b) {
    return ((b && b.savedAt) || "") > ((a && a.savedAt) || "") ? b : a;
  }
-@@ -2645,9 +2724,10 @@ function pinMapDoc() {
+@@ -2645,9 +2727,10 @@ function pinMapDoc() {
      totalPins: state.totalDeclared || allocated(),
      boxMotion: normalBoxMotion(state.boxMotion),
      company: state.company || "",
@@ -301,7 +304,7 @@ index a0e6727..9b9b767 100644
      options: { ...state.opts },
      history: []
    };
-@@ -2673,11 +2753,13 @@ function adoptDoc(doc) {
+@@ -2673,11 +2756,13 @@ function adoptDoc(doc) {
      const seg = { id: nextId(), kind, count: parseInt(s.count, 10) || 0 };
      if (s.weave) seg.weave = s.weave;
      else if (s.step && stepIsValid(seg.count, parseInt(s.step, 10))) seg.weave = `satin:${seg.count}:${s.step}`;
@@ -315,7 +318,7 @@ index a0e6727..9b9b767 100644
    Object.assign(state.opts, doc.options || {});
    state.borderFiles = {};
    state.wefts = freshWefts();
-@@ -2760,7 +2842,7 @@ function renderLoomList() {
+@@ -2760,7 +2845,7 @@ function renderLoomList() {
      return `<div class="loomcard ${isActive ? "active" : ""}">
        ${isActive ? `<span class="usetag">in use</span>` : ""}
        <h3>${esc(l.name)}</h3>
@@ -324,7 +327,7 @@ index a0e6727..9b9b767 100644
        <div style="margin-top:11px">${miniRuler(l.segments, total)}</div>
        <div style="margin-top:10px">${pills}</div>
        <div class="when">${whenText(l.lastUsedAt)}</div>
-@@ -2820,13 +2902,48 @@ function applyDefaultLayout() {
+@@ -2820,11 +2905,45 @@ function applyDefaultLayout() {
      weave ? { id: nextId(), kind, count, weave } : { id: nextId(), kind, count });
  }
  
@@ -366,14 +369,11 @@ index a0e6727..9b9b767 100644
    state.loomName = "";
    state.totalDeclared = 0;
    state.boxMotion = "4x4";
-+  state.clutch = "left";
++  state.clutch = "none";
    state.version = 1;
    applyDefaultLayout();
-+  if (companyHasClutch(state.company)) applyClutchGroup(state.clutch);
    state.built = null; state.builtBorder = null;
-   go("loom");
- }
-@@ -3544,7 +3661,9 @@ function renderSegs() {
+@@ -3544,7 +3663,9 @@ function renderSegs() {
            ${chosen ? "" : `<option value="" selected>— choose a weave —</option>`}
          </select></div>`;
      } else {
@@ -384,15 +384,15 @@ index a0e6727..9b9b767 100644
      }
      html += `<div class="seg-row" data-row="${sg.id}">
        <div class="griphold">
-@@ -3587,6 +3706,7 @@ els("[data-add]").forEach(b => b.onclick = () => addSeg(b.dataset.add));
+@@ -3587,6 +3708,7 @@ els("[data-add]").forEach(b => b.onclick = () => addSeg(b.dataset.add));
  el("#starter").onclick = () => {
    if (state.segments.length && !confirm("Replace the current groups with the standard order?")) return;
    applyDefaultLayout();
-+  if (companyHasClutch(state.company)) applyClutchGroup(state.clutch);
++  if (companyHasClutch(state.company) && state.clutch !== "none") applyClutchGroup(state.clutch);
    state.built = null; state.builtBorder = null; renderLoomScreen();
  };
  
-@@ -3614,14 +3734,44 @@ function renderCompany() {
+@@ -3614,14 +3736,55 @@ function renderCompany() {
      `<option value="${c.id}"${(state.company || "") === c.id ? " selected" : ""}>${esc(c.name)}</option>`).join("");
  }
  
@@ -403,10 +403,12 @@ index a0e6727..9b9b767 100644
 +  const show = companyHasClutch(state.company);
 +  field.hidden = !show;
 +  if (!show) return;
-+  sel.value = normalClutch(state.clutch);
++  const side = normalClutch(state.clutch);
++  sel.value = side;
 +  const seg = clutchSeg();
-+  if (note) note.textContent = seg
-+    ? `${seg.count} pins kept empty at the ${normalClutch(state.clutch)} end. Move or resize the group like any other.`
++  if (note) note.textContent =
++      side === "none" ? "Nothing is set aside. Their own 1568-pin loom uses pin 1, so only say otherwise if this loom really gives pins up to a clutch."
++    : seg ? `${seg.count} pins kept empty at the ${side} end. Move or resize the group like any other.`
 +    : "The empty group has been removed. Change this to put it back.";
 +}
 +
@@ -414,7 +416,7 @@ index a0e6727..9b9b767 100644
    state.company = e.target.value;
    const applied = applyCompany(state.company);
 +  let clutchMsg = "";
-+  if (companyHasClutch(state.company)) {
++  if (companyHasClutch(state.company) && normalClutch(state.clutch) !== "none") {
 +    const seg = applyClutchGroup(state.clutch);
 +    clutchMsg = ` ${seg.count} pins are held empty at the ${normalClutch(state.clutch)} end for the clutch.`;
 +  } else if (removeClutchGroup(true)) {
@@ -433,14 +435,23 @@ index a0e6727..9b9b767 100644
 +el("#loomClutch").addEventListener("change", e => {
 +  state.clutch = normalClutch(e.target.value);
 +  if (!companyHasClutch(state.company)) return;
-+  const seg = applyClutchGroup(state.clutch);
++  let msg;
++  if (state.clutch === "none") {
++    // asked for plainly, so it goes, whatever its count
++    msg = removeClutchGroup(false)
++      ? "No clutch pins. The empty group has been taken off."
++      : "No clutch pins.";
++  } else {
++    const seg = applyClutchGroup(state.clutch);
++    msg = `${clutchLabel(state.clutch)}. The ${seg.count} empty pins now sit at the ${state.clutch} end.`;
++  }
 +  state.built = null; state.builtBorder = null;
 +  renderLoomScreen(); scheduleSave();
-+  notify(`${clutchLabel(state.clutch)}. The ${seg.count} empty pins now sit at the ${state.clutch} end.`);
++  notify(msg);
  });
  
  el("#boxMotion").addEventListener("change", e => {
-@@ -3645,7 +3795,7 @@ function handleSegInput(e) {
+@@ -3645,7 +3808,7 @@ function handleSegInput(e) {
    if (act === "count") {
      s.count = Math.max(0, parseInt(t.value, 10) || 0);
      state.built = null; state.builtBorder = null;
@@ -449,7 +460,7 @@ index a0e6727..9b9b767 100644
      els("#segTable .seg-range").forEach((cell, i) => {
        let from = 1;
        for (let j = 0; j < i; j++) from += state.segments[j].count || 0;
-@@ -3663,6 +3813,7 @@ function handleSegInput(e) {
+@@ -3663,6 +3826,7 @@ function handleSegInput(e) {
    }
    if (act === "kind") {
      s.kind = t.value;
@@ -457,7 +468,7 @@ index a0e6727..9b9b767 100644
      if (s.kind === "locking" && !s.weave) { s.weave = "satin:8:3"; s.count = 8; }
      if (s.kind !== "locking") delete s.weave;
      forgetSideHighlights();
-@@ -3803,6 +3954,7 @@ function renderLoomScreen() {
+@@ -3803,6 +3967,7 @@ function renderLoomScreen() {
    el("#totalDeclared").value = state.totalDeclared || "";
    el("#boxMotion").value = normalBoxMotion(state.boxMotion);
    renderCompany();
@@ -507,20 +518,21 @@ index f6bf01d..fd3cc4d 100644
    const src = { width:720, height:60, bits:new Uint8Array(720*60) };
    for (let i=0;i<src.bits.length;i++) src.bits[i] = (i % 97 === 0) ? 1 : 0;
 diff --git a/tests/ui/16-company.mjs b/tests/ui/16-company.mjs
-index 56e12e4..66ad7df 100644
+index 56e12e4..42775d2 100644
 --- a/tests/ui/16-company.mjs
 +++ b/tests/ui/16-company.mjs
-@@ -49,6 +49,9 @@ setVal($('#loomName'),'Company'); setVal($('#totalDeclared'),'1792');
+@@ -49,6 +49,10 @@ setVal($('#loomName'),'Company'); setVal($('#totalDeclared'),'1792');
  await wait(600);
  setSel($('#loomCompany'), 'sritex'); await wait(300);
  ok('it holds the choice', $('#loomCompany').value === 'sritex');
-+// Sri Tex brings a clutch group with it, so the loom needs 32 more pins.
-+ok('it brings the clutch group', /the clutch/.test($('#segTable').textContent));
-+setVal($('#totalDeclared'),'1824'); await wait(300);
++// Sri Tex asks about the clutch but assumes nothing, so the pin map is
++// left exactly as it was.
++ok('it asks about the clutch', $('#clutchField').hidden === false);
++ok('but takes no pins without being told to', !/the clutch/.test($('#segTable').textContent));
  setSel($('#boxMotion'), '4x1'); await wait(250);
  ok('box motion still changes freely', $('#boxMotion').value === '4x1');
  ok('and the company is untouched by it', $('#loomCompany').value === 'sritex');
-@@ -109,22 +112,36 @@ console.log('\n== a loom that drifts from its company says so ==');
+@@ -109,22 +113,36 @@ console.log('\n== a loom that drifts from its company says so ==');
       t.replace(/\s+/g,' ').slice(0,140));
  }
  

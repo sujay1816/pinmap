@@ -732,6 +732,7 @@
       <label class="field" id="clutchField" hidden>
         <span class="cap">Clutch end</span>
         <select id="loomClutch">
+          <option value="none">No clutch pins</option>
           <option value="left">Left clutch</option>
           <option value="right">Right clutch</option>
         </select>
@@ -952,7 +953,7 @@ function labelFor(segs, i) {
   for (let j = 0; j <= i; j++) if (isOne(segs[j])) n++;
   return `${base} ${n}`;
 }
-const BUILD = "2026-08-03.15";      // bump when the file changes, so a stale page shows
+const BUILD = "2026-08-03.16";      // bump when the file changes, so a stale page shows
 /* ============================================================
    Whose software wrote the file
 
@@ -1044,7 +1045,8 @@ const companyName = (id) => companyById(id).name;
 const CLUTCH_PINS = 32;                       // how many the clutch takes
 const CLUTCH_COMPANIES = ["sritex"];          // whose looms are asked the question
 const companyHasClutch = (id) => CLUTCH_COMPANIES.includes(id || "");
-const clutchLabel = (v) => (v === "right" ? "Right clutch" : "Left clutch");
+const clutchLabel = (v) => v === "right" ? "Right clutch"
+                         : v === "left"  ? "Left clutch" : "No clutch pins";
 
 function applyCompany(id) {
   const c = companyById(id);
@@ -1084,7 +1086,7 @@ const state = {
   totalDeclared: 0,
   boxMotion: "4x4",
   company: "",
-  clutch: "left",
+  clutch: "none",
   version: 1,
   segments: [],
   borderFiles: {},                 // one file per border group, keyed by group id
@@ -2246,10 +2248,11 @@ function normalBoxMotion(v) {
   return (v === "4x1" || v === "2x1") ? "4x1" : "4x4";
 }
 
-// Looms registered before the clutch was asked about carry nothing at all,
-// and read as a left clutch — which is what they were drawn as.
+// Three answers, not two. Not every Sri Tex loom gives pins up to a clutch —
+// their own 1568-pin sample uses pin 1 for the achu — so the question starts
+// unanswered and nothing is added until someone says which end.
 function normalClutch(v) {
-  return v === "right" ? "right" : "left";
+  return v === "left" || v === "right" ? v : "none";
 }
 
 // Which end the clutch is on: what the file says, or failing that, whichever
@@ -2259,7 +2262,7 @@ function clutchSideOf(doc, segs) {
   if (doc && doc.clutch) return normalClutch(doc.clutch);
   const list = segs || [];
   const at = list.findIndex(s => s && s.role === "clutch");
-  if (at < 0) return "left";
+  if (at < 0) return "none";                 // no group, so no clutch was set
   return at >= list.length - 1 ? "right" : "left";
 }
 
@@ -2940,10 +2943,9 @@ function startNewLoom() {
   state.loomName = "";
   state.totalDeclared = 0;
   state.boxMotion = "4x4";
-  state.clutch = "left";
+  state.clutch = "none";
   state.version = 1;
   applyDefaultLayout();
-  if (companyHasClutch(state.company)) applyClutchGroup(state.clutch);
   state.built = null; state.builtBorder = null;
   go("loom");
 }
@@ -3706,7 +3708,7 @@ els("[data-add]").forEach(b => b.onclick = () => addSeg(b.dataset.add));
 el("#starter").onclick = () => {
   if (state.segments.length && !confirm("Replace the current groups with the standard order?")) return;
   applyDefaultLayout();
-  if (companyHasClutch(state.company)) applyClutchGroup(state.clutch);
+  if (companyHasClutch(state.company) && state.clutch !== "none") applyClutchGroup(state.clutch);
   state.built = null; state.builtBorder = null; renderLoomScreen();
 };
 
@@ -3741,10 +3743,12 @@ function renderClutch() {
   const show = companyHasClutch(state.company);
   field.hidden = !show;
   if (!show) return;
-  sel.value = normalClutch(state.clutch);
+  const side = normalClutch(state.clutch);
+  sel.value = side;
   const seg = clutchSeg();
-  if (note) note.textContent = seg
-    ? `${seg.count} pins kept empty at the ${normalClutch(state.clutch)} end. Move or resize the group like any other.`
+  if (note) note.textContent =
+      side === "none" ? "Nothing is set aside. Their own 1568-pin loom uses pin 1, so only say otherwise if this loom really gives pins up to a clutch."
+    : seg ? `${seg.count} pins kept empty at the ${side} end. Move or resize the group like any other.`
     : "The empty group has been removed. Change this to put it back.";
 }
 
@@ -3752,7 +3756,7 @@ el("#loomCompany").addEventListener("change", e => {
   state.company = e.target.value;
   const applied = applyCompany(state.company);
   let clutchMsg = "";
-  if (companyHasClutch(state.company)) {
+  if (companyHasClutch(state.company) && normalClutch(state.clutch) !== "none") {
     const seg = applyClutchGroup(state.clutch);
     clutchMsg = ` ${seg.count} pins are held empty at the ${normalClutch(state.clutch)} end for the clutch.`;
   } else if (removeClutchGroup(true)) {
@@ -3768,10 +3772,19 @@ el("#loomCompany").addEventListener("change", e => {
 el("#loomClutch").addEventListener("change", e => {
   state.clutch = normalClutch(e.target.value);
   if (!companyHasClutch(state.company)) return;
-  const seg = applyClutchGroup(state.clutch);
+  let msg;
+  if (state.clutch === "none") {
+    // asked for plainly, so it goes, whatever its count
+    msg = removeClutchGroup(false)
+      ? "No clutch pins. The empty group has been taken off."
+      : "No clutch pins.";
+  } else {
+    const seg = applyClutchGroup(state.clutch);
+    msg = `${clutchLabel(state.clutch)}. The ${seg.count} empty pins now sit at the ${state.clutch} end.`;
+  }
   state.built = null; state.builtBorder = null;
   renderLoomScreen(); scheduleSave();
-  notify(`${clutchLabel(state.clutch)}. The ${seg.count} empty pins now sit at the ${state.clutch} end.`);
+  notify(msg);
 });
 
 el("#boxMotion").addEventListener("change", e => {
