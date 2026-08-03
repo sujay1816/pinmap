@@ -220,6 +220,31 @@ console.log('\n== a finger, not a mouse ==');
   note('including the pin-count steppers', !/\.stepper/.test(coarse));
 }
 
+console.log('\n== buttons ==');
+{
+  const css = w.document.querySelector('style').textContent;
+  note('a press is felt, not just hoped for', !/button:active:not\(:disabled\)/.test(css));
+  note('and hover does not snap', !/button\s*\{[^}]*transition:/.test(css));
+  // A delete button that looks like every other button is found by accident.
+  note('a destructive button says so before it is hovered',
+       !/button\.danger\s*\{[^}]*color:\s*var\(--meena\)/.test(css));
+  note('the grey tap flash is replaced, not merely removed',
+       !/tap-highlight-color/.test(css) || !/button:active/.test(css));
+  note('a double click does not select the label', !/user-select:\s*none/.test(css));
+}
+
+console.log('\n== type ==');
+{
+  const css = w.document.querySelector('style').textContent;
+  note('the screen title has a size of its own in the scale', !/--t-head/.test(css));
+  // iOS Safari zooms the whole page when a field under 16px takes focus, and
+  // the weaver has to pinch back out to see the pin map.
+  const coarse = (css.match(/@media \(pointer: coarse\)\s*\{[\s\S]*?\n  \}/) || [''])[0];
+  note('fields do not make a phone zoom in on focus',
+       !/font-size:\s*16px/.test(coarse) || !/input\[type=text\]/.test(coarse));
+  note('long titles are allowed to balance', !/text-wrap:\s*balance/.test(css));
+}
+
 console.log('\n== result ==');
 if (found.length){ console.log('  '+found.length+' problem(s)'); found.forEach(e=>console.log('   - '+e)); }
 else console.log('  no errors');

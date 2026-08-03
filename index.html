@@ -59,6 +59,7 @@
     --t-body:  15.5px;   /* prose */
     --t-field: 15px;     /* what you type into */
     --t-fig:   17px;     /* numbers worth reading across a room */
+    --t-head:  18.5px;   /* the title of a screen */
     --track:   0.09em;   /* uppercase tracking, tighter than before */
   }
   * { box-sizing: border-box; }
@@ -69,6 +70,7 @@
     -webkit-font-smoothing: antialiased;
   }
   .wrap { max-width: 1060px; margin: 0 auto; padding: 0 20px 96px; }
+  p, .fine, .tagline, .hint, .fieldnote, .wl-note { text-wrap: pretty; }
 
   header { border-bottom: 2px solid var(--ink); padding: 20px 0 0; margin-bottom: 26px; }
   .brandline { display: flex; align-items: flex-end; gap: 18px; flex-wrap: wrap; }
@@ -101,7 +103,10 @@
 
   .screen[hidden] { display: none; }
   .head-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--rule); padding-bottom: 8px; margin-bottom: 18px; }
-  .head-row h2 { font-size: 17px; font-weight: 650; margin: 0; letter-spacing: -0.01em; }
+  /* The screen title used to sit 1.5px above body text, which at arm's length
+     is no hierarchy at all. Far enough above the prose now to be found without
+     crowding the wordmark. text-wrap keeps a title off a lonely second line. */
+  .head-row h2 { font-size: var(--t-head); font-weight: 650; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
   .head-row .hint { margin-left: auto; font-size: var(--t-small); color: var(--ink-3); }
 
   label.field { display: block; }
@@ -121,14 +126,24 @@
   button {
     font-family: var(--mono); font-size: var(--t-small); letter-spacing: var(--track); text-transform: uppercase;
     background: #fff; color: var(--ink); border: 1px solid var(--ink); padding: 8px 13px; cursor: pointer; border-radius: 0;
+    /* A press should be felt. Without this a button gave nothing back until the
+       screen redrew, which on a slow shed PC reads as a click that missed. */
+    transition: background-color .12s ease, color .12s ease, border-color .12s ease, transform .06s ease;
+    -webkit-tap-highlight-color: transparent;   /* the grey flash, replaced by :active below */
+    user-select: none;                          /* a double click should not select the label */
   }
   button:hover:not(:disabled) { background: var(--ink); color: #fff; }
-  button:disabled { opacity: 0.35; cursor: not-allowed; }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  button:disabled { opacity: 0.42; cursor: not-allowed; }
   button.ghost { border-color: var(--rule); color: var(--ink-2); }
   button.ghost:hover:not(:disabled) { background: var(--ink-2); border-color: var(--ink-2); color: #fff; }
   button.tiny { padding: 4px 8px; font-size: var(--t-small); letter-spacing: 0.05em; }
   button.solid { background: var(--ink); color: #fff; }
   button.solid:hover:not(:disabled) { background: #000; }
+  /* A button that destroys something should say so before it is hovered, not
+     after. Restrained at rest — the word in red, the frame left alone — and
+     unmistakable once it is under the pointer. */
+  button.danger { color: var(--meena); }
   button.danger:hover:not(:disabled) { background: var(--meena); border-color: var(--meena); color: #fff; }
   .btn-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
   .spacer { margin-left: auto; }
@@ -608,6 +623,8 @@
      pin count are 26px, and a mis-hit there changes the pin map. A finger wants
      nearer 44px, so give it that without moving anything on a mouse. */
   @media (pointer: coarse) {
+    /* Anything under 16px makes iOS Safari zoom the page on focus. */
+    input[type=text], input[type=number], input[type=search], select, textarea { font-size: 16px; }
     button.tiny { padding: 10px 14px; }
     .stepper { width: 42px; flex: 0 0 42px; min-height: 42px; }
     .grip { padding: 11px 10px; }
@@ -984,7 +1001,7 @@ function labelFor(segs, i) {
   for (let j = 0; j <= i; j++) if (isOne(segs[j])) n++;
   return `${base} ${n}`;
 }
-const BUILD = "2026-08-03.22";      // bump when the file changes, so a stale page shows
+const BUILD = "2026-08-03.23";      // bump when the file changes, so a stale page shows
 /* ============================================================
    Whose software wrote the file
 
