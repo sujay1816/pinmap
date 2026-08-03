@@ -75,6 +75,21 @@ console.log('\n== the steps read as steps ==');
   const cur=btns.filter(b=>b.getAttribute('aria-current'));
   ok('exactly one is current, and it says how', cur.length===1 && cur[0].getAttribute('aria-current')==='step',
      cur.map(b=>b.getAttribute('aria-current')).join(','));
+
+  // The stylesheet once looked for aria-current="true" while the code set
+  // "step", so the step you were on had no underline at all. Whatever token
+  // the code uses, the rule that highlights it has to match.
+  const css = D.querySelector('style').textContent;
+  const rules = [...css.matchAll(/(nav\.steps button\[aria-current[^\]]*\])/g)].map(m=>m[1]);
+  ok('the stylesheet has a rule for the current step', rules.length>0);
+  ok('and that rule actually matches the current step',
+     rules.length>0 && cur.length===1 && rules.every(r=>cur[0].matches(r)),
+     rules.join(' , '));
+  ok('while the others do not match it',
+     rules.length>0 && btns.filter(b=>b!==cur[0]).every(b=>rules.every(r=>!b.matches(r))));
+
+  // "01" and "Looms" must not run together into one word.
+  ok('the number is set apart from the name', /\.no\s*\{[^}]*margin-right/.test(css));
 }
 
 console.log('\n== what a bad file says ==');

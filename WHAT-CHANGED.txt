@@ -1,18 +1,18 @@
-Pinmap — interface pass (build 2026-08-03.21)
+Pinmap — interface pass (build 2026-08-03.22)
 =============================================
 
 Everything changed since build .18, which is what is on GitHub now.
-This supersedes the earlier pinmap-ui zip.
+Supersedes the earlier pinmap-ui zips.
 
   index.html                   doctype + lang, favicon, accessible names,
                                live regions, touch targets, copy trimmed,
-                               number fields normalised, step nav labelled,
-                               raw error text no longer reaches the screen
+                               number fields normalised, file errors no
+                               longer show raw JavaScript, step nav fixed
   package.json / -lock.json    jsdom 24 -> 26
   tests/ui/14-audit.mjs        interface checks
   tests/ui/20-inputs.mjs       NEW: fields, step nav, file error messages
-  tests/ui/01-walkthrough.mjs  } updated for the new wording — they test
-  tests/ui/11-achu-switch.mjs  } the same behaviour, not the old phrasing
+  tests/ui/01-walkthrough.mjs  } updated for new wording — same behaviour
+  tests/ui/11-achu-switch.mjs  } tested, not the old phrasing
   tests/ui/17-clutch.mjs       }
 
 Copy over the same paths, delete this file and CHANGES.diff, then:
@@ -21,5 +21,6 @@ Expect 449 checks, all passing.
 
 CHECK BY EYE
 ------------
-The doctype moves the page from quirks mode into standards mode. jsdom
-cannot see pixels. Open the deployed page and glance at all four screens.
+The doctype moves the page out of quirks mode into standards mode, and
+the step nav styling changed. jsdom cannot see pixels. Open the deployed
+page and glance at all four screens.

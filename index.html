@@ -84,9 +84,19 @@
     background: transparent; color: var(--ink-3); border: 0; border-bottom: 2px solid transparent;
     padding: 8px 13px 9px; cursor: pointer; white-space: nowrap; border-radius: 0;
   }
-  nav.steps button .no { font-weight: 700; margin-right: 7px; opacity: 0.65; }
+  /* The number is a marker, not part of the name. Setting it apart stops
+     "01" and "Looms" reading as one word, and lets the step you are on show
+     its number at full strength while the others sit back. */
+  nav.steps button .no {
+    font-weight: 700; opacity: 0.4; margin-right: 9px;
+    font-variant-numeric: tabular-nums;
+  }
   nav.steps button:hover:not(:disabled) { color: var(--ink); background: transparent; }
-  nav.steps button[aria-current=true] { color: var(--ink); border-bottom-color: var(--ink); }
+  nav.steps button:hover:not(:disabled) .no { opacity: 0.65; }
+  /* Any aria-current marks the step you are on — the value is a token, not a
+     boolean, so this must not be pinned to one of them. */
+  nav.steps button[aria-current] { color: var(--ink); border-bottom-color: var(--ink); }
+  nav.steps button[aria-current] .no { opacity: 1; color: var(--meena); }
   nav.steps button:disabled { opacity: 0.34; cursor: not-allowed; }
 
   .screen[hidden] { display: none; }
@@ -974,7 +984,7 @@ function labelFor(segs, i) {
   for (let j = 0; j <= i; j++) if (isOne(segs[j])) n++;
   return `${base} ${n}`;
 }
-const BUILD = "2026-08-03.21";      // bump when the file changes, so a stale page shows
+const BUILD = "2026-08-03.22";      // bump when the file changes, so a stale page shows
 /* ============================================================
    Whose software wrote the file
 

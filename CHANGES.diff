@@ -2,7 +2,7 @@ Only in ../pinmap-remote: CHANGES.diff
 Only in ../pinmap-remote: WHAT-CHANGED.txt
 diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinmap/index.html
 --- ../pinmap-remote/index.html	2026-08-03 07:11:40.695173106 +0000
-+++ ../pinmap/index.html	2026-08-03 11:11:37.626523675 +0000
++++ ../pinmap/index.html	2026-08-03 11:22:26.103128369 +0000
 @@ -1,4 +1,10 @@
 +<!doctype html>
 +<html lang="en">
@@ -14,7 +14,29 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
  
  <!-- ─────────────────────────────────────────────────────────────
       SET THIS ONCE and nobody using the app has to touch Google.
-@@ -588,6 +594,17 @@
+@@ -78,9 +84,19 @@
+     background: transparent; color: var(--ink-3); border: 0; border-bottom: 2px solid transparent;
+     padding: 8px 13px 9px; cursor: pointer; white-space: nowrap; border-radius: 0;
+   }
+-  nav.steps button .no { font-weight: 700; margin-right: 7px; opacity: 0.65; }
++  /* The number is a marker, not part of the name. Setting it apart stops
++     "01" and "Looms" reading as one word, and lets the step you are on show
++     its number at full strength while the others sit back. */
++  nav.steps button .no {
++    font-weight: 700; opacity: 0.4; margin-right: 9px;
++    font-variant-numeric: tabular-nums;
++  }
+   nav.steps button:hover:not(:disabled) { color: var(--ink); background: transparent; }
+-  nav.steps button[aria-current=true] { color: var(--ink); border-bottom-color: var(--ink); }
++  nav.steps button:hover:not(:disabled) .no { opacity: 0.65; }
++  /* Any aria-current marks the step you are on — the value is a token, not a
++     boolean, so this must not be pinned to one of them. */
++  nav.steps button[aria-current] { color: var(--ink); border-bottom-color: var(--ink); }
++  nav.steps button[aria-current] .no { opacity: 1; color: var(--meena); }
+   nav.steps button:disabled { opacity: 0.34; cursor: not-allowed; }
+ 
+   .screen[hidden] { display: none; }
+@@ -588,6 +604,17 @@
      .seg-row .seg-acts { grid-column: 2 / 4; justify-content: flex-start; }
      .activeloom { margin-left: 0; text-align: left; }
    }
@@ -32,7 +54,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
    @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
  </style>
  
-@@ -603,7 +620,7 @@
+@@ -603,7 +630,7 @@
        <button class="tiny" id="viewerClose">Close</button>
      </div>
    </div>
@@ -41,7 +63,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
  </div>
  
  <main class="gate" id="gate">
-@@ -671,10 +688,10 @@
+@@ -671,10 +698,10 @@
        <div class="build" id="appBuild"></div>
      </div>
      <nav class="steps" id="steps">
@@ -56,7 +78,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
      </nav>
    </header>
  
-@@ -682,7 +699,7 @@
+@@ -682,7 +709,7 @@
    <main class="screen" id="sc-looms">
      <div class="head-row">
        <h2>Registered looms</h2>
@@ -65,7 +87,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
      </div>
      <div class="loomtools" id="loomTools" hidden>
        <input type="search" id="loomSearch" placeholder="Search looms…" aria-label="Search looms">
-@@ -710,17 +727,17 @@
+@@ -710,17 +737,17 @@
    <main class="screen" id="sc-loom" hidden>
      <div class="head-row">
        <h2 id="loomFormTitle">Register a loom</h2>
@@ -86,7 +108,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
        </label>
        <label class="field" style="flex:0 0 180px">
          <span class="cap">Jacquard company</span>
-@@ -735,7 +752,7 @@
+@@ -735,7 +762,7 @@
        </label>
        <label class="field" id="clutchField" hidden>
          <span class="cap">Clutch end</span>
@@ -95,7 +117,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
            <option value="none">No clutch pins</option>
            <option value="left">Left clutch</option>
            <option value="right">Right clutch</option>
-@@ -764,11 +781,11 @@
+@@ -764,11 +791,11 @@
      <div class="weavelib">
        <div class="wl-head">
          <span class="cap" style="margin:0">Weave library</span>
@@ -109,7 +131,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
          <button class="ghost" id="addWeave">Add to library</button>
        </div>
        <div id="weaveList"></div>
-@@ -789,7 +806,7 @@
+@@ -789,7 +816,7 @@
        <button class="ghost danger" id="clearSegs">Clear groups</button>
      </div>
  
@@ -118,7 +140,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
  
      <div class="btn-row">
        <button class="solid" id="saveLoom">Save version and continue</button>
-@@ -823,7 +840,7 @@
+@@ -823,7 +850,7 @@
      <div class="sideboard" data-board="border"></div>
      <div id="borderHost"></div>
      <div id="borderAchuNote"></div>
@@ -127,7 +149,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
      <div class="btn-row">
        <button class="solid" id="combineBorder">Combine border</button>
        <button id="downloadBorder" disabled>Download BMP</button>
-@@ -832,9 +849,9 @@
+@@ -832,9 +859,9 @@
      <div class="verify" data-verify="border">
        <div class="vf-head">
          <span class="cap" style="margin:0">Check against a file you trust</span>
@@ -139,7 +161,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
        <div class="vf-out"></div>
      </div>
  
-@@ -847,7 +864,7 @@
+@@ -847,7 +874,7 @@
            <button class="tiny ghost" data-bzoomv="border" data-zoom="3">3×</button>
          </div>
        </div>
@@ -148,7 +170,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
      </div>
      <details class="note">
        <summary>What goes in this file</summary>
-@@ -877,7 +894,7 @@
+@@ -877,7 +904,7 @@
      <div id="bodyHost"></div>
      <div id="boxEditor"></div>
      <div class="chips" id="boxChips" style="margin-top:22px"></div>
@@ -157,7 +179,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
      <div class="btn-row">
        <button class="solid" id="combineBody">Combine body</button>
        <button id="download" disabled>Download BMP</button>
-@@ -886,9 +903,9 @@
+@@ -886,9 +913,9 @@
      <div class="verify" data-verify="body">
        <div class="vf-head">
          <span class="cap" style="margin:0">Check against a file you trust</span>
@@ -169,7 +191,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
        <div class="vf-out"></div>
      </div>
  
-@@ -902,7 +919,7 @@
+@@ -902,7 +929,7 @@
            <button class="tiny ghost" id="pvMode" aria-pressed="true">Colour groups</button>
          </div>
        </div>
@@ -178,16 +200,16 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
        <div class="inspector" id="inspector">Point at the picture to read the pin and line under the cursor.</div>
        <div class="legend" id="pvLegend"></div>
      </div>
-@@ -957,7 +974,7 @@
+@@ -957,7 +984,7 @@
    for (let j = 0; j <= i; j++) if (isOne(segs[j])) n++;
    return `${base} ${n}`;
  }
 -const BUILD = "2026-08-03.18";      // bump when the file changes, so a stale page shows
-+const BUILD = "2026-08-03.21";      // bump when the file changes, so a stale page shows
++const BUILD = "2026-08-03.22";      // bump when the file changes, so a stale page shows
  /* ============================================================
     Whose software wrote the file
  
-@@ -1061,7 +1078,7 @@
+@@ -1061,7 +1088,7 @@
  
  const PINS_PER_COLUMN = 16;   // how the pins sit on the machine: sixteen to a column
  const BOARD_MAX_PX = 16000;   // keep the canvas inside browser limits
@@ -196,7 +218,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
  
  // The order these groups run on the machine, used for a fresh registration.
  const DEFAULT_LAYOUT = [
-@@ -2992,7 +3009,7 @@
+@@ -2992,7 +3019,7 @@
    if (!state.looms.length) {
      el("#loomCount").textContent = "";
      host.innerHTML = `<div class="empty">
@@ -205,7 +227,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
        <button class="solid" data-act="first">Register your first loom</button></div>`;
      return;
    }
-@@ -3267,7 +3284,8 @@
+@@ -3267,7 +3294,8 @@
    const RULE = 22, GUT = 40, FOOT = 18;
    const W = GUT + cols * pitch + 8, H = RULE + PINS_PER_COLUMN * pitch + FOOT;
  
@@ -215,7 +237,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
    const cv = el("#" + canvasId);
    const dpr = Math.min(2, window.devicePixelRatio || 1);
    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-@@ -3697,7 +3715,7 @@
+@@ -3697,7 +3725,7 @@
    const host = el("#boardSel");
    if (!host) return;
    if (boardSel < 0 || !state.segments[boardSel]) {
@@ -224,7 +246,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
      return;
    }
    const sg = state.segments[boardSel];
-@@ -3748,12 +3766,12 @@
+@@ -3748,12 +3776,12 @@
  function renderWeaveLibrary() {
    const host = el("#weaveList");
    if (!state.weaves.length) {
@@ -239,7 +261,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
        <div style="flex:1;min-width:0">
          <div class="nm">${esc(w.name)}</div>
          <div class="sub">${w.width} pins × ${w.height} lines</div>
-@@ -3769,8 +3787,15 @@
+@@ -3769,8 +3797,15 @@
    if (!name) { alert("Give the weave a name first."); return; }
    if (!f) { alert("Choose a BMP of the weave."); return; }
    let img;
@@ -257,7 +279,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
    if (img.width > 128 || img.height > 128) {
      alert(`That is ${img.width} × ${img.height}. A weave should be one repeat, no more than 128 either way.`);
      return;
-@@ -3825,7 +3850,7 @@
+@@ -3825,7 +3860,7 @@
      if (sg.kind === "locking") {
        const chosen = weaveById(sg.weave);
        content = `<div class="weave-cell">
@@ -266,7 +288,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
          <select data-act="weave" data-id="${sg.id}" style="flex:1">
            <optgroup label="Satins and twills">
              ${BUILTIN_WEAVES.map(w => `<option value="${esc(w.id)}" ${w.id===sg.weave?"selected":""}>${esc(w.name)} · ${w.pins} pins</option>`).join("")}
-@@ -3856,7 +3881,7 @@
+@@ -3856,7 +3891,7 @@
        <div class="seg-range">${sg.count ? from + "–" + to : "—"}</div>
        <div class="countcell">
          <button class="stepper" data-step="-1" data-id="${sg.id}" aria-label="fewer pins" tabindex="-1">−</button>
@@ -275,7 +297,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
          <button class="stepper" data-step="1" data-id="${sg.id}" aria-label="more pins" tabindex="-1">+</button>
        </div>
        <div class="seg-acts">
-@@ -3920,9 +3945,9 @@
+@@ -3920,9 +3955,9 @@
    sel.value = side;
    const seg = clutchSeg();
    if (note) note.textContent =
@@ -288,7 +310,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
  }
  
  el("#loomCompany").addEventListener("change", e => {
-@@ -3931,15 +3956,15 @@
+@@ -3931,15 +3966,15 @@
    let clutchMsg = "";
    if (companyHasClutch(state.company) && normalClutch(state.clutch) !== "none") {
      const seg = applyClutchGroup(state.clutch);
@@ -308,7 +330,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
  });
  
  el("#loomClutch").addEventListener("change", e => {
-@@ -3948,12 +3973,10 @@
+@@ -3948,12 +3983,10 @@
    let msg;
    if (state.clutch === "none") {
      // asked for plainly, so it goes, whatever its count
@@ -323,7 +345,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
    }
    state.built = null; state.builtBorder = null;
    renderLoomScreen(); scheduleSave();
-@@ -3971,8 +3994,21 @@
+@@ -3971,8 +4004,21 @@
    renderAlloc(); drawBoard(); renderBoardLegend(); renderLoomChecks();
  });
  
@@ -346,7 +368,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
  });
  el("#segTable").addEventListener("input", handleSegInput);
  function handleSegInput(e) {
-@@ -4209,7 +4245,7 @@
+@@ -4209,7 +4255,7 @@
      const bad = f.width !== expected;
      state_ += bad ? " bad" : " filled";
      meta = `${f.width} × ${f.height}${f.rotated ? " · turned to fit" : ""}${bad ? ` — needs ${expected} wide` : ""} · ${f.name}`;
@@ -355,7 +377,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
    }
    const acts = (f && !f.error)
      ? `<div class="acts2">
-@@ -4219,7 +4255,7 @@
+@@ -4219,7 +4265,7 @@
    return `<div class="${state_}">
      <div class="body">
        <div class="name">${esc(title)}</div>
@@ -364,7 +386,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
        <div class="meta ${f && (f.error || f.width !== expected) ? "err" : ""}">${esc(meta)}</div>
        ${acts}
      </div>${thumb}</div>`;
-@@ -4522,10 +4558,17 @@
+@@ -4522,10 +4568,17 @@
    if (!file) return;
    let rec;
    try {
@@ -384,7 +406,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
    }
    const isBorder = t.dataset.target === "border";
    if (isBorder) {
-@@ -4597,8 +4640,8 @@
+@@ -4597,8 +4650,8 @@
      : "";
    block.querySelector(".sb-read").textContent = b.hover >= 0
      ? sideHoverText(which, b.hover)
@@ -395,7 +417,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
  }
  
  function sideHoverText(which, oi) {
-@@ -4742,7 +4785,7 @@
+@@ -4742,7 +4795,7 @@
    el("#borderAchuNote").innerHTML = achuSeg
      ? `<p class="achu-note">The achu ${borderFilesLoaded()
          ? "is generated into this file, because a border is loaded."
@@ -404,7 +426,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
      : "";
    el("#combineBorder").disabled = !renderChecksInto(el("#borderChecks"), validateBorder(),
      "The border files match their groups. Combine them.");
-@@ -4758,10 +4801,10 @@
+@@ -4758,10 +4811,10 @@
    const rani = !!(state.wefts[0] && state.wefts[0].file && !state.wefts[0].file.error);
    const on = state.opts.achuInBody;
    let why = "";
@@ -419,7 +441,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
  
    const gw = state.opts.bodyGround;
    host.innerHTML = `<label class="achubox">
-@@ -4777,7 +4820,7 @@
+@@ -4777,7 +4830,7 @@
      </select>
      <span class="ab-why">${gw
        ? "Where a weft has no design of its own, this weave holds it down."
@@ -428,7 +450,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
    </label>`;
    const gsel = el("#bodyGround");
    if (gsel) gsel.onchange = (e) => {
-@@ -4798,7 +4841,7 @@
+@@ -4798,7 +4851,7 @@
      el("#pvWrap").hidden = true;
      el("#download").disabled = true;
      scheduleSave();
@@ -437,7 +459,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
                              : "Achu removed from the body file.");
    };
  }
-@@ -5110,7 +5153,8 @@
+@@ -5110,7 +5163,8 @@
  function renderSteps() {
    els("nav.steps button").forEach(b => {
      const n = b.dataset.go;
@@ -447,7 +469,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
      b.disabled = !canGo(n) && state.screen !== n;
    });
    el("#activeLoom").innerHTML = (state.activeName || state.loomName)
-@@ -5174,7 +5218,7 @@
+@@ -5174,7 +5228,7 @@
    // wherever the weaver happens to land — not only on the looms screen.
    if ((state.damaged || []).length) {
      go("looms");
