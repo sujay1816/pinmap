@@ -528,6 +528,8 @@
   .wl-item .sub { font-family: var(--mono); font-size: var(--t-small); color: var(--ink-3); margin-top: 3px; }
   .wl-empty { font-size: var(--t-note); color: var(--ink-3); }
   .weave-cell { display: flex; align-items: center; gap: 7px; }
+  .weave-picks { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
+  .weave-picks select { width: 100%; }
   .weave-cell canvas { width: 22px; height: 22px; image-rendering: pixelated; border: 1px solid var(--rule); flex: 0 0 22px; }
   .content-note { font-family: var(--mono); font-size: var(--t-small); color: var(--ink-3); }
   h3.sec {
@@ -1005,7 +1007,7 @@ function labelFor(segs, i) {
   for (let j = 0; j <= i; j++) if (isOne(segs[j])) n++;
   return `${base} ${n}`;
 }
-const BUILD = "2026-08-03.29";      // bump when the file changes, so a stale page shows
+const BUILD = "2026-08-03.30";      // bump when the file changes, so a stale page shows
 /* ============================================================
    Whose software wrote the file
 
@@ -3981,17 +3983,28 @@ function renderSegs() {
     let content;
     if (sg.kind === "locking") {
       const chosen = weaveById(sg.weave);
+      // Two lists, not one. The library used to be a heading part way down the
+      // built-in list, where somebody who had just uploaded a weave would never
+      // think to look for it. It gets a box of its own now, and says so even
+      // when it is empty.
+      const fromLib  = !!(chosen && state.weaves.some(w => w.id === chosen.id));
+      const fromBuilt = !!chosen && !fromLib;
+      const opts = (list, sel) => list.map(w =>
+        `<option value="${esc(w.id)}" ${sel && w.id === sg.weave ? "selected" : ""}>${esc(w.name)} · ${w.pins} pins</option>`).join("");
       content = `<div class="weave-cell">
         <canvas data-rowweave="${sg.id}" role="img" aria-label="The weave chosen for this group"></canvas>
-        <select data-act="weave" data-id="${sg.id}" style="flex:1">
-          <optgroup label="Satins and twills">
-            ${BUILTIN_WEAVES.map(w => `<option value="${esc(w.id)}" ${w.id===sg.weave?"selected":""}>${esc(w.name)} · ${w.pins} pins</option>`).join("")}
-          </optgroup>
-          ${state.weaves.length ? `<optgroup label="Your weaves">
-            ${state.weaves.map(w => `<option value="${esc(w.id)}" ${w.id===sg.weave?"selected":""}>${esc(w.name)} · ${w.pins} pins</option>`).join("")}
-          </optgroup>` : ""}
-          ${chosen ? "" : `<option value="" selected>— choose a weave —</option>`}
-        </select></div>`;
+        <div class="weave-picks">
+          <select data-act="weave" data-id="${sg.id}" aria-label="Satins and twills for ${esc(labelFor(state.segments, i))}">
+            <option value="" ${fromBuilt ? "" : "selected"}>Satins and twills…</option>
+            ${opts(BUILTIN_WEAVES, fromBuilt)}
+          </select>
+          <select data-act="weave" data-id="${sg.id}" aria-label="Weave library for ${esc(labelFor(state.segments, i))}"
+                  ${state.weaves.length ? "" : "disabled"}>
+            <option value="" ${fromLib ? "" : "selected"}>${state.weaves.length
+              ? "Weave library…" : "Weave library — nothing uploaded"}</option>
+            ${opts(state.weaves, fromLib)}
+          </select>
+        </div></div>`;
     } else {
       const note = (sg.role === "clutch" && companyHasClutch(state.company))
         ? `the clutch — stays down` : (CONTENT_NOTE[sg.kind] || "");

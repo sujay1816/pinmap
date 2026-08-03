@@ -1,7 +1,7 @@
 Only in ../verify: CHANGES.diff
 diff -ru -x node_modules -x .git -x core.mjs ../verify/README.md ../pinmap/README.md
 --- ../verify/README.md	2026-08-03 11:34:51.543374973 +0000
-+++ ../pinmap/README.md	2026-08-03 17:30:30.779402856 +0000
++++ ../pinmap/README.md	2026-08-03 17:52:03.753808592 +0000
 @@ -171,6 +171,37 @@
  border file, the body and locking pins stay down in it, and the achu is half up
  and half down, flipping every line.
@@ -40,7 +40,25 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/README.md ../pinmap/READM
  ### Why the Sri Tex body file is turned round
  
  This was wrong for a long time and is worth writing down, because a mirrored
-@@ -209,13 +240,15 @@
+@@ -204,18 +235,33 @@
+ those settings as a new entry in the `COMPANIES` table near the top of the
+ script.
+ 
++### Choosing a weave
++
++A Locking group is the only one that takes a weave, and it offers two lists:
++**Satins and twills**, which are built in, and **Weave library**, which holds
++whatever has been uploaded.
++
++They are two separate boxes on purpose. The library used to be a heading part
++way down the built-in list, where somebody who had just uploaded a weave would
++never think to look. The library box is shown even when it is empty, saying so,
++rather than being absent until something is in it.
++
++Choosing a weave sets the group's pin count to the weave's width.
++
+ ### The clutch end
+ 
  A Sri Tex loom carries its clutch at one end, and the thirty-two pins sitting
  over it cannot take a design. Registering a loom as Sri Tex therefore asks one
  more question — **left clutch or right clutch** — and puts an empty group of
@@ -64,7 +82,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/README.md ../pinmap/READM
 Only in ../verify: WHAT-CHANGED.txt
 diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/index.html
 --- ../verify/index.html	2026-08-03 11:34:51.543374973 +0000
-+++ ../pinmap/index.html	2026-08-03 17:34:42.025728476 +0000
++++ ../pinmap/index.html	2026-08-03 17:48:28.014997808 +0000
 @@ -59,6 +59,7 @@
      --t-body:  15.5px;   /* prose */
      --t-field: 15px;     /* what you type into */
@@ -125,7 +143,16 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    button.danger:hover:not(:disabled) { background: var(--meena); border-color: var(--meena); color: #fff; }
    .btn-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
    .spacer { margin-left: auto; }
-@@ -608,6 +624,8 @@
+@@ -512,6 +528,8 @@
+   .wl-item .sub { font-family: var(--mono); font-size: var(--t-small); color: var(--ink-3); margin-top: 3px; }
+   .wl-empty { font-size: var(--t-note); color: var(--ink-3); }
+   .weave-cell { display: flex; align-items: center; gap: 7px; }
++  .weave-picks { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
++  .weave-picks select { width: 100%; }
+   .weave-cell canvas { width: 22px; height: 22px; image-rendering: pixelated; border: 1px solid var(--rule); flex: 0 0 22px; }
+   .content-note { font-family: var(--mono); font-size: var(--t-small); color: var(--ink-3); }
+   h3.sec {
+@@ -608,6 +626,8 @@
       pin count are 26px, and a mis-hit there changes the pin map. A finger wants
       nearer 44px, so give it that without moving anything on a mouse. */
    @media (pointer: coarse) {
@@ -134,7 +161,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
      button.tiny { padding: 10px 14px; }
      .stepper { width: 42px; flex: 0 0 42px; min-height: 42px; }
      .grip { padding: 11px 10px; }
-@@ -791,7 +809,7 @@
+@@ -791,7 +811,7 @@
      <div class="weavelib">
        <div class="wl-head">
          <span class="cap" style="margin:0">Weave library</span>
@@ -143,7 +170,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
        </div>
        <div class="wl-add">
          <input type="text" id="weaveName" placeholder="name it, e.g. Murthy lock 8">
-@@ -872,9 +890,12 @@
+@@ -872,9 +892,12 @@
            <button class="tiny ghost" data-bzoomv="border" data-zoom="fit">Fit</button>
            <button class="tiny ghost" data-bzoomv="border" data-zoom="1">1:1</button>
            <button class="tiny ghost" data-bzoomv="border" data-zoom="3">3×</button>
@@ -156,16 +183,16 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
      </div>
      <details class="note">
        <summary>What goes in this file</summary>
-@@ -984,7 +1005,7 @@
+@@ -984,7 +1007,7 @@
    for (let j = 0; j <= i; j++) if (isOne(segs[j])) n++;
    return `${base} ${n}`;
  }
 -const BUILD = "2026-08-03.22";      // bump when the file changes, so a stale page shows
-+const BUILD = "2026-08-03.29";      // bump when the file changes, so a stale page shows
++const BUILD = "2026-08-03.30";      // bump when the file changes, so a stale page shows
  /* ============================================================
     Whose software wrote the file
  
-@@ -1043,7 +1064,7 @@
+@@ -1043,7 +1066,7 @@
    pinOneLeft: true, topRowFirstPick: true, blackIsIndexZero: true,
    achuStartsBlack: true, stackMode: "interleave", weavePerDesignLine: true,
    satinWarpFaced: false, boxWholeBand: true, autoRotate: true,
@@ -174,7 +201,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
  };
  
  const COMPANIES = [
-@@ -1051,6 +1072,7 @@
+@@ -1051,6 +1074,7 @@
    { id: "saitex", name: "Sai Tex", opts: { ...COMPANY_BASE } },
    { id: "sritex", name: "Sri Tex", opts: { ...COMPANY_BASE,
        blackIsIndexZero: false,     // white is the lifted pin
@@ -182,7 +209,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
        mirrorBodyFile: true,        // their body file is written back to front
        bodyGround: "satin:2:1" } }  // and a plain ground under every weft
  ];
-@@ -1140,7 +1162,8 @@
+@@ -1140,7 +1164,8 @@
      boxWholeBand: true,
      autoRotate: true,
      weavePerDesignLine: true,
@@ -192,7 +219,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    },
    built: null,
    builtBorder: null,
-@@ -1482,7 +1505,35 @@
+@@ -1482,7 +1507,35 @@
    }
  }
  
@@ -229,7 +256,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    if (weftCount <= 1) return "none";        // one weft: nothing to choose
    if (!figureOnLine) return "none";         // plain ground line: box stays white
    return (BOX_TABLE[weftCount] || [])[weftIndex] || "none";
-@@ -1491,7 +1542,12 @@
+@@ -1491,7 +1544,12 @@
  // Each weft may carry its own box pattern. Until the user changes one, it comes
  // from the standard table for however many wefts are loaded.
  function defaultBoxPattern(count, weftIndex, weftCount) {
@@ -243,7 +270,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
  }
  
  // A pattern set by hand is kept, first for this session and then in the
-@@ -1513,8 +1569,8 @@
+@@ -1513,8 +1571,8 @@
    return defaultBoxPattern(count, weftIndex, weftCount);
  }
  
@@ -254,7 +281,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    const row = new Uint8Array(count);
    const half = Math.ceil(count / 2);
    if (plan === "all")    row.fill(1);
-@@ -1584,6 +1640,27 @@
+@@ -1584,6 +1642,27 @@
      if (o.boxWholeBand) closeBandGaps(figureOnLine);
    }
  
@@ -282,7 +309,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    // Achu goes in the border file when there is one, otherwise in the body.
    // In the body it also waits on the rani, since that is the ground it binds.
    const raniLoaded = !!(state.wefts[0] && state.wefts[0].file && !state.wefts[0].file.error);
-@@ -1649,14 +1726,20 @@
+@@ -1649,14 +1728,20 @@
  
        } else if (seg.kind === "box") {
          if (target !== "body") return;              // and so does the box
@@ -307,7 +334,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
          const r = active ? pat : new Uint8Array(seg.count);
          for (let x = 0; x < seg.count; x++) bits[rowBase + at + x] = r[x];
  
-@@ -2398,6 +2481,8 @@
+@@ -2398,6 +2483,8 @@
    const list = segs || [];
    const at = list.findIndex(s => s && s.role === "clutch");
    if (at < 0) return "none";                 // no group, so no clutch was set
@@ -316,7 +343,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    return at >= list.length - 1 ? "right" : "left";
  }
  
-@@ -3111,8 +3196,12 @@
+@@ -3111,8 +3198,12 @@
  const clutchAt = (segs) => (segs || []).findIndex(s => s && s.role === "clutch");
  const clutchSeg = () => state.segments[clutchAt(state.segments)] || null;
  
@@ -331,7 +358,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
  function applyClutchGroup(side) {
    const segs = state.segments;
    const at = clutchAt(segs);
-@@ -3122,7 +3211,7 @@
+@@ -3122,7 +3213,7 @@
    seg.role = "clutch";
    seg.kind = "empty";
    if (!seg.count || seg.count < 1) seg.count = CLUTCH_PINS;
@@ -340,7 +367,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    return seg;
  }
  
-@@ -3291,7 +3380,7 @@
+@@ -3291,7 +3382,7 @@
    const pitch = zoom === "fit"
      ? Math.max(4, Math.min(24, (Math.max(260, host.clientWidth - 28) - 40) / cols))
      : parseFloat(zoom);
@@ -349,7 +376,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    const W = GUT + cols * pitch + 8, H = RULE + PINS_PER_COLUMN * pitch + FOOT;
  
    host.innerHTML = `<div class="board-wrap"><canvas id="${canvasId}"${interactive ? ' tabindex="0"' : ""}
-@@ -3449,14 +3538,6 @@
+@@ -3449,14 +3540,6 @@
      }
    });
  
@@ -364,7 +391,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    /* ---- a scale along the foot, so the shape of the loom is readable ---- */
    const fy = RULE + PINS_PER_COLUMN * pitch + 7;
    let at = 0;
-@@ -3474,6 +3555,41 @@
+@@ -3474,6 +3557,41 @@
      ctx.strokeRect(GUT + (at / T) * (cols * pitch) + 0.5, fy + 0.5, Math.max(1, ((T - at) / T) * (cols * pitch) - 1), 5);
    }
  
@@ -406,7 +433,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    return { pitch, T, owners, W, H, spans, bounds, cols, GUT, RULE, cx, cy, xy };
  }
  
-@@ -3779,7 +3895,13 @@
+@@ -3779,7 +3897,13 @@
      host.innerHTML = `<div class="wl-empty">Nothing uploaded. The built-in satins and twills are always in the Locking row.</div>`;
      return;
    }
@@ -421,7 +448,45 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
      <div class="wl-item">
        <canvas data-weave="${esc(w.id)}" role="img" aria-label="The ${esc(w.name)} weave, ${w.pins} pins"></canvas>
        <div style="flex:1;min-width:0">
-@@ -3956,7 +4078,7 @@
+@@ -3859,17 +3983,28 @@
+     let content;
+     if (sg.kind === "locking") {
+       const chosen = weaveById(sg.weave);
++      // Two lists, not one. The library used to be a heading part way down the
++      // built-in list, where somebody who had just uploaded a weave would never
++      // think to look for it. It gets a box of its own now, and says so even
++      // when it is empty.
++      const fromLib  = !!(chosen && state.weaves.some(w => w.id === chosen.id));
++      const fromBuilt = !!chosen && !fromLib;
++      const opts = (list, sel) => list.map(w =>
++        `<option value="${esc(w.id)}" ${sel && w.id === sg.weave ? "selected" : ""}>${esc(w.name)} · ${w.pins} pins</option>`).join("");
+       content = `<div class="weave-cell">
+         <canvas data-rowweave="${sg.id}" role="img" aria-label="The weave chosen for this group"></canvas>
+-        <select data-act="weave" data-id="${sg.id}" style="flex:1">
+-          <optgroup label="Satins and twills">
+-            ${BUILTIN_WEAVES.map(w => `<option value="${esc(w.id)}" ${w.id===sg.weave?"selected":""}>${esc(w.name)} · ${w.pins} pins</option>`).join("")}
+-          </optgroup>
+-          ${state.weaves.length ? `<optgroup label="Your weaves">
+-            ${state.weaves.map(w => `<option value="${esc(w.id)}" ${w.id===sg.weave?"selected":""}>${esc(w.name)} · ${w.pins} pins</option>`).join("")}
+-          </optgroup>` : ""}
+-          ${chosen ? "" : `<option value="" selected>— choose a weave —</option>`}
+-        </select></div>`;
++        <div class="weave-picks">
++          <select data-act="weave" data-id="${sg.id}" aria-label="Satins and twills for ${esc(labelFor(state.segments, i))}">
++            <option value="" ${fromBuilt ? "" : "selected"}>Satins and twills…</option>
++            ${opts(BUILTIN_WEAVES, fromBuilt)}
++          </select>
++          <select data-act="weave" data-id="${sg.id}" aria-label="Weave library for ${esc(labelFor(state.segments, i))}"
++                  ${state.weaves.length ? "" : "disabled"}>
++            <option value="" ${fromLib ? "" : "selected"}>${state.weaves.length
++              ? "Weave library…" : "Weave library — nothing uploaded"}</option>
++            ${opts(state.weaves, fromLib)}
++          </select>
++        </div></div>`;
+     } else {
+       const note = (sg.role === "clutch" && companyHasClutch(state.company))
+         ? `the clutch — stays down` : (CONTENT_NOTE[sg.kind] || "");
+@@ -3956,7 +4091,7 @@
    const seg = clutchSeg();
    if (note) note.textContent =
        side === "none" ? "No pins set aside. Say which end only if this loom really gives pins up to a clutch."
@@ -430,7 +495,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
      : "The group has been removed. Pick an end again to put it back.";
  }
  
-@@ -3966,7 +4088,7 @@
+@@ -3966,7 +4101,7 @@
    let clutchMsg = "";
    if (companyHasClutch(state.company) && normalClutch(state.clutch) !== "none") {
      const seg = applyClutchGroup(state.clutch);
@@ -439,7 +504,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    } else if (removeClutchGroup(true)) {
      clutchMsg = " Clutch group removed.";
    }
-@@ -3986,7 +4108,7 @@
+@@ -3986,7 +4121,7 @@
      msg = removeClutchGroup(false) ? "Clutch group removed." : "No clutch pins.";
    } else {
      const seg = applyClutchGroup(state.clutch);
@@ -448,7 +513,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    }
    state.built = null; state.builtBorder = null;
    renderLoomScreen(); scheduleSave();
-@@ -4922,8 +5044,9 @@
+@@ -4922,8 +5057,9 @@
        const p = (y * w + x) * 4;
        const up = b.bits[sy * b.width + sx];
        let r, g, bl;
@@ -460,7 +525,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
        img.data[p] = r; img.data[p+1] = g; img.data[p+2] = bl; img.data[p+3] = 255;
      }
    }
-@@ -4931,9 +5054,24 @@
+@@ -4931,9 +5067,24 @@
    if (borderZoom === "fit") { cv.style.width = "100%"; cv.style.height = "auto"; }
    el("#borderDims").textContent =
      `${b.width} pins × ${b.height} lines${step > 1 ? ` · preview reduced ${step}×` : ""}`;
@@ -650,8 +715,8 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/tests/ui/17-clutch.mjs ..
  if (errors.length){ console.log('  '+errors.length+' problem(s)'); errors.forEach(e=>console.log('   - '+e)); }
 diff -ru -x node_modules -x .git -x core.mjs ../verify/tests/ui/20-inputs.mjs ../pinmap/tests/ui/20-inputs.mjs
 --- ../verify/tests/ui/20-inputs.mjs	2026-08-03 11:34:51.581800249 +0000
-+++ ../pinmap/tests/ui/20-inputs.mjs	2026-08-03 16:45:05.971566579 +0000
-@@ -119,6 +119,47 @@
++++ ../pinmap/tests/ui/20-inputs.mjs	2026-08-03 17:48:11.535934786 +0000
+@@ -119,6 +119,69 @@
    ok('and the right file is simply accepted', /200 × 50/.test(meta()) && !/could not/i.test(meta()), meta());
  }
  
@@ -674,13 +739,35 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/tests/ui/20-inputs.mjs ..
 +  click($('#addWeave')); await wait(700);
 +
 +  ok('it lands in the library', /Shed twill/.test($('#weaveList').textContent));
-+  const sel = $$('#segTable select[data-act=weave]')[0];
-+  ok('a Locking group offers a weave picker', !!sel);
-+  ok('and the uploaded weave is in it', sel && /Shed twill/.test(sel.textContent),
-+     sel ? sel.textContent.replace(/\s+/g,' ').slice(0,90) : '(no picker)');
-+  ok('under a heading of its own',
-+     sel && [...sel.querySelectorAll('optgroup')].some(o=>/your weaves/i.test(o.label)),
-+     sel ? [...sel.querySelectorAll('optgroup')].map(o=>o.label).join('|') : '');
++  const picks = $$('#segTable select[data-act=weave]');
++  ok('a Locking group offers two pickers', picks.length === 2, String(picks.length));
++  // The library used to be a heading part way down the built-in list, where
++  // nobody who had just uploaded a weave would think to look.
++  const lib = picks[1];
++  ok('the second is the weave library, named as such',
++     lib && /weave library/i.test(lib.options[0].text), lib ? lib.options[0].text : '(none)');
++  ok('and the uploaded weave is in it', lib && /Shed twill/.test(lib.textContent),
++     lib ? lib.textContent.replace(/\s+/g,' ').slice(0,90) : '(no picker)');
++  ok('the built-in satins stay in their own list',
++     picks[0] && /satins/i.test(picks[0].options[0].text) && !/Shed twill/.test(picks[0].textContent),
++     picks[0] ? picks[0].options[0].text : '');
++
++  // choosing from the library sets the group's weave, and the built-in list
++  // falls back to its placeholder
++  {
++    const lib2 = $$('#segTable select[data-act=weave]')[1];
++    const o = [...lib2.options].find(x=>/Shed twill/.test(x.text));
++    lib2.value = o.value;
++    lib2.dispatchEvent(new w.Event('input',{bubbles:true}));
++    await wait(500);
++    const after = $$('#segTable select[data-act=weave]');
++    ok('choosing from the library takes',
++       after[1].options[after[1].selectedIndex].text.includes('Shed twill'),
++       after[1].options[after[1].selectedIndex].text);
++    ok('and the other list shows nothing chosen',
++       after[0].selectedIndex === 0, after[0].options[after[0].selectedIndex].text);
++  }
++
 +
 +  // with nowhere to use it, the library says so
 +  let guard=0;

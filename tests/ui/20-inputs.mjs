@@ -138,13 +138,35 @@ console.log('\n== an uploaded weave has somewhere to go ==');
   click($('#addWeave')); await wait(700);
 
   ok('it lands in the library', /Shed twill/.test($('#weaveList').textContent));
-  const sel = $$('#segTable select[data-act=weave]')[0];
-  ok('a Locking group offers a weave picker', !!sel);
-  ok('and the uploaded weave is in it', sel && /Shed twill/.test(sel.textContent),
-     sel ? sel.textContent.replace(/\s+/g,' ').slice(0,90) : '(no picker)');
-  ok('under a heading of its own',
-     sel && [...sel.querySelectorAll('optgroup')].some(o=>/your weaves/i.test(o.label)),
-     sel ? [...sel.querySelectorAll('optgroup')].map(o=>o.label).join('|') : '');
+  const picks = $$('#segTable select[data-act=weave]');
+  ok('a Locking group offers two pickers', picks.length === 2, String(picks.length));
+  // The library used to be a heading part way down the built-in list, where
+  // nobody who had just uploaded a weave would think to look.
+  const lib = picks[1];
+  ok('the second is the weave library, named as such',
+     lib && /weave library/i.test(lib.options[0].text), lib ? lib.options[0].text : '(none)');
+  ok('and the uploaded weave is in it', lib && /Shed twill/.test(lib.textContent),
+     lib ? lib.textContent.replace(/\s+/g,' ').slice(0,90) : '(no picker)');
+  ok('the built-in satins stay in their own list',
+     picks[0] && /satins/i.test(picks[0].options[0].text) && !/Shed twill/.test(picks[0].textContent),
+     picks[0] ? picks[0].options[0].text : '');
+
+  // choosing from the library sets the group's weave, and the built-in list
+  // falls back to its placeholder
+  {
+    const lib2 = $$('#segTable select[data-act=weave]')[1];
+    const o = [...lib2.options].find(x=>/Shed twill/.test(x.text));
+    lib2.value = o.value;
+    lib2.dispatchEvent(new w.Event('input',{bubbles:true}));
+    await wait(500);
+    const after = $$('#segTable select[data-act=weave]');
+    ok('choosing from the library takes',
+       after[1].options[after[1].selectedIndex].text.includes('Shed twill'),
+       after[1].options[after[1].selectedIndex].text);
+    ok('and the other list shows nothing chosen',
+       after[0].selectedIndex === 0, after[0].options[after[0].selectedIndex].text);
+  }
+
 
   // with nowhere to use it, the library says so
   let guard=0;

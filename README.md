@@ -235,6 +235,19 @@ file you trust**, and change whatever it names until the two agree. Then save
 those settings as a new entry in the `COMPANIES` table near the top of the
 script.
 
+### Choosing a weave
+
+A Locking group is the only one that takes a weave, and it offers two lists:
+**Satins and twills**, which are built in, and **Weave library**, which holds
+whatever has been uploaded.
+
+They are two separate boxes on purpose. The library used to be a heading part
+way down the built-in list, where somebody who had just uploaded a weave would
+never think to look. The library box is shown even when it is empty, saying so,
+rather than being absent until something is in it.
+
+Choosing a weave sets the group's pin count to the weave's width.
+
 ### The clutch end
 
 A Sri Tex loom carries its clutch at one end, and the thirty-two pins sitting
