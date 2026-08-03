@@ -1,23 +1,22 @@
-Pinmap — interface fixes and a dependency bump
-==============================================
+Pinmap — interface fixes, copy trim, dependency bump
+====================================================
 
-Changed since the version now on GitHub (build 2026-08-03.18):
+Changed since build 2026-08-03.18 (what is on GitHub now):
 
-  index.html              doctype, lang, favicon, accessible names,
-                          live regions, touch targets, clutch wording
-  package.json            jsdom 24 -> 26
-  package-lock.json       to match
-  tests/ui/14-audit.mjs   new checks so none of the above can regress
-  tests/ui/17-clutch.mjs  updated for the shorter clutch note
+  index.html                   doctype + lang, favicon, accessible names,
+                               live regions, touch targets, copy trimmed
+  package.json / -lock.json    jsdom 24 -> 26
+  tests/ui/14-audit.mjs        new checks so the interface work cannot regress
+  tests/ui/01-walkthrough.mjs  } updated for the new wording — the checks
+  tests/ui/11-achu-switch.mjs  } test the same things, not the old phrasing
+  tests/ui/17-clutch.mjs       }
 
-Copy over the same paths, delete this file and CHANGES.diff, then
-run:  npm install && npm test
+Copy over the same paths, delete this file and CHANGES.diff, then:
+  npm install && npm test
 Expect 449 checks, all passing.
 
-WORTH A LOOK BEFORE YOU TRUST IT
---------------------------------
-Adding the doctype moves the page from quirks mode into standards mode.
-box-sizing was already border-box everywhere and nothing uses percentage
-heights, so this should be invisible — but it is the one change here that
-could shift the layout. Open the deployed page and glance at each of the
-four screens.
+CHECK BY EYE BEFORE TRUSTING IT
+-------------------------------
+The doctype moves the page from quirks mode into standards mode. Nothing
+in the CSS should care, but it is the one change that could shift layout.
+Open the deployed page and glance at all four screens.

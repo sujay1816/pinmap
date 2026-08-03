@@ -2,7 +2,7 @@ Only in ../pinmap-remote: CHANGES.diff
 Only in ../pinmap-remote: WHAT-CHANGED.txt
 diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinmap/index.html
 --- ../pinmap-remote/index.html	2026-08-03 07:11:40.695173106 +0000
-+++ ../pinmap/index.html	2026-08-03 07:28:45.828791322 +0000
++++ ../pinmap/index.html	2026-08-03 07:46:05.927931171 +0000
 @@ -1,4 +1,10 @@
 +<!doctype html>
 +<html lang="en">
@@ -41,6 +41,24 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
  </div>
  
  <main class="gate" id="gate">
+@@ -682,7 +699,7 @@
+   <main class="screen" id="sc-looms">
+     <div class="head-row">
+       <h2>Registered looms</h2>
+-      <span class="hint">Register each loom once — its pin map is its fingerprint</span>
++      <span class="hint">Each loom's pin map is its fingerprint</span>
+     </div>
+     <div class="loomtools" id="loomTools" hidden>
+       <input type="search" id="loomSearch" placeholder="Search looms…" aria-label="Search looms">
+@@ -710,7 +727,7 @@
+   <main class="screen" id="sc-loom" hidden>
+     <div class="head-row">
+       <h2 id="loomFormTitle">Register a loom</h2>
+-      <span class="hint">Name the loom, give its total pins, then enter the count for each group</span>
++      <span class="hint">Total pins, then the count for each group</span>
+     </div>
+ 
+     <div class="form-top">
 @@ -735,7 +752,7 @@
        </label>
        <label class="field" id="clutchField" hidden>
@@ -50,7 +68,12 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
            <option value="none">No clutch pins</option>
            <option value="left">Left clutch</option>
            <option value="right">Right clutch</option>
-@@ -768,7 +785,7 @@
+@@ -764,11 +781,11 @@
+     <div class="weavelib">
+       <div class="wl-head">
+         <span class="cap" style="margin:0">Weave library</span>
+-        <span class="wl-note">Upload a small BMP of a weave, name it, and it stays available for every loom.</span>
++        <span class="wl-note">A named BMP here stays available to every loom.</span>
        </div>
        <div class="wl-add">
          <input type="text" id="weaveName" placeholder="name it, e.g. Murthy lock 8">
@@ -77,9 +100,12 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
      <div class="btn-row">
        <button class="solid" id="combineBorder">Combine border</button>
        <button id="downloadBorder" disabled>Download BMP</button>
-@@ -834,7 +851,7 @@
+@@ -832,9 +849,9 @@
+     <div class="verify" data-verify="border">
+       <div class="vf-head">
          <span class="cap" style="margin:0">Check against a file you trust</span>
-         <span class="vf-note">Load the border file the jacquard company's software made for this same design.</span>
+-        <span class="vf-note">Load the border file the jacquard company's software made for this same design.</span>
++        <span class="vf-note">The border file their software made for this same design.</span>
        </div>
 -      <input type="file" accept=".bmp,image/bmp,image/*" data-vfile="border">
 +      <input type="file" accept=".bmp,image/bmp,image/*" data-vfile="border" aria-label="A border file you already trust, to check ours against">
@@ -104,9 +130,12 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
      <div class="btn-row">
        <button class="solid" id="combineBody">Combine body</button>
        <button id="download" disabled>Download BMP</button>
-@@ -888,7 +905,7 @@
+@@ -886,9 +903,9 @@
+     <div class="verify" data-verify="body">
+       <div class="vf-head">
          <span class="cap" style="margin:0">Check against a file you trust</span>
-         <span class="vf-note">Load the body file the jacquard company's software made for this same design.</span>
+-        <span class="vf-note">Load the body file the jacquard company's software made for this same design.</span>
++        <span class="vf-note">The body file their software made for this same design.</span>
        </div>
 -      <input type="file" accept=".bmp,image/bmp,image/*" data-vfile="body">
 +      <input type="file" accept=".bmp,image/bmp,image/*" data-vfile="body" aria-label="A body file you already trust, to check ours against">
@@ -127,10 +156,28 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
    return `${base} ${n}`;
  }
 -const BUILD = "2026-08-03.18";      // bump when the file changes, so a stale page shows
-+const BUILD = "2026-08-03.19";      // bump when the file changes, so a stale page shows
++const BUILD = "2026-08-03.20";      // bump when the file changes, so a stale page shows
  /* ============================================================
     Whose software wrote the file
  
+@@ -1061,7 +1078,7 @@
+ 
+ const PINS_PER_COLUMN = 16;   // how the pins sit on the machine: sixteen to a column
+ const BOARD_MAX_PX = 16000;   // keep the canvas inside browser limits
+-const BOARD_HELP = "Pin 1 is top left. Sixteen to a column, down and then on to the right. Point at a group to pick it out, click to jump to its count, or drag a join to shift pins from one group into the next.";
++const BOARD_HELP = "Pin 1 top left, sixteen to a column. Drag a join to shift pins between groups.";
+ 
+ // The order these groups run on the machine, used for a fresh registration.
+ const DEFAULT_LAYOUT = [
+@@ -2992,7 +3009,7 @@
+   if (!state.looms.length) {
+     el("#loomCount").textContent = "";
+     host.innerHTML = `<div class="empty">
+-      <p>No looms registered yet. Enter a loom's total pins and how they are grouped once, then every design you build uses it.</p>
++      <p>No looms yet. Register one and every design you build uses it.</p>
+       <button class="solid" data-act="first">Register your first loom</button></div>`;
+     return;
+   }
 @@ -3267,7 +3284,8 @@
    const RULE = 22, GUT = 40, FOOT = 18;
    const W = GUT + cols * pitch + 8, H = RULE + PINS_PER_COLUMN * pitch + FOOT;
@@ -141,7 +188,22 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
    const cv = el("#" + canvasId);
    const dpr = Math.min(2, window.devicePixelRatio || 1);
    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-@@ -3753,7 +3771,7 @@
+@@ -3697,7 +3715,7 @@
+   const host = el("#boardSel");
+   if (!host) return;
+   if (boardSel < 0 || !state.segments[boardSel]) {
+-    host.innerHTML = `<span class="hintline">Click a group to pick it, then use ← and → to move its end. Hold shift to go five at a time.</span>`;
++    host.innerHTML = `<span class="hintline">Click a group, then ← and → to move its end. Shift for five.</span>`;
+     return;
+   }
+   const sg = state.segments[boardSel];
+@@ -3748,12 +3766,12 @@
+ function renderWeaveLibrary() {
+   const host = el("#weaveList");
+   if (!state.weaves.length) {
+-    host.innerHTML = `<div class="wl-empty">Nothing uploaded yet. The built-in satins and twills are always available in the Locking row.</div>`;
++    host.innerHTML = `<div class="wl-empty">Nothing uploaded. The built-in satins and twills are always in the Locking row.</div>`;
+     return;
    }
    host.innerHTML = `<div class="wl-grid">` + state.weaves.map(w => `
      <div class="wl-item">
@@ -172,7 +234,42 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
  }
  
  el("#loomCompany").addEventListener("change", e => {
-@@ -4209,7 +4227,7 @@
+@@ -3931,15 +3949,15 @@
+   let clutchMsg = "";
+   if (companyHasClutch(state.company) && normalClutch(state.clutch) !== "none") {
+     const seg = applyClutchGroup(state.clutch);
+-    clutchMsg = ` ${seg.count} pins are held empty at the ${normalClutch(state.clutch)} end for the clutch.`;
++    clutchMsg = ` ${seg.count} pins held at the ${normalClutch(state.clutch)} end.`;
+   } else if (removeClutchGroup(true)) {
+-    clutchMsg = " The clutch group has been taken off again.";
++    clutchMsg = " Clutch group removed.";
+   }
+   state.built = null; state.builtBorder = null;
+   renderLoomScreen(); renderOpts(); scheduleSave();
+   notify(applied
+-    ? `Set to ${companyName(state.company)}. Its conventions are in place — change any of them under How this loom is read.${clutchMsg}`
+-    : `No company set. The loom keeps whatever conventions it has.${clutchMsg}`);
++    ? `${companyName(state.company)} conventions applied.${clutchMsg}`
++    : `No company set.${clutchMsg}`);
+ });
+ 
+ el("#loomClutch").addEventListener("change", e => {
+@@ -3948,12 +3966,10 @@
+   let msg;
+   if (state.clutch === "none") {
+     // asked for plainly, so it goes, whatever its count
+-    msg = removeClutchGroup(false)
+-      ? "No clutch pins. The empty group has been taken off."
+-      : "No clutch pins.";
++    msg = removeClutchGroup(false) ? "Clutch group removed." : "No clutch pins.";
+   } else {
+     const seg = applyClutchGroup(state.clutch);
+-    msg = `${clutchLabel(state.clutch)}. The ${seg.count} empty pins now sit at the ${state.clutch} end.`;
++    msg = `${clutchLabel(state.clutch)} — ${seg.count} pins at the ${state.clutch} end.`;
+   }
+   state.built = null; state.builtBorder = null;
+   renderLoomScreen(); scheduleSave();
+@@ -4209,7 +4225,7 @@
      const bad = f.width !== expected;
      state_ += bad ? " bad" : " filled";
      meta = `${f.width} × ${f.height}${f.rotated ? " · turned to fit" : ""}${bad ? ` — needs ${expected} wide` : ""} · ${f.name}`;
@@ -181,7 +278,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
    }
    const acts = (f && !f.error)
      ? `<div class="acts2">
-@@ -4219,7 +4237,7 @@
+@@ -4219,7 +4235,7 @@
    return `<div class="${state_}">
      <div class="body">
        <div class="name">${esc(title)}</div>
@@ -190,6 +287,68 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
        <div class="meta ${f && (f.error || f.width !== expected) ? "err" : ""}">${esc(meta)}</div>
        ${acts}
      </div>${thumb}</div>`;
+@@ -4597,8 +4613,8 @@
+     : "";
+   block.querySelector(".sb-read").textContent = b.hover >= 0
+     ? sideHoverText(which, b.hover)
+-    : (lit ? `Pin 1 at the left, running right. Showing ${lit}. Tap a name to add or remove one.${mirrored}`
+-           : `Pin 1 at the left, running right. Nothing picked out — tap a name to show a group.${mirrored}`);
++    : (lit ? `Pin 1 at the left. Showing ${lit}.${mirrored}`
++           : `Pin 1 at the left. Nothing picked out — tap a name.${mirrored}`);
+ }
+ 
+ function sideHoverText(which, oi) {
+@@ -4742,7 +4758,7 @@
+   el("#borderAchuNote").innerHTML = achuSeg
+     ? `<p class="achu-note">The achu ${borderFilesLoaded()
+         ? "is generated into this file, because a border is loaded."
+-        : "will be generated here once a border file is loaded. Without one it goes in the body file."}</p>`
++        : "comes here once a border file is loaded; otherwise it goes in the body file."}</p>`
+     : "";
+   el("#combineBorder").disabled = !renderChecksInto(el("#borderChecks"), validateBorder(),
+     "The border files match their groups. Combine them.");
+@@ -4758,10 +4774,10 @@
+   const rani = !!(state.wefts[0] && state.wefts[0].file && !state.wefts[0].file.error);
+   const on = state.opts.achuInBody;
+   let why = "";
+-  if (!on) why = "Off, so the achu pins stay down in this file.";
+-  else if (border) why = "A border file is loaded, so the achu is in that file and these pins stay down.";
+-  else if (!rani) why = "Waiting on a rani in the first weft slot — the achu binds the ground.";
+-  else why = "On, so the achu is generated into this file.";
++  if (!on) why = "Off — these pins stay down.";
++  else if (border) why = "In the border file, so these pins stay down.";
++  else if (!rani) why = "Waiting on a rani in slot 1.";
++  else why = "On — generated into this file.";
+ 
+   const gw = state.opts.bodyGround;
+   host.innerHTML = `<label class="achubox">
+@@ -4777,7 +4793,7 @@
+     </select>
+     <span class="ab-why">${gw
+       ? "Where a weft has no design of its own, this weave holds it down."
+-      : "A figure weft lifts nothing until its figure appears, which leaves it floating. Sri Tex put a plain ground underneath."}</span>
++      : "A figure weft floats until its figure appears. Sri Tex put a plain ground underneath."}</span>
+   </label>`;
+   const gsel = el("#bodyGround");
+   if (gsel) gsel.onchange = (e) => {
+@@ -4798,7 +4814,7 @@
+     el("#pvWrap").hidden = true;
+     el("#download").disabled = true;
+     scheduleSave();
+-    notify(e.target.checked ? "Achu will be generated into the body file."
++    notify(e.target.checked ? "Achu goes in the body file."
+                             : "Achu removed from the body file.");
+   };
+ }
+@@ -5174,7 +5190,7 @@
+   // wherever the weaver happens to land — not only on the looms screen.
+   if ((state.damaged || []).length) {
+     go("looms");
+-    notify("Some saved data could not be read. The original has been kept — download it from the note below the loom list before saving anything else.");
++    notify("Some saved data could not be read. The original is kept — see the note below the loom list.");
+     return;
+   }
+   go(state.segments.length && state.loomName.trim() ? "loom" : "looms");
 diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/package-lock.json ../pinmap/package-lock.json
 --- ../pinmap-remote/package-lock.json	2026-08-03 07:11:55.587172766 +0000
 +++ ../pinmap/package-lock.json	2026-08-03 07:22:48.427157834 +0000
@@ -692,6 +851,48 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/package.json ../pi
    },
    "engines": {
      "node": ">=18"
+diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/tests/ui/01-walkthrough.mjs ../pinmap/tests/ui/01-walkthrough.mjs
+--- ../pinmap-remote/tests/ui/01-walkthrough.mjs	2026-08-03 07:11:40.708591988 +0000
++++ ../pinmap/tests/ui/01-walkthrough.mjs	2026-08-03 07:42:54.646430605 +0000
+@@ -93,7 +93,7 @@
+ await step('board zoom buttons', () => { $$('[data-bzoom]').forEach(b => click(b)); });
+ await step('the board explains itself', () => {
+   const t = $('#boardRead').textContent;
+-  if (!/point at a group/i.test(t)) throw new Error('no guidance: ' + t);
++  if (!/pin 1/i.test(t) || !/drag a join/i.test(t)) throw new Error('no guidance: ' + t);
+ });
+ await step('every group appears in the legend', () => {
+   const keys = $$('#boardLegend .legkey').map(e => e.textContent.trim());
+diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/tests/ui/11-achu-switch.mjs ../pinmap/tests/ui/11-achu-switch.mjs
+--- ../pinmap-remote/tests/ui/11-achu-switch.mjs	2026-08-03 07:11:40.711735839 +0000
++++ ../pinmap/tests/ui/11-achu-switch.mjs	2026-08-03 07:48:41.315188727 +0000
+@@ -44,7 +44,7 @@
+     [U+'720_butta_resham.bmp',U+'720_butta_jari.bmp',U+'720_butta_menna.bmp'][i]);
+ });
+ await wait(600);
+-ok('with a rani loaded it says it is on', /on, so the achu is generated/i.test($('#bodyAchu').textContent),
++ok('with a rani loaded it says it is on', /on\b.*generated into this file/i.test($('#bodyAchu').textContent),
+    $('#bodyAchu').textContent.replace(/\s+/g,' ').slice(0,90));
+ 
+ console.log('\n== turning it off ==');
+@@ -52,7 +52,7 @@
+ box.checked=false; box.dispatchEvent(new w.Event('change',{bubbles:true}));
+ await wait(250);
+ ok('it stays off', $('#achuInBody').checked===false);
+-ok('and says so', /off, so the achu pins stay down/i.test($('#bodyAchu').textContent),
++ok('and says so', /off\b.*these pins stay down/i.test($('#bodyAchu').textContent),
+    $('#bodyAchu').textContent.replace(/\s+/g,' ').slice(0,80));
+ ok('the built file is dropped, so nothing stale is downloaded', $('#download').disabled===true);
+ 
+@@ -72,7 +72,7 @@
+ attach($$('#borderHost input[type=file]')[0], U+'720_butta_resham.bmp'); await wait(300);
+ goTo('body'); await wait(250);
+ ok('it says the achu is in the border file',
+-   /border file is loaded/i.test($('#bodyAchu').textContent),
++   /in the border file/i.test($('#bodyAchu').textContent),
+    $('#bodyAchu').textContent.replace(/\s+/g,' ').slice(0,90));
+ 
+ console.log('\n== result ==');
 diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/tests/ui/14-audit.mjs ../pinmap/tests/ui/14-audit.mjs
 --- ../pinmap-remote/tests/ui/14-audit.mjs	2026-08-03 07:11:40.711735839 +0000
 +++ ../pinmap/tests/ui/14-audit.mjs	2026-08-03 07:28:13.340742045 +0000

@@ -93,7 +93,7 @@ await step('pin board draws', () => { if (!$('#board')) throw new Error('no boar
 await step('board zoom buttons', () => { $$('[data-bzoom]').forEach(b => click(b)); });
 await step('the board explains itself', () => {
   const t = $('#boardRead').textContent;
-  if (!/point at a group/i.test(t)) throw new Error('no guidance: ' + t);
+  if (!/pin 1/i.test(t) || !/drag a join/i.test(t)) throw new Error('no guidance: ' + t);
 });
 await step('every group appears in the legend', () => {
   const keys = $$('#boardLegend .legkey').map(e => e.textContent.trim());

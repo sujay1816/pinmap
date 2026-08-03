@@ -44,7 +44,7 @@ ok('it says what is happening', /waiting on a rani|generated into this file/i.te
     [U+'720_butta_resham.bmp',U+'720_butta_jari.bmp',U+'720_butta_menna.bmp'][i]);
 });
 await wait(600);
-ok('with a rani loaded it says it is on', /on, so the achu is generated/i.test($('#bodyAchu').textContent),
+ok('with a rani loaded it says it is on', /on\b.*generated into this file/i.test($('#bodyAchu').textContent),
    $('#bodyAchu').textContent.replace(/\s+/g,' ').slice(0,90));
 
 console.log('\n== turning it off ==');
@@ -52,7 +52,7 @@ const box=$('#achuInBody');
 box.checked=false; box.dispatchEvent(new w.Event('change',{bubbles:true}));
 await wait(250);
 ok('it stays off', $('#achuInBody').checked===false);
-ok('and says so', /off, so the achu pins stay down/i.test($('#bodyAchu').textContent),
+ok('and says so', /off\b.*these pins stay down/i.test($('#bodyAchu').textContent),
    $('#bodyAchu').textContent.replace(/\s+/g,' ').slice(0,80));
 ok('the built file is dropped, so nothing stale is downloaded', $('#download').disabled===true);
 
@@ -72,7 +72,7 @@ goTo('border'); await wait(200);
 attach($$('#borderHost input[type=file]')[0], U+'720_butta_resham.bmp'); await wait(300);
 goTo('body'); await wait(250);
 ok('it says the achu is in the border file',
-   /border file is loaded/i.test($('#bodyAchu').textContent),
+   /in the border file/i.test($('#bodyAchu').textContent),
    $('#bodyAchu').textContent.replace(/\s+/g,' ').slice(0,90));
 
 console.log('\n== result ==');

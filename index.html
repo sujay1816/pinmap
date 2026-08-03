@@ -699,7 +699,7 @@
   <main class="screen" id="sc-looms">
     <div class="head-row">
       <h2>Registered looms</h2>
-      <span class="hint">Register each loom once — its pin map is its fingerprint</span>
+      <span class="hint">Each loom's pin map is its fingerprint</span>
     </div>
     <div class="loomtools" id="loomTools" hidden>
       <input type="search" id="loomSearch" placeholder="Search looms…" aria-label="Search looms">
@@ -727,7 +727,7 @@
   <main class="screen" id="sc-loom" hidden>
     <div class="head-row">
       <h2 id="loomFormTitle">Register a loom</h2>
-      <span class="hint">Name the loom, give its total pins, then enter the count for each group</span>
+      <span class="hint">Total pins, then the count for each group</span>
     </div>
 
     <div class="form-top">
@@ -781,7 +781,7 @@
     <div class="weavelib">
       <div class="wl-head">
         <span class="cap" style="margin:0">Weave library</span>
-        <span class="wl-note">Upload a small BMP of a weave, name it, and it stays available for every loom.</span>
+        <span class="wl-note">A named BMP here stays available to every loom.</span>
       </div>
       <div class="wl-add">
         <input type="text" id="weaveName" placeholder="name it, e.g. Murthy lock 8">
@@ -849,7 +849,7 @@
     <div class="verify" data-verify="border">
       <div class="vf-head">
         <span class="cap" style="margin:0">Check against a file you trust</span>
-        <span class="vf-note">Load the border file the jacquard company's software made for this same design.</span>
+        <span class="vf-note">The border file their software made for this same design.</span>
       </div>
       <input type="file" accept=".bmp,image/bmp,image/*" data-vfile="border" aria-label="A border file you already trust, to check ours against">
       <div class="vf-out"></div>
@@ -903,7 +903,7 @@
     <div class="verify" data-verify="body">
       <div class="vf-head">
         <span class="cap" style="margin:0">Check against a file you trust</span>
-        <span class="vf-note">Load the body file the jacquard company's software made for this same design.</span>
+        <span class="vf-note">The body file their software made for this same design.</span>
       </div>
       <input type="file" accept=".bmp,image/bmp,image/*" data-vfile="body" aria-label="A body file you already trust, to check ours against">
       <div class="vf-out"></div>
@@ -974,7 +974,7 @@ function labelFor(segs, i) {
   for (let j = 0; j <= i; j++) if (isOne(segs[j])) n++;
   return `${base} ${n}`;
 }
-const BUILD = "2026-08-03.19";      // bump when the file changes, so a stale page shows
+const BUILD = "2026-08-03.20";      // bump when the file changes, so a stale page shows
 /* ============================================================
    Whose software wrote the file
 
@@ -1078,7 +1078,7 @@ function applyCompany(id) {
 
 const PINS_PER_COLUMN = 16;   // how the pins sit on the machine: sixteen to a column
 const BOARD_MAX_PX = 16000;   // keep the canvas inside browser limits
-const BOARD_HELP = "Pin 1 is top left. Sixteen to a column, down and then on to the right. Point at a group to pick it out, click to jump to its count, or drag a join to shift pins from one group into the next.";
+const BOARD_HELP = "Pin 1 top left, sixteen to a column. Drag a join to shift pins between groups.";
 
 // The order these groups run on the machine, used for a fresh registration.
 const DEFAULT_LAYOUT = [
@@ -3009,7 +3009,7 @@ function renderLoomList() {
   if (!state.looms.length) {
     el("#loomCount").textContent = "";
     host.innerHTML = `<div class="empty">
-      <p>No looms registered yet. Enter a loom's total pins and how they are grouped once, then every design you build uses it.</p>
+      <p>No looms yet. Register one and every design you build uses it.</p>
       <button class="solid" data-act="first">Register your first loom</button></div>`;
     return;
   }
@@ -3715,7 +3715,7 @@ function renderBoardSelection() {
   const host = el("#boardSel");
   if (!host) return;
   if (boardSel < 0 || !state.segments[boardSel]) {
-    host.innerHTML = `<span class="hintline">Click a group to pick it, then use ← and → to move its end. Hold shift to go five at a time.</span>`;
+    host.innerHTML = `<span class="hintline">Click a group, then ← and → to move its end. Shift for five.</span>`;
     return;
   }
   const sg = state.segments[boardSel];
@@ -3766,7 +3766,7 @@ function drawWeaveSwatch(cv, weave) {
 function renderWeaveLibrary() {
   const host = el("#weaveList");
   if (!state.weaves.length) {
-    host.innerHTML = `<div class="wl-empty">Nothing uploaded yet. The built-in satins and twills are always available in the Locking row.</div>`;
+    host.innerHTML = `<div class="wl-empty">Nothing uploaded. The built-in satins and twills are always in the Locking row.</div>`;
     return;
   }
   host.innerHTML = `<div class="wl-grid">` + state.weaves.map(w => `
@@ -3949,15 +3949,15 @@ el("#loomCompany").addEventListener("change", e => {
   let clutchMsg = "";
   if (companyHasClutch(state.company) && normalClutch(state.clutch) !== "none") {
     const seg = applyClutchGroup(state.clutch);
-    clutchMsg = ` ${seg.count} pins are held empty at the ${normalClutch(state.clutch)} end for the clutch.`;
+    clutchMsg = ` ${seg.count} pins held at the ${normalClutch(state.clutch)} end.`;
   } else if (removeClutchGroup(true)) {
-    clutchMsg = " The clutch group has been taken off again.";
+    clutchMsg = " Clutch group removed.";
   }
   state.built = null; state.builtBorder = null;
   renderLoomScreen(); renderOpts(); scheduleSave();
   notify(applied
-    ? `Set to ${companyName(state.company)}. Its conventions are in place — change any of them under How this loom is read.${clutchMsg}`
-    : `No company set. The loom keeps whatever conventions it has.${clutchMsg}`);
+    ? `${companyName(state.company)} conventions applied.${clutchMsg}`
+    : `No company set.${clutchMsg}`);
 });
 
 el("#loomClutch").addEventListener("change", e => {
@@ -3966,12 +3966,10 @@ el("#loomClutch").addEventListener("change", e => {
   let msg;
   if (state.clutch === "none") {
     // asked for plainly, so it goes, whatever its count
-    msg = removeClutchGroup(false)
-      ? "No clutch pins. The empty group has been taken off."
-      : "No clutch pins.";
+    msg = removeClutchGroup(false) ? "Clutch group removed." : "No clutch pins.";
   } else {
     const seg = applyClutchGroup(state.clutch);
-    msg = `${clutchLabel(state.clutch)}. The ${seg.count} empty pins now sit at the ${state.clutch} end.`;
+    msg = `${clutchLabel(state.clutch)} — ${seg.count} pins at the ${state.clutch} end.`;
   }
   state.built = null; state.builtBorder = null;
   renderLoomScreen(); scheduleSave();
@@ -4615,8 +4613,8 @@ function drawSideBoard(which) {
     : "";
   block.querySelector(".sb-read").textContent = b.hover >= 0
     ? sideHoverText(which, b.hover)
-    : (lit ? `Pin 1 at the left, running right. Showing ${lit}. Tap a name to add or remove one.${mirrored}`
-           : `Pin 1 at the left, running right. Nothing picked out — tap a name to show a group.${mirrored}`);
+    : (lit ? `Pin 1 at the left. Showing ${lit}.${mirrored}`
+           : `Pin 1 at the left. Nothing picked out — tap a name.${mirrored}`);
 }
 
 function sideHoverText(which, oi) {
@@ -4760,7 +4758,7 @@ function renderBorderScreen() {
   el("#borderAchuNote").innerHTML = achuSeg
     ? `<p class="achu-note">The achu ${borderFilesLoaded()
         ? "is generated into this file, because a border is loaded."
-        : "will be generated here once a border file is loaded. Without one it goes in the body file."}</p>`
+        : "comes here once a border file is loaded; otherwise it goes in the body file."}</p>`
     : "";
   el("#combineBorder").disabled = !renderChecksInto(el("#borderChecks"), validateBorder(),
     "The border files match their groups. Combine them.");
@@ -4776,10 +4774,10 @@ function renderBodyAchu() {
   const rani = !!(state.wefts[0] && state.wefts[0].file && !state.wefts[0].file.error);
   const on = state.opts.achuInBody;
   let why = "";
-  if (!on) why = "Off, so the achu pins stay down in this file.";
-  else if (border) why = "A border file is loaded, so the achu is in that file and these pins stay down.";
-  else if (!rani) why = "Waiting on a rani in the first weft slot — the achu binds the ground.";
-  else why = "On, so the achu is generated into this file.";
+  if (!on) why = "Off — these pins stay down.";
+  else if (border) why = "In the border file, so these pins stay down.";
+  else if (!rani) why = "Waiting on a rani in slot 1.";
+  else why = "On — generated into this file.";
 
   const gw = state.opts.bodyGround;
   host.innerHTML = `<label class="achubox">
@@ -4795,7 +4793,7 @@ function renderBodyAchu() {
     </select>
     <span class="ab-why">${gw
       ? "Where a weft has no design of its own, this weave holds it down."
-      : "A figure weft lifts nothing until its figure appears, which leaves it floating. Sri Tex put a plain ground underneath."}</span>
+      : "A figure weft floats until its figure appears. Sri Tex put a plain ground underneath."}</span>
   </label>`;
   const gsel = el("#bodyGround");
   if (gsel) gsel.onchange = (e) => {
@@ -4816,7 +4814,7 @@ function renderBodyAchu() {
     el("#pvWrap").hidden = true;
     el("#download").disabled = true;
     scheduleSave();
-    notify(e.target.checked ? "Achu will be generated into the body file."
+    notify(e.target.checked ? "Achu goes in the body file."
                             : "Achu removed from the body file.");
   };
 }
@@ -5192,7 +5190,7 @@ async function enterApp() {
   // wherever the weaver happens to land — not only on the looms screen.
   if ((state.damaged || []).length) {
     go("looms");
-    notify("Some saved data could not be read. The original has been kept — download it from the note below the loom list before saving anything else.");
+    notify("Some saved data could not be read. The original is kept — see the note below the loom list.");
     return;
   }
   go(state.segments.length && state.loomName.trim() ? "loom" : "looms");
