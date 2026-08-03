@@ -7,7 +7,7 @@
 import fs from 'fs';
 import { fileURLToPath as __f } from 'url';
 import { dirname as __d, join as __j } from 'path';
-import { decodeBMP, compose, state, freshWefts, COMPANIES, boxPlan, boxRow } from '../core.mjs';
+import { decodeBMP, compose, state, freshWefts, COMPANIES, boxPlan, boxRow, SRITEX_BOX } from '../core.mjs';
 let pass=0, fail=0;
 const ok=(n,c,e='')=>{ c?(pass++,console.log('  ok   '+n)):(fail++,console.log('  FAIL '+n+(e?'  -> '+e:''))); };
 const head=t=>console.log('\n== '+t+' ==');
@@ -20,9 +20,9 @@ ok('Sai Tex keeps the standard table', saitex.opts.boxScheme === 'default');
 
 head('which half lifts, by how many designs are loaded');
 const plan = (n) => Array.from({length:n}, (_,i) => boxPlan(n, i, true, 'sritex'));
-ok('one design: the back half',            plan(1).join()==='second', plan(1).join());
-ok('two: front, then back',                plan(2).join()==='first,second', plan(2).join());
-ok('three: front, both down, then back',   plan(3).join()==='first,none,second', plan(3).join());
+ok('one design: the first half',              plan(1).join()==='first', plan(1).join());
+ok('two: second, then first',                 plan(2).join()==='second,first', plan(2).join());
+ok('three: second, both down, then first',    plan(3).join()==='second,none,first', plan(3).join());
 // Four was never specified, so it must not be invented here.
 ok('four falls back to the standard table, to be set by hand',
    plan(4).join() === ['all','first','second','none'].join(), plan(4).join());
@@ -30,18 +30,26 @@ ok('four falls back to the standard table, to be set by hand',
 head('a weft with nothing to weave takes the one-design setting');
 for (const n of [1,2,3]) {
   const got = Array.from({length:n}, (_,i) => boxPlan(n, i, false, 'sritex'));
-  ok(`${n} design${n>1?'s':''}: every idle weft lifts the back half`,
-     got.every(p => p === 'second'), got.join());
+  ok(`${n} design${n>1?'s':''}: every idle weft lifts the one-design half`,
+     got.every(p => p === SRITEX_BOX[1][0]), got.join());
 }
+// The fallback must follow the table, not name a half of its own, or the two
+// drift apart the next time the rule changes.
+ok('the fallback is the one-design setting itself, not a copy of it',
+   boxPlan(3, 1, false, 'sritex') === SRITEX_BOX[1][0]);
 
 head('four pins, so a half is a pair');
 {
-  const front = Array.from(boxRow(4, 0, 2, true, 'sritex')).join('');
-  const back  = Array.from(boxRow(4, 1, 2, true, 'sritex')).join('');
-  ok('the front half is the first two pins', front === '1100', front);
-  ok('the back half is the last two',        back  === '0011', back);
-  ok('and both down means both down',
-     Array.from(boxRow(4, 1, 3, true, 'sritex')).join('') === '0000');
+  // Pick the wefts by the plan they produce, not by their position, so this
+  // still says what it means if the table is reordered again.
+  const rowFor = (want, n) => {
+    for (let i = 0; i < n; i++) if (boxPlan(n, i, true, 'sritex') === want)
+      return Array.from(boxRow(4, i, n, true, 'sritex')).join('');
+    return '(no weft takes that plan)';
+  };
+  ok('the first half is the first two pins', rowFor('first', 2) === '1100', rowFor('first', 2));
+  ok('the second half is the last two',      rowFor('second', 2) === '0011', rowFor('second', 2));
+  ok('and both down means both down',        rowFor('none', 3) === '0000', rowFor('none', 3));
 }
 
 head('Sai Tex is untouched');
@@ -81,13 +89,13 @@ head('built end to end');
   const box=y=>{ let t=''; for(let p=11;p<=14;p++) t+=up(y,p)?'1':'0'; return t; };
 
   // design row 0: all three have figure
-  ok('row 0, weft 1 lifts the front half', box(0)==='1100', box(0));
-  ok('row 0, weft 2 keeps both down',      box(1)==='0000', box(1));
-  ok('row 0, weft 3 lifts the back half',  box(2)==='0011', box(2));
+  ok('row 0, weft 1 lifts the second half', box(0)==='0011', box(0));
+  ok('row 0, weft 2 keeps both down',       box(1)==='0000', box(1));
+  ok('row 0, weft 3 lifts the first half',  box(2)==='1100', box(2));
   // design row 1: weft 2 has nothing to weave
-  ok('row 1, weft 1 still lifts the front half', box(3)==='1100', box(3));
-  ok('row 1, weft 2 falls back to the back half', box(4)==='0011', box(4));
-  ok('row 1, weft 3 is unchanged',                box(5)==='0011', box(5));
+  ok('row 1, weft 1 still lifts the second half',  box(3)==='0011', box(3));
+  ok('row 1, weft 2 falls back to the first half', box(4)==='1100', box(4));
+  ok('row 1, weft 3 is unchanged',                 box(5)==='1100', box(5));
 }
 
 head('one design on its own');
@@ -98,8 +106,8 @@ head('one design on its own');
   const b=compose('body');
   const up=(y,p)=>b.bits[y*b.width+(b.width-p)];
   const box=y=>{ let t=''; for(let p=11;p<=14;p++) t+=up(y,p)?'1':'0'; return t; };
-  ok('with figure, the back half lifts',      box(0)==='0011', box(0));
-  ok('and with nothing to weave, still the back half', box(1)==='0011', box(1));
+  ok('with figure, the first half lifts',      box(0)==='1100', box(0));
+  ok('and with nothing to weave, still the first half', box(1)==='1100', box(1));
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);

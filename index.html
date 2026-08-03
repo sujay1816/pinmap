@@ -1005,7 +1005,7 @@ function labelFor(segs, i) {
   for (let j = 0; j <= i; j++) if (isOne(segs[j])) n++;
   return `${base} ${n}`;
 }
-const BUILD = "2026-08-03.27";      // bump when the file changes, so a stale page shows
+const BUILD = "2026-08-03.28";      // bump when the file changes, so a stale page shows
 /* ============================================================
    Whose software wrote the file
 
@@ -1511,27 +1511,27 @@ function closeBandGaps(f) {
    Their box is four pins, so a half is a pair. Which half lifts depends
    on how many designs are loaded, and it is decided per line:
 
-       one design      the back half
-       two designs     first the front half, then the back half
-       three designs   front half, both pins down, then the back half
+       one design      the first half
+       two designs     the second half, then the first half
+       three designs   second half, both pins down, then the first half
 
    Four is left out on purpose. Nobody has said what it should be, so it
    falls back to the standard table and can be set by hand per weft.
 
    And a line with nothing to weave on that weft does not leave the box
-   down — it takes the one-design setting, the back half.
+   down — it takes the one-design setting, whatever that is.
    ------------------------------------------------------------ */
 const SRITEX_BOX = {
-  1: ["second"],
-  2: ["first", "second"],
-  3: ["first", "none",  "second"]
+  1: ["first"],
+  2: ["second", "first"],
+  3: ["second", "none", "first"]
 };
 
 function boxPlan(weftCount, weftIndex, figureOnLine, scheme) {
   if (scheme === "sritex") {
     const row = SRITEX_BOX[weftCount];
     if (!row) return boxPlan(weftCount, weftIndex, figureOnLine);   // four wefts, or more
-    if (!figureOnLine) return "second";     // nothing to weave here, so the one-design setting
+    if (!figureOnLine) return SRITEX_BOX[1][0];   // nothing to weave: the one-design setting
     return row[weftIndex] || "none";
   }
   if (weftCount <= 1) return "none";        // one weft: nothing to choose

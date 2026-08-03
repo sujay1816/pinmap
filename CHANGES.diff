@@ -1,8 +1,8 @@
 Only in ../verify: CHANGES.diff
 diff -ru -x node_modules -x .git -x core.mjs ../verify/README.md ../pinmap/README.md
 --- ../verify/README.md	2026-08-03 11:34:51.543374973 +0000
-+++ ../pinmap/README.md	2026-08-03 17:23:28.277764000 +0000
-@@ -171,6 +171,35 @@
++++ ../pinmap/README.md	2026-08-03 17:30:30.779402856 +0000
+@@ -171,6 +171,37 @@
  border file, the body and locking pins stay down in it, and the achu is half up
  and half down, flipping every line.
  
@@ -13,9 +13,9 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/README.md ../pinmap/READM
 +
 +| Designs | 1st | 2nd | 3rd |
 +| --- | --- | --- | --- |
-+| one | back half | | |
-+| two | front half | back half | |
-+| three | front half | both down | back half |
++| one | first half | | |
++| two | second half | first half | |
++| three | second half | both down | first half |
 +
 +Four is deliberately left out. Nobody has said what it should be, so it falls
 +back to the standard table and can be set by hand per weft.
@@ -23,7 +23,9 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/README.md ../pinmap/READM
 +Two things make this different from the standard table. The question is asked
 +**of each weft separately** — not "is there a figure anywhere on this line" but
 +"is there anything to weave on this weft". And a weft with nothing to weave
-+does **not** drop its box pins: it takes the one-design setting, the back half.
++does **not** drop its box pins: it takes the one-design setting — the first
++half — and the code reads that from the table rather than naming a half of its
++own, so the two cannot drift apart.
 +
 +The loom the samples came off, read from the right, is:
 +
@@ -38,7 +40,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/README.md ../pinmap/READM
  ### Why the Sri Tex body file is turned round
  
  This was wrong for a long time and is worth writing down, because a mirrored
-@@ -209,13 +238,15 @@
+@@ -209,13 +240,15 @@
  A Sri Tex loom carries its clutch at one end, and the thirty-two pins sitting
  over it cannot take a design. Registering a loom as Sri Tex therefore asks one
  more question — **left clutch or right clutch** — and puts an empty group of
@@ -62,7 +64,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/README.md ../pinmap/READM
 Only in ../verify: WHAT-CHANGED.txt
 diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/index.html
 --- ../verify/index.html	2026-08-03 11:34:51.543374973 +0000
-+++ ../pinmap/index.html	2026-08-03 17:20:01.984212871 +0000
++++ ../pinmap/index.html	2026-08-03 17:27:02.757225326 +0000
 @@ -59,6 +59,7 @@
      --t-body:  15.5px;   /* prose */
      --t-field: 15px;     /* what you type into */
@@ -159,7 +161,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    return `${base} ${n}`;
  }
 -const BUILD = "2026-08-03.22";      // bump when the file changes, so a stale page shows
-+const BUILD = "2026-08-03.27";      // bump when the file changes, so a stale page shows
++const BUILD = "2026-08-03.28";      // bump when the file changes, so a stale page shows
  /* ============================================================
     Whose software wrote the file
  
@@ -201,27 +203,27 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
 +   Their box is four pins, so a half is a pair. Which half lifts depends
 +   on how many designs are loaded, and it is decided per line:
 +
-+       one design      the back half
-+       two designs     first the front half, then the back half
-+       three designs   front half, both pins down, then the back half
++       one design      the first half
++       two designs     the second half, then the first half
++       three designs   second half, both pins down, then the first half
 +
 +   Four is left out on purpose. Nobody has said what it should be, so it
 +   falls back to the standard table and can be set by hand per weft.
 +
 +   And a line with nothing to weave on that weft does not leave the box
-+   down — it takes the one-design setting, the back half.
++   down — it takes the one-design setting, whatever that is.
 +   ------------------------------------------------------------ */
 +const SRITEX_BOX = {
-+  1: ["second"],
-+  2: ["first", "second"],
-+  3: ["first", "none",  "second"]
++  1: ["first"],
++  2: ["second", "first"],
++  3: ["second", "none", "first"]
 +};
 +
 +function boxPlan(weftCount, weftIndex, figureOnLine, scheme) {
 +  if (scheme === "sritex") {
 +    const row = SRITEX_BOX[weftCount];
 +    if (!row) return boxPlan(weftCount, weftIndex, figureOnLine);   // four wefts, or more
-+    if (!figureOnLine) return "second";     // nothing to weave here, so the one-design setting
++    if (!figureOnLine) return SRITEX_BOX[1][0];   // nothing to weave: the one-design setting
 +    return row[weftIndex] || "none";
 +  }
    if (weftCount <= 1) return "none";        // one weft: nothing to choose

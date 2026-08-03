@@ -178,9 +178,9 @@ many designs are loaded:
 
 | Designs | 1st | 2nd | 3rd |
 | --- | --- | --- | --- |
-| one | back half | | |
-| two | front half | back half | |
-| three | front half | both down | back half |
+| one | first half | | |
+| two | second half | first half | |
+| three | second half | both down | first half |
 
 Four is deliberately left out. Nobody has said what it should be, so it falls
 back to the standard table and can be set by hand per weft.
@@ -188,7 +188,9 @@ back to the standard table and can be set by hand per weft.
 Two things make this different from the standard table. The question is asked
 **of each weft separately** — not "is there a figure anywhere on this line" but
 "is there anything to weave on this weft". And a weft with nothing to weave
-does **not** drop its box pins: it takes the one-design setting, the back half.
+does **not** drop its box pins: it takes the one-design setting — the first
+half — and the code reads that from the table rather than naming a half of its
+own, so the two cannot drift apart.
 
 The loom the samples came off, read from the right, is:
 
