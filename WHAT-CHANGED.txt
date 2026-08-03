@@ -1,18 +1,19 @@
-Pinmap — build 2026-08-03.28
+Pinmap — build 2026-08-03.29
 ============================
 
 Everything since build .22 on GitHub.
 
-  index.html                  Sri Tex box halves swapped to the new rule,
-                              clutch pins fixed at the left of the board,
-                              border preview switch, weave library guidance,
-                              fonts and buttons
+  index.html                  board ends named under the board (was drawn
+                              over by the ruler); Sri Tex box halves;
+                              clutch pins fixed at the left; border preview
+                              switch; weave library guidance; fonts/buttons
   README.md                   box rule and confirmed loom layout
   tests/extract.mjs           exports SRITEX_BOX
-  tests/logic/25.mjs          the Sri Tex box rule, end to end
-  tests/logic/24.mjs          one assertion narrowed off the box columns
+  tests/logic/24.mjs, 25.mjs  the Sri Tex box rule
+  tests/ui/09-pinboard.mjs    foot height updated
   tests/ui/17-clutch.mjs      clutch group no longer moves ends
   tests/ui/20-inputs.mjs      weave library path
   tests/ui/21-border-mono.mjs border preview and what gets written
+  tests/ui/22-board-ends.mjs  NEW: board labels never collide
 
   npm test  ->  472 checks, all passing

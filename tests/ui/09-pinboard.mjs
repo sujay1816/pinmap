@@ -26,7 +26,7 @@ const START=[4,4,500,8,720,500,4,52];
 START.forEach((v,i)=>{ const el=$$('#segTable input[type=number]')[i]; if(el) setVal(el,String(v)); });
 await wait(600);
 
-const PER = 16, GUT = 40, RULE = 22, FOOT = 18, PAD = 8;
+const PER = 16, GUT = 40, RULE = 22, FOOT = 34, PAD = 8;   // the foot now names both ends
 const counts = () => $$('#segTable input[type=number]').map(e=>parseInt(e.value,10)||0);
 const cv = () => $('#board');
 const place = () => { const c=cv(); c.getBoundingClientRect = () => ({ left:0, top:0, width:c.width, height:c.height }); };

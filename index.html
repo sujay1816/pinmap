@@ -1005,7 +1005,7 @@ function labelFor(segs, i) {
   for (let j = 0; j <= i; j++) if (isOne(segs[j])) n++;
   return `${base} ${n}`;
 }
-const BUILD = "2026-08-03.28";      // bump when the file changes, so a stale page shows
+const BUILD = "2026-08-03.29";      // bump when the file changes, so a stale page shows
 /* ============================================================
    Whose software wrote the file
 
@@ -3380,7 +3380,7 @@ function paintBoard(host, canvasId, opts) {
   const pitch = zoom === "fit"
     ? Math.max(4, Math.min(24, (Math.max(260, host.clientWidth - 28) - 40) / cols))
     : parseFloat(zoom);
-  const RULE = 22, GUT = 40, FOOT = 18;
+  const RULE = 22, GUT = 40, FOOT = 34;
   const W = GUT + cols * pitch + 8, H = RULE + PINS_PER_COLUMN * pitch + FOOT;
 
   host.innerHTML = `<div class="board-wrap"><canvas id="${canvasId}"${interactive ? ' tabindex="0"' : ""}
@@ -3538,14 +3538,6 @@ function paintBoard(host, canvasId, opts) {
     }
   });
 
-  /* ---- which way the map runs, said outright ---- */
-  ctx.font = "10.5px ui-monospace, Menlo, Consolas, monospace";
-  ctx.fillStyle = "#4A555E";
-  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
-  ctx.fillText("pin 1", GUT, RULE - 7);
-  ctx.textAlign = "right";
-  ctx.fillText("pin " + T.toLocaleString() + " \u2192", GUT + cols * pitch, RULE - 7);
-
   /* ---- a scale along the foot, so the shape of the loom is readable ---- */
   const fy = RULE + PINS_PER_COLUMN * pitch + 7;
   let at = 0;
@@ -3562,6 +3554,41 @@ function paintBoard(host, canvasId, opts) {
     ctx.strokeStyle = "#C9D1D5"; ctx.lineWidth = 1;
     ctx.strokeRect(GUT + (at / T) * (cols * pitch) + 0.5, fy + 0.5, Math.max(1, ((T - at) / T) * (cols * pitch) - 1), 5);
   }
+
+  /* ---- which end is which, named under the board ----
+
+     The board reads down a column of sixteen and then on to the next, so which
+     end of the loom you are looking at is not obvious. It used to be written on
+     the ruler line, where the column numbers were drawn straight over it. It
+     goes underneath now, with the edge of the loom named, because the pin map
+     runs the way the pins are numbered and that is not always left to right on
+     the machine. */
+  const barL = GUT, barR = GUT + cols * pitch;
+  ctx.strokeStyle = "#9AA6AD"; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(barL + 0.5, fy - 2); ctx.lineTo(barL + 0.5, fy + 8);
+  ctx.moveTo(barR - 0.5, fy - 2); ctx.lineTo(barR - 0.5, fy + 8);
+  ctx.stroke();
+
+  const nearEdge = state.opts && state.opts.pinOneLeft === false ? "right" : "left";
+  const farEdge  = nearEdge === "left" ? "right" : "left";
+  const ty = fy + 20;
+  ctx.font = "10.5px ui-monospace, Menlo, Consolas, monospace";
+  ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = "#4A555E";
+
+  // Measure rather than guess at a width: the two ends must not meet in the
+  // middle, and how much room a word takes is not something to estimate.
+  const pick = (long, short) => [long, short];
+  const [lLong, lShort] = pick(`\u25c0 pin 1 \u00b7 ${nearEdge} edge of the loom`, "\u25c0 pin 1");
+  const [rLong, rShort] = pick(`pin ${T.toLocaleString()} \u00b7 ${farEdge} edge \u25b6`,
+                               `pin ${T.toLocaleString()} \u25b6`);
+  const fits = (a, b) => ctx.measureText(a).width + ctx.measureText(b).width + 24 <= (barR - barL);
+  const [lTxt, rTxt] = fits(lLong, rLong) ? [lLong, rLong]
+                     : fits(lShort, rShort) ? [lShort, rShort]
+                     : ["\u25c0 1", String(T.toLocaleString()) + " \u25b6"];
+  ctx.textAlign = "left";  ctx.fillText(lTxt, barL, ty);
+  ctx.textAlign = "right"; ctx.fillText(rTxt, barR, ty);
 
   return { pitch, T, owners, W, H, spans, bounds, cols, GUT, RULE, cx, cy, xy };
 }

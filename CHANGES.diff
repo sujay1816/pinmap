@@ -64,7 +64,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/README.md ../pinmap/READM
 Only in ../verify: WHAT-CHANGED.txt
 diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/index.html
 --- ../verify/index.html	2026-08-03 11:34:51.543374973 +0000
-+++ ../pinmap/index.html	2026-08-03 17:27:02.757225326 +0000
++++ ../pinmap/index.html	2026-08-03 17:34:42.025728476 +0000
 @@ -59,6 +59,7 @@
      --t-body:  15.5px;   /* prose */
      --t-field: 15px;     /* what you type into */
@@ -161,7 +161,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    return `${base} ${n}`;
  }
 -const BUILD = "2026-08-03.22";      // bump when the file changes, so a stale page shows
-+const BUILD = "2026-08-03.28";      // bump when the file changes, so a stale page shows
++const BUILD = "2026-08-03.29";      // bump when the file changes, so a stale page shows
  /* ============================================================
     Whose software wrote the file
  
@@ -340,7 +340,73 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    return seg;
  }
  
-@@ -3779,7 +3868,13 @@
+@@ -3291,7 +3380,7 @@
+   const pitch = zoom === "fit"
+     ? Math.max(4, Math.min(24, (Math.max(260, host.clientWidth - 28) - 40) / cols))
+     : parseFloat(zoom);
+-  const RULE = 22, GUT = 40, FOOT = 18;
++  const RULE = 22, GUT = 40, FOOT = 34;
+   const W = GUT + cols * pitch + 8, H = RULE + PINS_PER_COLUMN * pitch + FOOT;
+ 
+   host.innerHTML = `<div class="board-wrap"><canvas id="${canvasId}"${interactive ? ' tabindex="0"' : ""}
+@@ -3449,14 +3538,6 @@
+     }
+   });
+ 
+-  /* ---- which way the map runs, said outright ---- */
+-  ctx.font = "10.5px ui-monospace, Menlo, Consolas, monospace";
+-  ctx.fillStyle = "#4A555E";
+-  ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+-  ctx.fillText("pin 1", GUT, RULE - 7);
+-  ctx.textAlign = "right";
+-  ctx.fillText("pin " + T.toLocaleString() + " \u2192", GUT + cols * pitch, RULE - 7);
+-
+   /* ---- a scale along the foot, so the shape of the loom is readable ---- */
+   const fy = RULE + PINS_PER_COLUMN * pitch + 7;
+   let at = 0;
+@@ -3474,6 +3555,41 @@
+     ctx.strokeRect(GUT + (at / T) * (cols * pitch) + 0.5, fy + 0.5, Math.max(1, ((T - at) / T) * (cols * pitch) - 1), 5);
+   }
+ 
++  /* ---- which end is which, named under the board ----
++
++     The board reads down a column of sixteen and then on to the next, so which
++     end of the loom you are looking at is not obvious. It used to be written on
++     the ruler line, where the column numbers were drawn straight over it. It
++     goes underneath now, with the edge of the loom named, because the pin map
++     runs the way the pins are numbered and that is not always left to right on
++     the machine. */
++  const barL = GUT, barR = GUT + cols * pitch;
++  ctx.strokeStyle = "#9AA6AD"; ctx.lineWidth = 1;
++  ctx.beginPath();
++  ctx.moveTo(barL + 0.5, fy - 2); ctx.lineTo(barL + 0.5, fy + 8);
++  ctx.moveTo(barR - 0.5, fy - 2); ctx.lineTo(barR - 0.5, fy + 8);
++  ctx.stroke();
++
++  const nearEdge = state.opts && state.opts.pinOneLeft === false ? "right" : "left";
++  const farEdge  = nearEdge === "left" ? "right" : "left";
++  const ty = fy + 20;
++  ctx.font = "10.5px ui-monospace, Menlo, Consolas, monospace";
++  ctx.textBaseline = "alphabetic";
++  ctx.fillStyle = "#4A555E";
++
++  // Measure rather than guess at a width: the two ends must not meet in the
++  // middle, and how much room a word takes is not something to estimate.
++  const pick = (long, short) => [long, short];
++  const [lLong, lShort] = pick(`\u25c0 pin 1 \u00b7 ${nearEdge} edge of the loom`, "\u25c0 pin 1");
++  const [rLong, rShort] = pick(`pin ${T.toLocaleString()} \u00b7 ${farEdge} edge \u25b6`,
++                               `pin ${T.toLocaleString()} \u25b6`);
++  const fits = (a, b) => ctx.measureText(a).width + ctx.measureText(b).width + 24 <= (barR - barL);
++  const [lTxt, rTxt] = fits(lLong, rLong) ? [lLong, rLong]
++                     : fits(lShort, rShort) ? [lShort, rShort]
++                     : ["\u25c0 1", String(T.toLocaleString()) + " \u25b6"];
++  ctx.textAlign = "left";  ctx.fillText(lTxt, barL, ty);
++  ctx.textAlign = "right"; ctx.fillText(rTxt, barR, ty);
++
+   return { pitch, T, owners, W, H, spans, bounds, cols, GUT, RULE, cx, cy, xy };
+ }
+ 
+@@ -3779,7 +3895,13 @@
      host.innerHTML = `<div class="wl-empty">Nothing uploaded. The built-in satins and twills are always in the Locking row.</div>`;
      return;
    }
@@ -355,7 +421,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
      <div class="wl-item">
        <canvas data-weave="${esc(w.id)}" role="img" aria-label="The ${esc(w.name)} weave, ${w.pins} pins"></canvas>
        <div style="flex:1;min-width:0">
-@@ -3956,7 +4051,7 @@
+@@ -3956,7 +4078,7 @@
    const seg = clutchSeg();
    if (note) note.textContent =
        side === "none" ? "No pins set aside. Say which end only if this loom really gives pins up to a clutch."
@@ -364,7 +430,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
      : "The group has been removed. Pick an end again to put it back.";
  }
  
-@@ -3966,7 +4061,7 @@
+@@ -3966,7 +4088,7 @@
    let clutchMsg = "";
    if (companyHasClutch(state.company) && normalClutch(state.clutch) !== "none") {
      const seg = applyClutchGroup(state.clutch);
@@ -373,7 +439,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    } else if (removeClutchGroup(true)) {
      clutchMsg = " Clutch group removed.";
    }
-@@ -3986,7 +4081,7 @@
+@@ -3986,7 +4108,7 @@
      msg = removeClutchGroup(false) ? "Clutch group removed." : "No clutch pins.";
    } else {
      const seg = applyClutchGroup(state.clutch);
@@ -382,7 +448,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    }
    state.built = null; state.builtBorder = null;
    renderLoomScreen(); scheduleSave();
-@@ -4922,8 +5017,9 @@
+@@ -4922,8 +5044,9 @@
        const p = (y * w + x) * 4;
        const up = b.bits[sy * b.width + sx];
        let r, g, bl;
@@ -394,7 +460,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
        img.data[p] = r; img.data[p+1] = g; img.data[p+2] = bl; img.data[p+3] = 255;
      }
    }
-@@ -4931,9 +5027,24 @@
+@@ -4931,9 +5054,24 @@
    if (borderZoom === "fit") { cv.style.width = "100%"; cv.style.height = "auto"; }
    el("#borderDims").textContent =
      `${b.width} pins × ${b.height} lines${step > 1 ? ` · preview reduced ${step}×` : ""}`;
@@ -446,6 +512,18 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/tests/logic/24.mjs ../pin
  
  head('written the same way round, it lands thirty pins short');
 Only in ../pinmap/tests/logic: 25.mjs
+diff -ru -x node_modules -x .git -x core.mjs ../verify/tests/ui/09-pinboard.mjs ../pinmap/tests/ui/09-pinboard.mjs
+--- ../verify/tests/ui/09-pinboard.mjs	2026-08-03 11:34:51.581800249 +0000
++++ ../pinmap/tests/ui/09-pinboard.mjs	2026-08-03 17:38:09.115946544 +0000
+@@ -26,7 +26,7 @@
+ START.forEach((v,i)=>{ const el=$$('#segTable input[type=number]')[i]; if(el) setVal(el,String(v)); });
+ await wait(600);
+ 
+-const PER = 16, GUT = 40, RULE = 22, FOOT = 18, PAD = 8;
++const PER = 16, GUT = 40, RULE = 22, FOOT = 34, PAD = 8;   // the foot now names both ends
+ const counts = () => $$('#segTable input[type=number]').map(e=>parseInt(e.value,10)||0);
+ const cv = () => $('#board');
+ const place = () => { const c=cv(); c.getBoundingClientRect = () => ({ left:0, top:0, width:c.width, height:c.height }); };
 diff -ru -x node_modules -x .git -x core.mjs ../verify/tests/ui/14-audit.mjs ../pinmap/tests/ui/14-audit.mjs
 --- ../verify/tests/ui/14-audit.mjs	2026-08-03 11:34:51.581800249 +0000
 +++ ../pinmap/tests/ui/14-audit.mjs	2026-08-03 11:47:38.305804419 +0000
@@ -622,3 +700,4 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/tests/ui/20-inputs.mjs ..
  {
    const src=fs.readFileSync(process.argv[2],'utf8');
 Only in ../pinmap/tests/ui: 21-border-mono.mjs
+Only in ../pinmap/tests/ui: 22-board-ends.mjs
