@@ -1,0 +1,17 @@
+Sri Tex clutch end — changed files
+==================================
+
+Copy these over the same paths in your local clone, keeping the folder
+structure, then commit in GitHub Desktop.
+
+  index.html                 the app
+  README.md                  documents the clutch end
+  tests/ui/16-company.mjs    updated: Sri Tex now brings 32 more pins
+  tests/ui/17-clutch.mjs     NEW: the clutch suite
+
+CHANGES.diff is the same thing as a patch, if you would rather apply it
+with `git apply CHANGES.diff` from the repo root. It does not include the
+new file 17-clutch.mjs, which has no previous version to diff against.
+
+After copying, run:  npm test
+Everything should pass: 433 checks, 23 logic suites and 17 interface suites.

@@ -89,6 +89,8 @@
   .head-row .hint { margin-left: auto; font-size: var(--t-small); color: var(--ink-3); }
 
   label.field { display: block; }
+  label.field[hidden] { display: none; }
+  .fieldnote { display: block; margin-top: 5px; font-size: var(--t-small); color: var(--ink-3); line-height: 1.4; }
   label.field > .cap, .cap {
     display: block; font-family: var(--mono); font-size: var(--t-small); letter-spacing: var(--track);
     text-transform: uppercase; color: var(--ink-3); margin-bottom: 5px;
@@ -727,6 +729,14 @@
           <option value="4x1">4 by 1</option>
         </select>
       </label>
+      <label class="field" id="clutchField" hidden>
+        <span class="cap">Clutch end</span>
+        <select id="loomClutch">
+          <option value="left">Left clutch</option>
+          <option value="right">Right clutch</option>
+        </select>
+        <span class="fieldnote" id="clutchNote"></span>
+      </label>
     </div>
 
     <div class="alloc" id="alloc"></div>
@@ -934,13 +944,15 @@ const UNALLOCATED = { label: "Not allocated", colour: "#FFFFFF", code: 8 };
 
 // A group's name is its group. Where the same group is used twice, number them.
 function labelFor(segs, i) {
+  if (segs[i].role === "clutch") return "Clutch";
   const k = segs[i].kind, base = (KINDS[k] || {}).label || k;
-  if (segs.filter(x => x.kind === k).length < 2) return base;
+  const isOne = (x) => x.kind === k && x.role !== "clutch";
+  if (segs.filter(isOne).length < 2) return base;
   let n = 0;
-  for (let j = 0; j <= i; j++) if (segs[j].kind === k) n++;
+  for (let j = 0; j <= i; j++) if (isOne(segs[j])) n++;
   return `${base} ${n}`;
 }
-const BUILD = "2026-07-31.13";      // bump when the file changes, so a stale page shows
+const BUILD = "2026-08-03.14";      // bump when the file changes, so a stale page shows
 /* ============================================================
    Whose software wrote the file
 
@@ -997,6 +1009,26 @@ const COMPANIES = [
 const companyById = (id) => COMPANIES.find(c => c.id === (id || "")) || COMPANIES[0];
 const companyName = (id) => companyById(id).name;
 
+/* ------------------------------------------------------------
+   The clutch end (Sri Tex)
+
+   A Sri Tex loom carries its clutch at one end, and the pins sitting
+   over it cannot take a design — thirty-two of them, written down in
+   every file the loom reads. Which end depends on the loom, so
+   registering one asks: left clutch or right clutch.
+
+   The answer puts an empty group of thirty-two pins at that end. After
+   that it is an ordinary group like any other — drag it somewhere else,
+   change its count, or take it out. Nothing here reaches back in and
+   corrects it; the only thing that moves it is changing the clutch end
+   itself.
+   ------------------------------------------------------------ */
+
+const CLUTCH_PINS = 32;                       // how many the clutch takes
+const CLUTCH_COMPANIES = ["sritex"];          // whose looms are asked the question
+const companyHasClutch = (id) => CLUTCH_COMPANIES.includes(id || "");
+const clutchLabel = (v) => (v === "right" ? "Right clutch" : "Left clutch");
+
 function applyCompany(id) {
   const c = companyById(id);
   if (!c.opts) return false;
@@ -1035,6 +1067,7 @@ const state = {
   totalDeclared: 0,
   boxMotion: "4x4",
   company: "",
+  clutch: "left",
   version: 1,
   segments: [],
   borderFiles: {},                 // one file per border group, keyed by group id
@@ -1099,6 +1132,16 @@ function anyFile() {
 }
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
 const sumPins = (segs) => segs.reduce((n, s) => n + (s.count || 0), 0);
+
+// What gets written down for a group. The id is made fresh on the way back
+// in, so it is left out; the role is kept, or the clutch group would come
+// back as an anonymous empty one.
+function drySeg(s) {
+  const out = { kind: s.kind, count: s.count };
+  if (s.weave) out.weave = s.weave;
+  if (s.role) out.role = s.role;
+  return out;
+}
 
 /* ============================================================
    BMP decoding — returns 1 where the pin is up (black)
@@ -2067,9 +2110,9 @@ function sessionDoc() {
     format: "pinmap.session", savedAt: new Date().toISOString(),
     draft: {
       name: state.loomName, totalPins: state.totalDeclared, boxMotion: state.boxMotion,
-      company: state.company, editing: state.editing, version: state.version,
-      segments: state.segments.map(sg => (sg.weave ? { kind: sg.kind, count: sg.count, weave: sg.weave }
-                                                   : { kind: sg.kind, count: sg.count }))
+      company: state.company, clutch: normalClutch(state.clutch),
+      editing: state.editing, version: state.version,
+      segments: state.segments.map(drySeg)
     },
     opts: { ...state.opts },
     activeName: state.activeName,
@@ -2118,8 +2161,10 @@ async function loadSession() {
     state.segments = d.segments.map(sg => {
       const seg = { id: nextId(), kind: KINDS[sg.kind] ? sg.kind : "empty", count: parseInt(sg.count, 10) || 0 };
       if (sg.weave) seg.weave = sg.weave;
+      if (sg.role) seg.role = sg.role;
       return seg;
     });
+    state.clutch = clutchSideOf(d, state.segments);
   }
 }
 
@@ -2182,6 +2227,23 @@ function scheduleSave() {
 // Looms saved before this box motion was renamed carry "2x1".
 function normalBoxMotion(v) {
   return (v === "4x1" || v === "2x1") ? "4x1" : "4x4";
+}
+
+// Looms registered before the clutch was asked about carry nothing at all,
+// and read as a left clutch — which is what they were drawn as.
+function normalClutch(v) {
+  return v === "right" ? "right" : "left";
+}
+
+// Which end the clutch is on: what the file says, or failing that, whichever
+// end the group is actually sitting at — so a loom saved before the question
+// was asked comes back looking the way it was drawn.
+function clutchSideOf(doc, segs) {
+  if (doc && doc.clutch) return normalClutch(doc.clutch);
+  const list = segs || [];
+  const at = list.findIndex(s => s && s.role === "clutch");
+  if (at < 0) return "left";
+  return at >= list.length - 1 ? "right" : "left";
 }
 
 function newerOf(a, b) {
@@ -2645,9 +2707,10 @@ function pinMapDoc() {
     totalPins: state.totalDeclared || allocated(),
     boxMotion: normalBoxMotion(state.boxMotion),
     company: state.company || "",
+    clutch: normalClutch(state.clutch),
     version: state.version,
     savedAt: new Date().toISOString(),
-    segments: state.segments.map(s => (s.weave ? { kind: s.kind, count: s.count, weave: s.weave } : { kind: s.kind, count: s.count })),
+    segments: state.segments.map(drySeg),
     options: { ...state.opts },
     history: []
   };
@@ -2673,11 +2736,13 @@ function adoptDoc(doc) {
     const seg = { id: nextId(), kind, count: parseInt(s.count, 10) || 0 };
     if (s.weave) seg.weave = s.weave;
     else if (s.step && stepIsValid(seg.count, parseInt(s.step, 10))) seg.weave = `satin:${seg.count}:${s.step}`;
+    if (s.role) seg.role = s.role;
     return seg;
   });
   state.totalDeclared = parseInt(doc.totalPins, 10) || sumPins(state.segments);
   state.boxMotion = normalBoxMotion(doc.boxMotion);
   state.company = doc.company || "";
+  state.clutch = clutchSideOf(doc, state.segments);
   Object.assign(state.opts, doc.options || {});
   state.borderFiles = {};
   state.wefts = freshWefts();
@@ -2760,7 +2825,7 @@ function renderLoomList() {
     return `<div class="loomcard ${isActive ? "active" : ""}">
       ${isActive ? `<span class="usetag">in use</span>` : ""}
       <h3>${esc(l.name)}</h3>
-      <div class="meta">${total.toLocaleString()} pins${total > alloc ? ` · ${total - alloc} spare` : ""} · box ${esc(normalBoxMotion(l.boxMotion))}${l.company ? ` · ${esc(companyName(l.company))}` : ""} · v${l.version}</div>
+      <div class="meta">${total.toLocaleString()} pins${total > alloc ? ` · ${total - alloc} spare` : ""} · box ${esc(normalBoxMotion(l.boxMotion))}${l.company ? ` · ${esc(companyName(l.company))}` : ""}${companyHasClutch(l.company) ? ` · ${esc(clutchLabel(normalClutch(l.clutch)).toLowerCase())}` : ""} · v${l.version}</div>
       <div style="margin-top:11px">${miniRuler(l.segments, total)}</div>
       <div style="margin-top:10px">${pills}</div>
       <div class="when">${whenText(l.lastUsedAt)}</div>
@@ -2820,13 +2885,48 @@ function applyDefaultLayout() {
     weave ? { id: nextId(), kind, count, weave } : { id: nextId(), kind, count });
 }
 
+// The clutch group is marked, so it can be found again after it has been
+// dragged about. Marking it is all the mark does — it is edited, moved and
+// removed exactly like every other group.
+const clutchAt = (segs) => (segs || []).findIndex(s => s && s.role === "clutch");
+const clutchSeg = () => state.segments[clutchAt(state.segments)] || null;
+
+// Put the empty group at the clutch end, or carry the existing one across.
+// A count that has been changed is kept — the end moves, the size is yours.
+function applyClutchGroup(side) {
+  const segs = state.segments;
+  const at = clutchAt(segs);
+  const seg = at >= 0
+    ? segs.splice(at, 1)[0]
+    : { id: nextId(), kind: "empty", count: CLUTCH_PINS, role: "clutch" };
+  seg.role = "clutch";
+  seg.kind = "empty";
+  if (!seg.count || seg.count < 1) seg.count = CLUTCH_PINS;
+  if (normalClutch(side) === "right") segs.push(seg); else segs.unshift(seg);
+  return seg;
+}
+
+// Moving to a company with no clutch takes the group away again — but only
+// while it is untouched. A count you set yourself is left where you put it,
+// still marked, so coming back to Sri Tex finds that group rather than
+// laying a second one on top of it.
+function removeClutchGroup(onlyUntouched) {
+  const at = clutchAt(state.segments);
+  if (at < 0) return false;
+  if (onlyUntouched && state.segments[at].count !== CLUTCH_PINS) return false;
+  state.segments.splice(at, 1);
+  return true;
+}
+
 function startNewLoom() {
   state.editing = null;
   state.loomName = "";
   state.totalDeclared = 0;
   state.boxMotion = "4x4";
+  state.clutch = "left";
   state.version = 1;
   applyDefaultLayout();
+  if (companyHasClutch(state.company)) applyClutchGroup(state.clutch);
   state.built = null; state.builtBorder = null;
   go("loom");
 }
@@ -3544,7 +3644,9 @@ function renderSegs() {
           ${chosen ? "" : `<option value="" selected>— choose a weave —</option>`}
         </select></div>`;
     } else {
-      content = `<span class="content-note">${CONTENT_NOTE[sg.kind] || ""}</span>`;
+      const note = (sg.role === "clutch" && companyHasClutch(state.company))
+        ? `the clutch — stays down` : (CONTENT_NOTE[sg.kind] || "");
+      content = `<span class="content-note">${note}</span>`;
     }
     html += `<div class="seg-row" data-row="${sg.id}">
       <div class="griphold">
@@ -3587,6 +3689,7 @@ els("[data-add]").forEach(b => b.onclick = () => addSeg(b.dataset.add));
 el("#starter").onclick = () => {
   if (state.segments.length && !confirm("Replace the current groups with the standard order?")) return;
   applyDefaultLayout();
+  if (companyHasClutch(state.company)) applyClutchGroup(state.clutch);
   state.built = null; state.builtBorder = null; renderLoomScreen();
 };
 
@@ -3614,14 +3717,44 @@ function renderCompany() {
     `<option value="${c.id}"${(state.company || "") === c.id ? " selected" : ""}>${esc(c.name)}</option>`).join("");
 }
 
+// Only Sri Tex is asked about the clutch, so the field comes and goes with it.
+function renderClutch() {
+  const field = el("#clutchField"), sel = el("#loomClutch"), note = el("#clutchNote");
+  if (!field || !sel) return;
+  const show = companyHasClutch(state.company);
+  field.hidden = !show;
+  if (!show) return;
+  sel.value = normalClutch(state.clutch);
+  const seg = clutchSeg();
+  if (note) note.textContent = seg
+    ? `${seg.count} pins kept empty at the ${normalClutch(state.clutch)} end. Move or resize the group like any other.`
+    : "The empty group has been removed. Change this to put it back.";
+}
+
 el("#loomCompany").addEventListener("change", e => {
   state.company = e.target.value;
   const applied = applyCompany(state.company);
+  let clutchMsg = "";
+  if (companyHasClutch(state.company)) {
+    const seg = applyClutchGroup(state.clutch);
+    clutchMsg = ` ${seg.count} pins are held empty at the ${normalClutch(state.clutch)} end for the clutch.`;
+  } else if (removeClutchGroup(true)) {
+    clutchMsg = " The clutch group has been taken off again.";
+  }
   state.built = null; state.builtBorder = null;
-  renderOpts(); renderLoomChecks(); renderSteps(); scheduleSave();
+  renderLoomScreen(); renderOpts(); scheduleSave();
   notify(applied
-    ? `Set to ${companyName(state.company)}. Its conventions are in place — change any of them under How this loom is read.`
-    : "No company set. The loom keeps whatever conventions it has.");
+    ? `Set to ${companyName(state.company)}. Its conventions are in place — change any of them under How this loom is read.${clutchMsg}`
+    : `No company set. The loom keeps whatever conventions it has.${clutchMsg}`);
+});
+
+el("#loomClutch").addEventListener("change", e => {
+  state.clutch = normalClutch(e.target.value);
+  if (!companyHasClutch(state.company)) return;
+  const seg = applyClutchGroup(state.clutch);
+  state.built = null; state.builtBorder = null;
+  renderLoomScreen(); scheduleSave();
+  notify(`${clutchLabel(state.clutch)}. The ${seg.count} empty pins now sit at the ${state.clutch} end.`);
 });
 
 el("#boxMotion").addEventListener("change", e => {
@@ -3645,7 +3778,7 @@ function handleSegInput(e) {
   if (act === "count") {
     s.count = Math.max(0, parseInt(t.value, 10) || 0);
     state.built = null; state.builtBorder = null;
-    renderAlloc(); drawBoard(); renderBoardLegend(); renderLoomChecks();
+    renderAlloc(); drawBoard(); renderBoardLegend(); renderLoomChecks(); renderClutch();
     els("#segTable .seg-range").forEach((cell, i) => {
       let from = 1;
       for (let j = 0; j < i; j++) from += state.segments[j].count || 0;
@@ -3663,6 +3796,7 @@ function handleSegInput(e) {
   }
   if (act === "kind") {
     s.kind = t.value;
+    if (s.kind !== "empty") delete s.role;      // it has been made into something else
     if (s.kind === "locking" && !s.weave) { s.weave = "satin:8:3"; s.count = 8; }
     if (s.kind !== "locking") delete s.weave;
     forgetSideHighlights();
@@ -3803,6 +3937,7 @@ function renderLoomScreen() {
   el("#totalDeclared").value = state.totalDeclared || "";
   el("#boxMotion").value = normalBoxMotion(state.boxMotion);
   renderCompany();
+  renderClutch();
   el("#boardRead").textContent = BOARD_HELP;
   renderAlloc(); drawBoard(); renderBoardLegend(); renderBoardSelection(); renderSegs(); renderWeaveLibrary(); renderLoomChecks(); renderSteps();
 }

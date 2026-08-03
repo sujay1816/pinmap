@@ -174,6 +174,31 @@ file you trust**, and change whatever it names until the two agree. Then save
 those settings as a new entry in the `COMPANIES` table near the top of the
 script.
 
+### The clutch end
+
+A Sri Tex loom carries its clutch at one end, and the thirty-two pins sitting
+over it cannot take a design. Registering a loom as Sri Tex therefore asks one
+more question — **left clutch or right clutch** — and puts an empty group of
+thirty-two pins at that end. Nothing else asks it, because nothing else needs
+to; the field is not shown for any other company.
+
+After that it is an ordinary group. Drag it somewhere else, change its count,
+or take it out entirely — nothing reaches back in and corrects it. The only
+thing that moves it is changing the clutch end itself, and that carries your
+count across rather than resetting it.
+
+Changing the loom to a company with no clutch takes the group away again, but
+only while it is still thirty-two pins. A count you set yourself is yours, so
+it stays where you put it — still marked as the clutch, so coming back to Sri
+Tex finds that group instead of laying a second one on top of it.
+
+The empty pins are counted **inside** the loom's total, and are written down in
+every file, like any other empty group. So a 1,792-pin loom registered with a
+clutch needs 1,824 pins declared.
+
+Looms registered before this was asked read as a left clutch, which is how they
+were already drawn.
+
 ## Where the data lives
 
 | What | Kept in |

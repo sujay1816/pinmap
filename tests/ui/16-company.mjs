@@ -49,6 +49,9 @@ setVal($('#loomName'),'Company'); setVal($('#totalDeclared'),'1792');
 await wait(600);
 setSel($('#loomCompany'), 'sritex'); await wait(300);
 ok('it holds the choice', $('#loomCompany').value === 'sritex');
+// Sri Tex brings a clutch group with it, so the loom needs 32 more pins.
+ok('it brings the clutch group', /the clutch/.test($('#segTable').textContent));
+setVal($('#totalDeclared'),'1824'); await wait(300);
 setSel($('#boxMotion'), '4x1'); await wait(250);
 ok('box motion still changes freely', $('#boxMotion').value === '4x1');
 ok('and the company is untouched by it', $('#loomCompany').value === 'sritex');
