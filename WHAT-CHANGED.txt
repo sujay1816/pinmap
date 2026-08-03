@@ -1,15 +1,15 @@
-Pinmap — the Sri Tex box (build 2026-08-03.24)
-==============================================
+Pinmap — build 2026-08-03.25
+============================
 
-Changed since build .22 on GitHub. Includes the font/button work from .23.
+Everything changed since build .22 on GitHub: the fonts and buttons,
+the Sri Tex box rule, and now the weave library guidance.
 
-  index.html              Sri Tex box scheme; per-weft figure test;
-                          fonts and buttons from the previous round
-  README.md               the box rule and the confirmed loom layout
-  tests/extract.mjs       exports SRITEX_BOX to the suites
-  tests/logic/25.mjs      NEW: the box rule, end to end
+  index.html              Sri Tex box scheme, per-weft figure test,
+                          fonts/buttons, weave library guidance
+  README.md               box rule and the confirmed loom layout
+  tests/extract.mjs       exports SRITEX_BOX
+  tests/logic/25.mjs      NEW: the box rule end to end
   tests/logic/24.mjs      one assertion narrowed off the box columns
+  tests/ui/20-inputs.mjs  adds the weave-library path
 
-Copy over the same paths, delete this file and CHANGES.diff, then:
-  npm test
-Expect 471 checks, all passing.
+  npm test  ->  471 checks, all passing

@@ -808,7 +808,7 @@
     <div class="weavelib">
       <div class="wl-head">
         <span class="cap" style="margin:0">Weave library</span>
-        <span class="wl-note">A named BMP here stays available to every loom.</span>
+        <span class="wl-note">A named BMP here can then be chosen on any <strong>Locking</strong> group, on this loom or any other.</span>
       </div>
       <div class="wl-add">
         <input type="text" id="weaveName" placeholder="name it, e.g. Murthy lock 8">
@@ -1001,7 +1001,7 @@ function labelFor(segs, i) {
   for (let j = 0; j <= i; j++) if (isOne(segs[j])) n++;
   return `${base} ${n}`;
 }
-const BUILD = "2026-08-03.24";      // bump when the file changes, so a stale page shows
+const BUILD = "2026-08-03.25";      // bump when the file changes, so a stale page shows
 /* ============================================================
    Whose software wrote the file
 
@@ -3858,7 +3858,13 @@ function renderWeaveLibrary() {
     host.innerHTML = `<div class="wl-empty">Nothing uploaded. The built-in satins and twills are always in the Locking row.</div>`;
     return;
   }
-  host.innerHTML = `<div class="wl-grid">` + state.weaves.map(w => `
+  // An uploaded weave is only ever chosen on a Locking group. Say so when there
+  // is nowhere to put one, or the weave looks as though it went nowhere.
+  const noLocking = !state.segments.some(sg => sg.kind === "locking");
+  const where = noLocking
+    ? `<div class="wl-empty">This pin map has no Locking group, so there is nowhere to use these yet. Add one with <strong>+ Locking</strong> and the weave appears in its list.</div>`
+    : "";
+  host.innerHTML = where + `<div class="wl-grid">` + state.weaves.map(w => `
     <div class="wl-item">
       <canvas data-weave="${esc(w.id)}" role="img" aria-label="The ${esc(w.name)} weave, ${w.pins} pins"></canvas>
       <div style="flex:1;min-width:0">

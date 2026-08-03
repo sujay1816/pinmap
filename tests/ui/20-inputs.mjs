@@ -119,6 +119,47 @@ console.log('\n== what a bad file says ==');
   ok('and the right file is simply accepted', /200 × 50/.test(meta()) && !/could not/i.test(meta()), meta());
 }
 
+console.log('\n== an uploaded weave has somewhere to go ==');
+{
+  // A weave in the library is only ever chosen on a Locking group. That was
+  // nowhere on screen, so an uploaded weave looked as though it vanished.
+  click($$('nav.steps button').find(b=>b.dataset.go==='loom')); await wait(400);
+  const note = $('.wl-note');
+  ok('the library says where a weave gets used', note && /Locking/.test(note.textContent),
+     note ? note.textContent.trim().slice(0,70) : '(no note)');
+
+  // add one, then check it reaches the Locking row's list
+  const wf = $('#weaveFile');
+  const buf = bmp(8,8);
+  const f = new w.File([new Uint8Array(buf)],'twill.bmp',{type:'image/bmp'});
+  const ab = new Uint8Array(buf).buffer.slice(0); f.arrayBuffer = async()=>ab;
+  setVal($('#weaveName'),'Shed twill');
+  Object.defineProperty(wf,'files',{value:[f],configurable:true});
+  click($('#addWeave')); await wait(700);
+
+  ok('it lands in the library', /Shed twill/.test($('#weaveList').textContent));
+  const sel = $$('#segTable select[data-act=weave]')[0];
+  ok('a Locking group offers a weave picker', !!sel);
+  ok('and the uploaded weave is in it', sel && /Shed twill/.test(sel.textContent),
+     sel ? sel.textContent.replace(/\s+/g,' ').slice(0,90) : '(no picker)');
+  ok('under a heading of its own',
+     sel && [...sel.querySelectorAll('optgroup')].some(o=>/your weaves/i.test(o.label)),
+     sel ? [...sel.querySelectorAll('optgroup')].map(o=>o.label).join('|') : '');
+
+  // with nowhere to use it, the library says so
+  let guard=0;
+  while ($$('#segTable button[data-act=del]').length && guard++<40) {
+    click($$('#segTable button[data-act=del]')[0]); await wait(70);
+  }
+  await wait(400);
+  ok('with no Locking group, it says where to add one',
+     /no Locking group/.test($('#weaveList').textContent),
+     $('#weaveList').textContent.replace(/\s+/g,' ').slice(0,80));
+  click($('#starter')); await wait(500);
+  ok('and the hint goes once there is one again',
+     !/no Locking group/.test($('#weaveList').textContent));
+}
+
 console.log('\n== the app never shows its own workings ==');
 {
   const src=fs.readFileSync(process.argv[2],'utf8');

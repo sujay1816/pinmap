@@ -41,7 +41,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/README.md ../pinmap/READM
 Only in ../verify: WHAT-CHANGED.txt
 diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/index.html
 --- ../verify/index.html	2026-08-03 11:34:51.543374973 +0000
-+++ ../pinmap/index.html	2026-08-03 16:20:38.945577882 +0000
++++ ../pinmap/index.html	2026-08-03 16:45:25.160296994 +0000
 @@ -59,6 +59,7 @@
      --t-body:  15.5px;   /* prose */
      --t-field: 15px;     /* what you type into */
@@ -105,12 +105,21 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
      button.tiny { padding: 10px 14px; }
      .stepper { width: 42px; flex: 0 0 42px; min-height: 42px; }
      .grip { padding: 11px 10px; }
+@@ -791,7 +808,7 @@
+     <div class="weavelib">
+       <div class="wl-head">
+         <span class="cap" style="margin:0">Weave library</span>
+-        <span class="wl-note">A named BMP here stays available to every loom.</span>
++        <span class="wl-note">A named BMP here can then be chosen on any <strong>Locking</strong> group, on this loom or any other.</span>
+       </div>
+       <div class="wl-add">
+         <input type="text" id="weaveName" placeholder="name it, e.g. Murthy lock 8">
 @@ -984,7 +1001,7 @@
    for (let j = 0; j <= i; j++) if (isOne(segs[j])) n++;
    return `${base} ${n}`;
  }
 -const BUILD = "2026-08-03.22";      // bump when the file changes, so a stale page shows
-+const BUILD = "2026-08-03.24";      // bump when the file changes, so a stale page shows
++const BUILD = "2026-08-03.25";      // bump when the file changes, so a stale page shows
  /* ============================================================
     Whose software wrote the file
  
@@ -256,6 +265,21 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
          const r = active ? pat : new Uint8Array(seg.count);
          for (let x = 0; x < seg.count; x++) bits[rowBase + at + x] = r[x];
  
+@@ -3779,7 +3858,13 @@
+     host.innerHTML = `<div class="wl-empty">Nothing uploaded. The built-in satins and twills are always in the Locking row.</div>`;
+     return;
+   }
+-  host.innerHTML = `<div class="wl-grid">` + state.weaves.map(w => `
++  // An uploaded weave is only ever chosen on a Locking group. Say so when there
++  // is nowhere to put one, or the weave looks as though it went nowhere.
++  const noLocking = !state.segments.some(sg => sg.kind === "locking");
++  const where = noLocking
++    ? `<div class="wl-empty">This pin map has no Locking group, so there is nowhere to use these yet. Add one with <strong>+ Locking</strong> and the weave appears in its list.</div>`
++    : "";
++  host.innerHTML = where + `<div class="wl-grid">` + state.weaves.map(w => `
+     <div class="wl-item">
+       <canvas data-weave="${esc(w.id)}" role="img" aria-label="The ${esc(w.name)} weave, ${w.pins} pins"></canvas>
+       <div style="flex:1;min-width:0">
 diff -ru -x node_modules -x .git -x core.mjs ../verify/tests/extract.mjs ../pinmap/tests/extract.mjs
 --- ../verify/tests/extract.mjs	2026-08-03 11:34:51.545163124 +0000
 +++ ../pinmap/tests/extract.mjs	2026-08-03 16:20:35.085928019 +0000
@@ -318,3 +342,54 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/tests/ui/14-audit.mjs ../
  console.log('\n== result ==');
  if (found.length){ console.log('  '+found.length+' problem(s)'); found.forEach(e=>console.log('   - '+e)); }
  else console.log('  no errors');
+diff -ru -x node_modules -x .git -x core.mjs ../verify/tests/ui/20-inputs.mjs ../pinmap/tests/ui/20-inputs.mjs
+--- ../verify/tests/ui/20-inputs.mjs	2026-08-03 11:34:51.581800249 +0000
++++ ../pinmap/tests/ui/20-inputs.mjs	2026-08-03 16:45:05.971566579 +0000
+@@ -119,6 +119,47 @@
+   ok('and the right file is simply accepted', /200 × 50/.test(meta()) && !/could not/i.test(meta()), meta());
+ }
+ 
++console.log('\n== an uploaded weave has somewhere to go ==');
++{
++  // A weave in the library is only ever chosen on a Locking group. That was
++  // nowhere on screen, so an uploaded weave looked as though it vanished.
++  click($$('nav.steps button').find(b=>b.dataset.go==='loom')); await wait(400);
++  const note = $('.wl-note');
++  ok('the library says where a weave gets used', note && /Locking/.test(note.textContent),
++     note ? note.textContent.trim().slice(0,70) : '(no note)');
++
++  // add one, then check it reaches the Locking row's list
++  const wf = $('#weaveFile');
++  const buf = bmp(8,8);
++  const f = new w.File([new Uint8Array(buf)],'twill.bmp',{type:'image/bmp'});
++  const ab = new Uint8Array(buf).buffer.slice(0); f.arrayBuffer = async()=>ab;
++  setVal($('#weaveName'),'Shed twill');
++  Object.defineProperty(wf,'files',{value:[f],configurable:true});
++  click($('#addWeave')); await wait(700);
++
++  ok('it lands in the library', /Shed twill/.test($('#weaveList').textContent));
++  const sel = $$('#segTable select[data-act=weave]')[0];
++  ok('a Locking group offers a weave picker', !!sel);
++  ok('and the uploaded weave is in it', sel && /Shed twill/.test(sel.textContent),
++     sel ? sel.textContent.replace(/\s+/g,' ').slice(0,90) : '(no picker)');
++  ok('under a heading of its own',
++     sel && [...sel.querySelectorAll('optgroup')].some(o=>/your weaves/i.test(o.label)),
++     sel ? [...sel.querySelectorAll('optgroup')].map(o=>o.label).join('|') : '');
++
++  // with nowhere to use it, the library says so
++  let guard=0;
++  while ($$('#segTable button[data-act=del]').length && guard++<40) {
++    click($$('#segTable button[data-act=del]')[0]); await wait(70);
++  }
++  await wait(400);
++  ok('with no Locking group, it says where to add one',
++     /no Locking group/.test($('#weaveList').textContent),
++     $('#weaveList').textContent.replace(/\s+/g,' ').slice(0,80));
++  click($('#starter')); await wait(500);
++  ok('and the hint goes once there is one again',
++     !/no Locking group/.test($('#weaveList').textContent));
++}
++
+ console.log('\n== the app never shows its own workings ==');
+ {
+   const src=fs.readFileSync(process.argv[2],'utf8');
