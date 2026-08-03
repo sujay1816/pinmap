@@ -58,7 +58,10 @@ head('rebuilt with the company as it ships');
   ok('the 752 pins of locking + body + locking land at 424-1175, as their file has them',
      run(u, 424, 1175), 'first worked pin of the block: ' + (u.indexOf(1) + 1));
   ok('nothing is worked at 35-423, where their left border goes', blank(u, 35, 423));
-  ok('nor at 1176-1552, where their right border goes', blank(u, 1176, 1552));
+  // The left border occupies 1176-1550 once mirrored; 1551-1558 is the box,
+  // which under the Sri Tex scheme lifts on every line, so it is not blank
+  // and never was meant to be part of this check.
+  ok('nor at 1176-1550, where the other border goes', blank(u, 1176, 1550));
 }
 
 head('written the same way round, it lands thirty pins short');

@@ -1001,7 +1001,7 @@ function labelFor(segs, i) {
   for (let j = 0; j <= i; j++) if (isOne(segs[j])) n++;
   return `${base} ${n}`;
 }
-const BUILD = "2026-08-03.23";      // bump when the file changes, so a stale page shows
+const BUILD = "2026-08-03.24";      // bump when the file changes, so a stale page shows
 /* ============================================================
    Whose software wrote the file
 
@@ -1060,7 +1060,7 @@ const COMPANY_BASE = {
   pinOneLeft: true, topRowFirstPick: true, blackIsIndexZero: true,
   achuStartsBlack: true, stackMode: "interleave", weavePerDesignLine: true,
   satinWarpFaced: false, boxWholeBand: true, autoRotate: true,
-  mirrorBodyFile: false, bodyGround: ""
+  mirrorBodyFile: false, bodyGround: "", boxScheme: "default"
 };
 
 const COMPANIES = [
@@ -1068,6 +1068,7 @@ const COMPANIES = [
   { id: "saitex", name: "Sai Tex", opts: { ...COMPANY_BASE } },
   { id: "sritex", name: "Sri Tex", opts: { ...COMPANY_BASE,
       blackIsIndexZero: false,     // white is the lifted pin
+      boxScheme: "sritex",         // their own way of working the box
       mirrorBodyFile: true,        // their body file is written back to front
       bodyGround: "satin:2:1" } }  // and a plain ground under every weft
 ];
@@ -1157,7 +1158,8 @@ const state = {
     boxWholeBand: true,
     autoRotate: true,
     weavePerDesignLine: true,
-    satinWarpFaced: false
+    satinWarpFaced: false,
+    boxScheme: "default"
   },
   built: null,
   builtBorder: null,
@@ -1499,7 +1501,35 @@ function closeBandGaps(f) {
   }
 }
 
-function boxPlan(weftCount, weftIndex, figureOnLine) {
+/* ------------------------------------------------------------
+   Sri Tex work their box differently
+
+   Their box is four pins, so a half is a pair. Which half lifts depends
+   on how many designs are loaded, and it is decided per line:
+
+       one design      the back half
+       two designs     first the front half, then the back half
+       three designs   front half, both pins down, then the back half
+
+   Four is left out on purpose. Nobody has said what it should be, so it
+   falls back to the standard table and can be set by hand per weft.
+
+   And a line with nothing to weave on that weft does not leave the box
+   down — it takes the one-design setting, the back half.
+   ------------------------------------------------------------ */
+const SRITEX_BOX = {
+  1: ["second"],
+  2: ["first", "second"],
+  3: ["first", "none",  "second"]
+};
+
+function boxPlan(weftCount, weftIndex, figureOnLine, scheme) {
+  if (scheme === "sritex") {
+    const row = SRITEX_BOX[weftCount];
+    if (!row) return boxPlan(weftCount, weftIndex, figureOnLine);   // four wefts, or more
+    if (!figureOnLine) return "second";     // nothing to weave here, so the one-design setting
+    return row[weftIndex] || "none";
+  }
   if (weftCount <= 1) return "none";        // one weft: nothing to choose
   if (!figureOnLine) return "none";         // plain ground line: box stays white
   return (BOX_TABLE[weftCount] || [])[weftIndex] || "none";
@@ -1508,7 +1538,12 @@ function boxPlan(weftCount, weftIndex, figureOnLine) {
 // Each weft may carry its own box pattern. Until the user changes one, it comes
 // from the standard table for however many wefts are loaded.
 function defaultBoxPattern(count, weftIndex, weftCount) {
-  return boxRow(count, weftIndex, weftCount, true);
+  return boxRow(count, weftIndex, weftCount, true, boxScheme());
+}
+
+// Which company's way of working the box this loom follows.
+function boxScheme() {
+  return (state.opts && state.opts.boxScheme) || "default";
 }
 
 // A pattern set by hand is kept, first for this session and then in the
@@ -1530,8 +1565,8 @@ function weftBoxPattern(weft, count, weftIndex, weftCount) {
   return defaultBoxPattern(count, weftIndex, weftCount);
 }
 
-function boxRow(count, weftIndex, weftCount, figureOnLine) {
-  const plan = boxPlan(weftCount, weftIndex, figureOnLine !== false);
+function boxRow(count, weftIndex, weftCount, figureOnLine, scheme) {
+  const plan = boxPlan(weftCount, weftIndex, figureOnLine !== false, scheme || boxScheme());
   const row = new Uint8Array(count);
   const half = Math.ceil(count / 2);
   if (plan === "all")    row.fill(1);
@@ -1601,6 +1636,27 @@ function compose(target) {
     if (o.boxWholeBand) closeBandGaps(figureOnLine);
   }
 
+  // Sri Tex ask a narrower question: not "is there a figure anywhere on this
+  // line" but "is there anything to weave on THIS weft". Each shuttle answers
+  // for itself, and a weft with nothing on it takes the one-design setting
+  // rather than dropping its box pins.
+  let figureByWeft = null;
+  if (target === "body" && boxScheme() === "sritex") {
+    figureByWeft = [];
+    for (let k = 0; k < K; k++) {
+      const flags = new Uint8Array(H);
+      const f = wefts[k] && wefts[k].file;
+      if (f) {
+        for (let y = 0; y < H && y < f.height; y++) {
+          const base = y * f.width;
+          for (let x = 0; x < f.width; x++) if (f.bits[base + x]) { flags[y] = 1; break; }
+        }
+      }
+      if (o.boxWholeBand) closeBandGaps(flags);
+      figureByWeft.push(flags);
+    }
+  }
+
   // Achu goes in the border file when there is one, otherwise in the body.
   // In the body it also waits on the rani, since that is the ground it binds.
   const raniLoaded = !!(state.wefts[0] && state.wefts[0].file && !state.wefts[0].file.error);
@@ -1666,14 +1722,20 @@ function compose(target) {
 
       } else if (seg.kind === "box") {
         if (target !== "body") return;              // and so does the box
-        let fig = !!figureOnLine[designRow];
+        const scheme = boxScheme();
+        const flags = (scheme === "sritex" && figureByWeft) ? figureByWeft[weftIdx] : figureOnLine;
+        let fig = !!(flags && flags[designRow]);
         if (perShuttle > 1) {                       // hold across the shuttle's own run
           const start = Math.floor(designRow / perShuttle) * perShuttle;
           fig = false;
-          for (let d = start; d < Math.min(H, start + perShuttle); d++) if (figureOnLine[d]) { fig = true; break; }
+          for (let d = start; d < Math.min(H, start + perShuttle); d++) if (flags && flags[d]) { fig = true; break; }
         }
-        const active = K < 2 ? true : fig;
-        const pat = weftBoxPattern(wefts[weftIdx], seg.count, weftIdx, Math.max(1, K));
+        const active = scheme === "sritex" ? true : (K < 2 ? true : fig);
+        const pat = scheme === "sritex"
+          ? (storedBoxFor(wefts[weftIdx], seg.count)
+              ? weftBoxPattern(wefts[weftIdx], seg.count, weftIdx, Math.max(1, K))
+              : boxRow(seg.count, weftIdx, Math.max(1, K), fig, "sritex"))
+          : weftBoxPattern(wefts[weftIdx], seg.count, weftIdx, Math.max(1, K));
         const r = active ? pat : new Uint8Array(seg.count);
         for (let x = 0; x < seg.count; x++) bits[rowBase + at + x] = r[x];
 

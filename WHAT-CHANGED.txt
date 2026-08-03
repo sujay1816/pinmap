@@ -1,12 +1,15 @@
-Pinmap — fonts and buttons (build 2026-08-03.23)
-================================================
+Pinmap — the Sri Tex box (build 2026-08-03.24)
+==============================================
 
-Changed since build .22, which is what is on GitHub now.
+Changed since build .22 on GitHub. Includes the font/button work from .23.
 
-  index.html              stylesheet only — 21 lines, all CSS or comments.
-                          No script, no markup, no logic touched.
-  tests/ui/14-audit.mjs   eight checks so none of it can regress
+  index.html              Sri Tex box scheme; per-weft figure test;
+                          fonts and buttons from the previous round
+  README.md               the box rule and the confirmed loom layout
+  tests/extract.mjs       exports SRITEX_BOX to the suites
+  tests/logic/25.mjs      NEW: the box rule, end to end
+  tests/logic/24.mjs      one assertion narrowed off the box columns
 
 Copy over the same paths, delete this file and CHANGES.diff, then:
   npm test
-Expect 449 checks, all passing.
+Expect 471 checks, all passing.

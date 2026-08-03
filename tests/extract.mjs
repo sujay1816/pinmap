@@ -61,6 +61,7 @@ export {
   mirrorBits, flipBits, invertBits, state, KINDS, DEFAULT_LAYOUT, labelFor,
   mergeLibraries, newerOf, normalBoxMotion, normalClutch, clutchSideOf,
   COMPANIES, COMPANY_BASE, companyById, companyHasClutch, CLUTCH_PINS,
+  SRITEX_BOX,
   freshWefts, filledWefts, borderSlots, bodySlots,
   WEFT_SLOTS, WEFT_NAMES, totalPins, allocated
 };

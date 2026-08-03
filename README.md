@@ -171,6 +171,35 @@ confirms three rules the app had only been told about: the achu belongs to the
 border file, the body and locking pins stay down in it, and the achu is half up
 and half down, flipping every line.
 
+### How Sri Tex work the box
+
+Their box is four pins, so a half is a pair. Which half lifts depends on how
+many designs are loaded:
+
+| Designs | 1st | 2nd | 3rd |
+| --- | --- | --- | --- |
+| one | back half | | |
+| two | front half | back half | |
+| three | front half | both down | back half |
+
+Four is deliberately left out. Nobody has said what it should be, so it falls
+back to the standard table and can be set by hand per weft.
+
+Two things make this different from the standard table. The question is asked
+**of each weft separately** — not "is there a figure anywhere on this line" but
+"is there anything to weave on this weft". And a weft with nothing to weave
+does **not** drop its box pins: it takes the one-design setting, the back half.
+
+The loom the samples came off, read from the right, is:
+
+    achu 10 | box 4 | hit 2 | empty 2 | border 375
+            | locking 16 + body 720 + locking 16
+            | border 375 | achu 14 | hit 2 | empty 32     = 1568
+
+That order was settled against their own two files: every group in it is either
+wholly lifted or wholly down in each file, which no other arrangement managed.
+The achu appears only in the border file, the box only in the body file.
+
 ### Why the Sri Tex body file is turned round
 
 This was wrong for a long time and is worth writing down, because a mirrored
