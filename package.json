@@ -11,7 +11,7 @@
     "dev": "npx --yes serve ."
   },
   "devDependencies": {
-    "jsdom": "^24.1.3"
+    "jsdom": "^26.1.0"
   },
   "engines": {
     "node": ">=18"

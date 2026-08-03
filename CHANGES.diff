@@ -1,993 +1,764 @@
-diff --git a/README.md b/README.md
-index d38823e..59329c2 100644
---- a/README.md
-+++ b/README.md
-@@ -162,6 +162,8 @@ rather than the software, so it stays a separate choice.
- | --- | --- | --- |
- | A lifted pin is | black | white |
- | Pin 1 sits at | the left | the left |
-+| The border file is written | straight ahead | straight ahead |
-+| The body file is written | straight ahead | **back to front** |
- | Everything else | the same | the same |
+Only in ../pinmap-remote: CHANGES.diff
+Only in ../pinmap-remote: WHAT-CHANGED.txt
+diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinmap/index.html
+--- ../pinmap-remote/index.html	2026-08-03 07:11:40.695173106 +0000
++++ ../pinmap/index.html	2026-08-03 07:28:45.828791322 +0000
+@@ -1,4 +1,10 @@
++<!doctype html>
++<html lang="en">
+ <meta charset="utf-8">
++<meta name="description" content="Register a jacquard loom once, then lay weft designs onto its pins and build the file the machine reads. Works offline.">
++<meta name="theme-color" content="#14181C">
++<meta name="color-scheme" content="light">
++<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2314181C'/%3E%3Cg fill='%23F5F3EE'%3E%3Crect x='6' y='6' width='5' height='5'/%3E%3Crect x='20' y='6' width='5' height='5'/%3E%3Crect x='13' y='13' width='5' height='5'/%3E%3Crect x='6' y='20' width='5' height='5'/%3E%3Crect x='20' y='20' width='5' height='5'/%3E%3C/g%3E%3C/svg%3E">
  
- Sri Tex was read off their own border file, in `tests/fixtures`. That file also
-@@ -169,13 +171,104 @@ confirms three rules the app had only been told about: the achu belongs to the
- border file, the body and locking pins stay down in it, and the achu is half up
- and half down, flipping every line.
+ <!-- ─────────────────────────────────────────────────────────────
+      SET THIS ONCE and nobody using the app has to touch Google.
+@@ -588,6 +594,17 @@
+     .seg-row .seg-acts { grid-column: 2 / 4; justify-content: flex-start; }
+     .activeloom { margin-left: 0; text-align: left; }
+   }
++  /* On a touchscreen the small controls are hard to hit — the steppers beside a
++     pin count are 26px, and a mis-hit there changes the pin map. A finger wants
++     nearer 44px, so give it that without moving anything on a mouse. */
++  @media (pointer: coarse) {
++    button.tiny { padding: 10px 14px; }
++    .stepper { width: 42px; flex: 0 0 42px; min-height: 42px; }
++    .grip { padding: 11px 10px; }
++    .seg-acts { gap: 8px; }
++    .countcell input[type=number] { min-height: 42px; }
++  }
++
+   @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+ </style>
  
-+### Why the Sri Tex body file is turned round
-+
-+This was wrong for a long time and is worth writing down, because a mirrored
-+file still looks like a perfectly good file — nothing complains, the loom just
-+weaves the design back to front.
-+
-+Their border sample and their body sample disagree by thirty pins: the border
-+keeps 752 pins down at 394-1145, and the body works 752 pins at 424-1175. Those
-+have to be the same pins. The old reading was that the body sample came off a
-+different loom, thirty pins wider at the front, and that mirroring lined the two
-+up by coincidence.
-+
-+It is not coincidence. Mirroring does not shift the block thirty pins along; it
-+lands every block at once. The 752 goes to 394-1145. The body's blank goes to
-+1146-1534, exactly the border's right border. And the box — six worked pins
-+sitting at 1553-1558 in their file, right at the far end — comes back to 11-16,
-+beside the achu, which is where the loom actually has it. A thirty-pin shift
-+explains the 752 and leaves the box stranded. Mirrored, the two files overlap
-+nowhere and are exact complements.
-+
-+Building their job with the switch on reproduces the block at 424-1175 pin for
-+pin; with it off we write 394-1145. `tests/logic/24.mjs` holds that against
-+their real file so it cannot quietly flip back.
-+
-+**Only the body is turned round.** The border file's achu sits at pins 1-10, at
-+the near end, so mirroring both would throw the achu to the far end. The border
-+is written straight ahead.
-+
- To add a company, build a job, load one of their files into **Check against a
- file you trust**, and change whatever it names until the two agree. Then save
- those settings as a new entry in the `COMPANIES` table near the top of the
- script.
+@@ -603,7 +620,7 @@
+       <button class="tiny" id="viewerClose">Close</button>
+     </div>
+   </div>
+-  <div class="viewer-body"><canvas id="viewerCanvas"></canvas></div>
++  <div class="viewer-body"><canvas id="viewerCanvas" role="img" aria-label="The design, drawn pin by pin"></canvas></div>
+ </div>
  
-+### The clutch end
-+
-+A Sri Tex loom carries its clutch at one end, and the thirty-two pins sitting
-+over it cannot take a design. Registering a loom as Sri Tex therefore asks one
-+more question — **left clutch or right clutch** — and puts an empty group of
-+thirty-two pins at that end. Nothing else asks it, because nothing else needs
-+to; the field is not shown for any other company.
-+
-+After that it is an ordinary group. Drag it somewhere else, change its count,
-+or take it out entirely — nothing reaches back in and corrects it. The only
-+thing that moves it is changing the clutch end itself, and that carries your
-+count across rather than resetting it.
-+
-+Changing the loom to a company with no clutch takes the group away again, but
-+only while it is still thirty-two pins. A count you set yourself is yours, so
-+it stays where you put it — still marked as the clutch, so coming back to Sri
-+Tex finds that group instead of laying a second one on top of it.
-+
-+The empty pins are counted **inside** the loom's total, and are written down in
-+every file, like any other empty group. So a 1,792-pin loom registered with a
-+clutch needs 1,824 pins declared.
-+
-+Looms registered before this was asked read as a left clutch, which is how they
-+were already drawn.
-+
- ## Where the data lives
- 
-+### Waiting for something that never comes
-+
-+There are no threads here, so no deadlock in the textbook sense. The shapes
-+that do occur are a guard taken and never given back, and a spinner that never
-+stops — which is worse than an error, because it looks like the app is still
-+working.
-+
-+Two rules hold everywhere:
-+
-+- **A save or sync asked for while one is running is remembered, not dropped.**
-+  It used to be dropped: the edit was never written and the dot sat on *saving*
-+  for good, while the weaver believed the work was safe.
-+- **Every call out to the network has a time limit**, and every way out of a
-+  sync leaves a definite answer on the dot. Firestore will wait a very long
-+  time rather than admit it cannot reach anything, and a shed connection drops
-+  often.
-+
-+`tests/ui/19-locks.mjs` drives a deliberately slow store and checks that an
-+overlapping edit still lands, that the guard is given back even when a write
-+throws, and that the indicator always settles.
-+
-+### When saved data will not read
-+
-+There is a difference between *nothing has been saved here yet* and *something
-+is saved here and it will not open*, and the two must never be treated alike.
-+The first is an empty library. The second, read as an empty library, is how a
-+weaver's work disappears: the drawer looks bare, the next save writes over the
-+top, and there is nothing left to recover from.
-+
-+So unreadable data is copied aside before anything else happens, under the same
-+key with `:damaged` on the end, and left there untouched — the first copy wins,
-+so a second failure cannot write over the rescue. The app says so plainly under
-+the loom list, and offers the bytes as a download. It does not carry on as
-+though the drawer were empty.
-+
-+A store that refuses to *write* was already handled: the loom is kept for the
-+session and the app says it was not saved, rather than claiming it was.
-+
- | What | Kept in |
- | --- | --- |
- | Looms, weaves, box settings, session | Browser storage, scoped per account |
-diff --git a/index.html b/index.html
-index a0e6727..f00f418 100644
---- a/index.html
-+++ b/index.html
-@@ -89,6 +89,8 @@
-   .head-row .hint { margin-left: auto; font-size: var(--t-small); color: var(--ink-3); }
- 
-   label.field { display: block; }
-+  label.field[hidden] { display: none; }
-+  .fieldnote { display: block; margin-top: 5px; font-size: var(--t-small); color: var(--ink-3); line-height: 1.4; }
-   label.field > .cap, .cap {
-     display: block; font-family: var(--mono); font-size: var(--t-small); letter-spacing: var(--track);
-     text-transform: uppercase; color: var(--ink-3); margin-bottom: 5px;
-@@ -574,6 +576,10 @@
-   details.note div { font-size: var(--t-note); color: var(--ink-2); margin-top: 9px; line-height: 1.55; }
-   details.note p { margin: 0 0 9px; }
-   .saved-note { font-family: var(--mono); font-size: var(--t-small); color: var(--ink-3); margin-top: 10px; }
-+  .saved-note.damaged { color: var(--ink); background: #FFF4F4; border: 1px solid #C8837E;
-+    padding: 11px 13px; line-height: 1.55; }
-+  .saved-note.damaged strong { display: block; margin-bottom: 3px; }
-+  .saved-note.damaged button { margin-top: 8px; }
- 
-   @media (max-width: 780px) {
-     .seg-row { grid-template-columns: 18px 1fr 1fr; }
-@@ -727,6 +733,15 @@
-           <option value="4x1">4 by 1</option>
-         </select>
+ <main class="gate" id="gate">
+@@ -735,7 +752,7 @@
        </label>
-+      <label class="field" id="clutchField" hidden>
-+        <span class="cap">Clutch end</span>
-+        <select id="loomClutch">
-+          <option value="none">No clutch pins</option>
-+          <option value="left">Left clutch</option>
-+          <option value="right">Right clutch</option>
-+        </select>
-+        <span class="fieldnote" id="clutchNote"></span>
-+      </label>
+       <label class="field" id="clutchField" hidden>
+         <span class="cap">Clutch end</span>
+-        <select id="loomClutch">
++        <select id="loomClutch" aria-label="Clutch end" aria-describedby="clutchNote">
+           <option value="none">No clutch pins</option>
+           <option value="left">Left clutch</option>
+           <option value="right">Right clutch</option>
+@@ -768,7 +785,7 @@
+       </div>
+       <div class="wl-add">
+         <input type="text" id="weaveName" placeholder="name it, e.g. Murthy lock 8">
+-        <input type="file" id="weaveFile" accept=".bmp,image/bmp,image/*">
++        <input type="file" id="weaveFile" accept=".bmp,image/bmp,image/*" aria-label="Weave file to add to the library">
+         <button class="ghost" id="addWeave">Add to library</button>
+       </div>
+       <div id="weaveList"></div>
+@@ -789,7 +806,7 @@
+       <button class="ghost danger" id="clearSegs">Clear groups</button>
      </div>
  
-     <div class="alloc" id="alloc"></div>
-@@ -934,13 +949,15 @@ const UNALLOCATED = { label: "Not allocated", colour: "#FFFFFF", code: 8 };
+-    <div id="loomChecks" style="margin-top:22px"></div>
++    <div id="loomChecks" role="status" aria-live="polite" style="margin-top:22px"></div>
  
- // A group's name is its group. Where the same group is used twice, number them.
- function labelFor(segs, i) {
-+  if (segs[i].role === "clutch") return "Clutch";
-   const k = segs[i].kind, base = (KINDS[k] || {}).label || k;
--  if (segs.filter(x => x.kind === k).length < 2) return base;
-+  const isOne = (x) => x.kind === k && x.role !== "clutch";
-+  if (segs.filter(isOne).length < 2) return base;
-   let n = 0;
--  for (let j = 0; j <= i; j++) if (segs[j].kind === k) n++;
-+  for (let j = 0; j <= i; j++) if (isOne(segs[j])) n++;
+     <div class="btn-row">
+       <button class="solid" id="saveLoom">Save version and continue</button>
+@@ -823,7 +840,7 @@
+     <div class="sideboard" data-board="border"></div>
+     <div id="borderHost"></div>
+     <div id="borderAchuNote"></div>
+-    <div id="borderChecks" style="margin-top:20px"></div>
++    <div id="borderChecks" role="status" aria-live="polite" style="margin-top:20px"></div>
+     <div class="btn-row">
+       <button class="solid" id="combineBorder">Combine border</button>
+       <button id="downloadBorder" disabled>Download BMP</button>
+@@ -834,7 +851,7 @@
+         <span class="cap" style="margin:0">Check against a file you trust</span>
+         <span class="vf-note">Load the border file the jacquard company's software made for this same design.</span>
+       </div>
+-      <input type="file" accept=".bmp,image/bmp,image/*" data-vfile="border">
++      <input type="file" accept=".bmp,image/bmp,image/*" data-vfile="border" aria-label="A border file you already trust, to check ours against">
+       <div class="vf-out"></div>
+     </div>
+ 
+@@ -847,7 +864,7 @@
+           <button class="tiny ghost" data-bzoomv="border" data-zoom="3">3×</button>
+         </div>
+       </div>
+-      <div class="pv-frame"><canvas id="borderPv"></canvas></div>
++      <div class="pv-frame"><canvas id="borderPv" role="img" aria-label="Preview of the border file"></canvas></div>
+     </div>
+     <details class="note">
+       <summary>What goes in this file</summary>
+@@ -877,7 +894,7 @@
+     <div id="bodyHost"></div>
+     <div id="boxEditor"></div>
+     <div class="chips" id="boxChips" style="margin-top:22px"></div>
+-    <div id="bodyChecks" style="margin-top:20px"></div>
++    <div id="bodyChecks" role="status" aria-live="polite" style="margin-top:20px"></div>
+     <div class="btn-row">
+       <button class="solid" id="combineBody">Combine body</button>
+       <button id="download" disabled>Download BMP</button>
+@@ -888,7 +905,7 @@
+         <span class="cap" style="margin:0">Check against a file you trust</span>
+         <span class="vf-note">Load the body file the jacquard company's software made for this same design.</span>
+       </div>
+-      <input type="file" accept=".bmp,image/bmp,image/*" data-vfile="body">
++      <input type="file" accept=".bmp,image/bmp,image/*" data-vfile="body" aria-label="A body file you already trust, to check ours against">
+       <div class="vf-out"></div>
+     </div>
+ 
+@@ -902,7 +919,7 @@
+           <button class="tiny ghost" id="pvMode" aria-pressed="true">Colour groups</button>
+         </div>
+       </div>
+-      <div class="pv-frame" id="pvFrame"><canvas id="pv" tabindex="0"></canvas></div>
++      <div class="pv-frame" id="pvFrame"><canvas id="pv" tabindex="0" role="img" aria-label="Preview of the file being built"></canvas></div>
+       <div class="inspector" id="inspector">Point at the picture to read the pin and line under the cursor.</div>
+       <div class="legend" id="pvLegend"></div>
+     </div>
+@@ -957,7 +974,7 @@
+   for (let j = 0; j <= i; j++) if (isOne(segs[j])) n++;
    return `${base} ${n}`;
  }
--const BUILD = "2026-07-31.13";      // bump when the file changes, so a stale page shows
-+const BUILD = "2026-08-03.18";      // bump when the file changes, so a stale page shows
+-const BUILD = "2026-08-03.18";      // bump when the file changes, so a stale page shows
++const BUILD = "2026-08-03.19";      // bump when the file changes, so a stale page shows
  /* ============================================================
     Whose software wrote the file
  
-@@ -957,26 +974,42 @@ const BUILD = "2026-07-31.13";      // bump when the file changes, so a stale pa
-    where we write black. This was read off their border file and is not
-    in doubt.
+@@ -3267,7 +3284,8 @@
+   const RULE = 22, GUT = 40, FOOT = 18;
+   const W = GUT + cols * pitch + 8, H = RULE + PINS_PER_COLUMN * pitch + FOOT;
  
--   Their two sample files also disagree with each other by thirty pins.
--   The border file puts locking + body + locking at 394-1145; the body
--   file puts it at 424-1175. Mirroring the body makes the two line up on
--   paper, but on the loom it turns the buttas around and moves the box to
--   the wrong side, so it is wrong. The switch below is left in place for
--   anyone who needs it, but no company turns it on. Which of the two
--   layouts the machine really uses is still an open question. Everything else — pin 1 at the left, the top line first,
--   the achu half up and half down flipping each line, the border file
--   holding the achu while the body and locking pins stay down — is the
--   same, and was read off their border file:
-+   They also write the body file back to front, and only the body file.
-+   This was doubted for a long time and is now settled, so the working
-+   is worth keeping.
-+
-+   Their border sample lays out like this, and we match it pin for pin
-+   writing straight ahead, pin 1 at the left:
- 
-        pins    1-10    achu, five up then the other five, every line
--       pins   11-18    down
-+       pins   11-18    box, down in a border file
-        pins   19-393   the left border design
-        pins  394-1145  down, all 752 of locking + body + locking
--       pins 1146-1520  the right border design
--
--   An earlier reading of a body file suggested they also mirror the pins.
--   They do not — that file came from a different loom, thirty pins wider
--   at the front, and mirroring it happened to line up by coincidence.
-+       pins 1146-1534  the right border design
-+       pins 1535-1568  the far achu and the spare pins
-+
-+   Their body sample puts the same 752-pin block at 424-1175, thirty
-+   pins further along, which is what caused the doubt. The guess was
-+   that the body sample came off a different loom, thirty pins wider at
-+   the front, and that mirroring it lined the two up by coincidence.
-+
-+   It is not coincidence. Mirroring does not simply shift the block
-+   thirty pins; it lands every block at once. The 752 goes to 394-1145,
-+   the border's blank; the body's blank goes to 1146-1534, the border's
-+   right border; and the box, six worked pins sitting at 1553-1558 in
-+   their file, comes back to 11-16, right beside the achu, which is
-+   where the loom puts it. A thirty-pin shift explains the 752 and
-+   leaves the box stranded at the far end. Nothing overlaps once
-+   mirrored, and the two files are exact complements.
-+
-+   Building their body file with mirrorBodyFile on reproduces the block
-+   at 424-1175 exactly; with it off we write 394-1145. Weavers also
-+   reported the combined file coming out back to front, which is what
-+   writing it the same way round as the border does.
-+
-+   The border file is NOT mirrored — its achu sits at pins 1-10, at the
-+   left, so mirroring both would throw the achu to the far end. Only
-+   the body is turned round.
-    ============================================================ */
- 
- const COMPANY_BASE = {
-@@ -991,12 +1024,34 @@ const COMPANIES = [
-   { id: "saitex", name: "Sai Tex", opts: { ...COMPANY_BASE } },
-   { id: "sritex", name: "Sri Tex", opts: { ...COMPANY_BASE,
-       blackIsIndexZero: false,     // white is the lifted pin
-+      mirrorBodyFile: true,        // their body file is written back to front
-       bodyGround: "satin:2:1" } }  // and a plain ground under every weft
- ];
- 
- const companyById = (id) => COMPANIES.find(c => c.id === (id || "")) || COMPANIES[0];
- const companyName = (id) => companyById(id).name;
- 
-+/* ------------------------------------------------------------
-+   The clutch end (Sri Tex)
-+
-+   A Sri Tex loom carries its clutch at one end, and the pins sitting
-+   over it cannot take a design — thirty-two of them, written down in
-+   every file the loom reads. Which end depends on the loom, so
-+   registering one asks: left clutch or right clutch.
-+
-+   The answer puts an empty group of thirty-two pins at that end. After
-+   that it is an ordinary group like any other — drag it somewhere else,
-+   change its count, or take it out. Nothing here reaches back in and
-+   corrects it; the only thing that moves it is changing the clutch end
-+   itself.
-+   ------------------------------------------------------------ */
-+
-+const CLUTCH_PINS = 32;                       // how many the clutch takes
-+const CLUTCH_COMPANIES = ["sritex"];          // whose looms are asked the question
-+const companyHasClutch = (id) => CLUTCH_COMPANIES.includes(id || "");
-+const clutchLabel = (v) => v === "right" ? "Right clutch"
-+                         : v === "left"  ? "Left clutch" : "No clutch pins";
-+
- function applyCompany(id) {
-   const c = companyById(id);
-   if (!c.opts) return false;
-@@ -1035,6 +1090,7 @@ const state = {
-   totalDeclared: 0,
-   boxMotion: "4x4",
-   company: "",
-+  clutch: "none",
-   version: 1,
-   segments: [],
-   borderFiles: {},                 // one file per border group, keyed by group id
-@@ -1100,6 +1156,16 @@ function anyFile() {
- const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
- const sumPins = (segs) => segs.reduce((n, s) => n + (s.count || 0), 0);
- 
-+// What gets written down for a group. The id is made fresh on the way back
-+// in, so it is left out; the role is kept, or the clutch group would come
-+// back as an anonymous empty one.
-+function drySeg(s) {
-+  const out = { kind: s.kind, count: s.count };
-+  if (s.weave) out.weave = s.weave;
-+  if (s.role) out.role = s.role;
-+  return out;
-+}
-+
- /* ============================================================
-    BMP decoding — returns 1 where the pin is up (black)
-    ============================================================ */
-@@ -1947,6 +2013,63 @@ const store = (() => {
- 
- const hasStore = !!store;
- 
-+/* ------------------------------------------------------------
-+   Reading without losing anything
-+
-+   There is a difference between "nothing has been saved here yet" and
-+   "something is saved here and it will not read", and the two must not
-+   be treated alike. The first is an empty library. The second, read as
-+   an empty library, is how a weaver's work disappears: the drawer looks
-+   bare, the next save writes over the top, and the looms are gone with
-+   nothing left to recover them from.
-+
-+   So unreadable bytes are copied aside first, under the same key with
-+   :damaged on the end, and left there untouched. Whatever happens
-+   afterwards, the original is still on the machine and can be got at.
-+   The app says so plainly rather than carrying on as if the drawer were
-+   empty.
-+   ------------------------------------------------------------ */
-+
-+const DAMAGED_SUFFIX = ":damaged";
-+
-+// { found: false }            nothing saved here yet — an empty library is right
-+// { found: true, value }      read and parsed
-+// { found: true, bad: true }  something is there and it will not read
-+async function readJSON(key) {
-+  if (!hasStore) return { found: false };
-+  let raw;
-+  try {
-+    const r = await store.get(key);
-+    raw = r && r.value;
-+  } catch {
-+    return { found: false };            // no such key, or the read itself failed
-+  }
-+  if (raw === undefined || raw === null || raw === "") return { found: false };
-+  try {
-+    return { found: true, value: JSON.parse(raw) };
-+  } catch {
-+    await quarantine(key, raw);
-+    return { found: true, bad: true };
-+  }
-+}
-+
-+// Put the unreadable bytes somewhere safe. The first copy wins: if this runs
-+// twice, the second must not write over the one good record of what was there.
-+async function quarantine(key, raw) {
-+  const to = key + DAMAGED_SUFFIX;
-+  try {
-+    const existing = await store.get(to);
-+    if (existing && existing.value) { noteDamage(key, to); return; }
-+  } catch { /* nothing there yet, which is what we want */ }
-+  try { await store.set(to, raw); } catch { /* full, but the original is still under its own key */ }
-+  noteDamage(key, to);
-+}
-+
-+function noteDamage(key, to) {
-+  state.damaged = state.damaged || [];
-+  if (!state.damaged.some(d => d.key === key)) state.damaged.push({ key, to });
-+}
-+
- // Each account keeps its own looms, weaves and settings.
- const ACCOUNT_KEY = "pinmap:account";
- const keyFor = (name) => `pinmap:${state.accountKey || "local"}:${name}`;
-@@ -1958,11 +2081,9 @@ const LOOMS_KEY = () => keyFor("looms");
- 
- async function loadLooms() {
-   if (hasStore) {
--    try {
--      const r = await store.get(LOOMS_KEY());
--      state.looms = r && r.value ? JSON.parse(r.value) : [];
--      return;
--    } catch { state.looms = []; return; }
-+    const r = await readJSON(LOOMS_KEY());
-+    state.looms = (r.found && !r.bad && Array.isArray(r.value)) ? r.value : [];
-+    return;
+-  host.innerHTML = `<div class="board-wrap"><canvas id="${canvasId}"${interactive ? ' tabindex="0"' : ""}></canvas></div>`;
++  host.innerHTML = `<div class="board-wrap"><canvas id="${canvasId}"${interactive ? ' tabindex="0"' : ""}
++    role="img" aria-label="The pin board: ${totalPins().toLocaleString()} pins in ${state.segments.length} groups, sixteen to a column"></canvas></div>`;
+   const cv = el("#" + canvasId);
+   const dpr = Math.min(2, window.devicePixelRatio || 1);
+   cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+@@ -3753,7 +3771,7 @@
    }
-   state.looms = memLooms;
- }
-@@ -1979,8 +2100,9 @@ const GRAVEYARD_KEY = () => keyFor("graveyard");
- 
- async function loadGraveyard() {
-   if (hasStore) {
--    try { const r = await store.get(GRAVEYARD_KEY()); state.graveyard = r && r.value ? JSON.parse(r.value) : []; return; }
--    catch { state.graveyard = []; return; }
-+    const r = await readJSON(GRAVEYARD_KEY());
-+    state.graveyard = (r.found && !r.bad && Array.isArray(r.value)) ? r.value : [];
-+    return;
-   }
-   state.graveyard = memGraveyard;
- }
-@@ -1992,11 +2114,9 @@ async function persistGraveyard() {
- 
- async function loadBoxPrefs() {
-   if (hasStore) {
--    try {
--      const r = await store.get(BOXPREFS_KEY());
--      state.boxPrefs = r && r.value ? JSON.parse(r.value) : {};
--      return;
--    } catch { state.boxPrefs = {}; return; }
-+    const r = await readJSON(BOXPREFS_KEY());
-+    state.boxPrefs = (r.found && !r.bad && r.value && typeof r.value === "object") ? r.value : {};
-+    return;
-   }
-   state.boxPrefs = memBoxPrefs;
- }
-@@ -2013,11 +2133,12 @@ const WEAVES_KEY = () => keyFor("weaves");
- 
- async function loadWeaves() {
-   if (hasStore) {
--    try {
--      const r = await store.get(WEAVES_KEY());
--      state.weaves = r && r.value ? JSON.parse(r.value).map(reviveWeave) : [];
--      return;
--    } catch { state.weaves = []; return; }
-+    const r = await readJSON(WEAVES_KEY());
-+    // a single unreadable weave must not take the rest of the library with it
-+    state.weaves = (r.found && !r.bad && Array.isArray(r.value))
-+      ? r.value.map(w => { try { return reviveWeave(w); } catch { return null; } }).filter(Boolean)
-+      : [];
-+    return;
-   }
-   state.weaves = memWeaves;
- }
-@@ -2051,6 +2172,45 @@ let memSession = null;
- let memAccount = null;
- let saveTimer = null;
- let saveBusy = false;
-+let saveAgain = false;
-+
-+// If anything was found unreadable, say so where the looms are listed, and
-+// give a way to get the bytes off the machine. Nothing about this is silent:
-+// a bare drawer with no explanation is exactly what loses a weaver's work.
-+function renderStoreNote() {
-+  const host = el("#storeNote");
-+  if (!host) return;
-+  const bad = state.damaged || [];
-+  if (!bad.length) {
-+    host.className = "saved-note";
-+    host.textContent = hasStore ? "" : "Storage is blocked in this browser, so nothing is kept when the tab closes. Back up before you leave.";
-+    return;
-+  }
-+  host.className = "saved-note damaged";
-+  host.innerHTML =
-+    `<strong>Saved data could not be read.</strong> ${bad.length === 1 ? "One item" : bad.length + " items"} would not open,
-+     so what is listed above may be short. The original has been kept, untouched — download it before saving anything else,
-+     or it may be written over.
-+     <button class="tiny ghost" id="recoverDamaged">Download what could not be read</button>`;
-+  const b = el("#recoverDamaged");
-+  if (b) b.onclick = () => downloadDamaged();
-+}
-+
-+async function downloadDamaged() {
-+  const out = { format: "pinmap.damaged", savedAt: new Date().toISOString(), items: [] };
-+  for (const d of (state.damaged || [])) {
-+    let raw = "";
-+    try { const r = await store.get(d.to); raw = (r && r.value) || ""; } catch {}
-+    if (!raw) { try { const r = await store.get(d.key); raw = (r && r.value) || ""; } catch {} }
-+    out.items.push({ key: d.key, keptUnder: d.to, raw });
-+  }
-+  const stamp = new Date().toISOString().slice(0, 10);
-+  const url = URL.createObjectURL(new Blob([JSON.stringify(out, null, 2)], { type: "application/json" }));
-+  const a = document.createElement("a");
-+  a.href = url; a.download = `pinmap_unreadable_${stamp}.json`; a.click();
-+  setTimeout(() => URL.revokeObjectURL(url), 4000);
-+  notify("Downloaded. Keep that file — it holds whatever could not be read.");
-+}
- 
- function setSaveState(kind) {
-   const host = el("#saveState");
-@@ -2067,9 +2227,9 @@ function sessionDoc() {
-     format: "pinmap.session", savedAt: new Date().toISOString(),
-     draft: {
-       name: state.loomName, totalPins: state.totalDeclared, boxMotion: state.boxMotion,
--      company: state.company, editing: state.editing, version: state.version,
--      segments: state.segments.map(sg => (sg.weave ? { kind: sg.kind, count: sg.count, weave: sg.weave }
--                                                   : { kind: sg.kind, count: sg.count }))
-+      company: state.company, clutch: normalClutch(state.clutch),
-+      editing: state.editing, version: state.version,
-+      segments: state.segments.map(drySeg)
-     },
-     opts: { ...state.opts },
-     activeName: state.activeName,
-@@ -2088,8 +2248,8 @@ async function persistSession() {
- async function loadSession() {
-   let doc = memSession;
-   if (hasStore) {
--    try { const r = await store.get(SESSION_KEY()); doc = r && r.value ? JSON.parse(r.value) : null; }
--    catch { doc = null; }
-+    const r = await readJSON(SESSION_KEY());
-+    doc = (r.found && !r.bad) ? r.value : null;
-   }
-   if (!doc || doc.format !== "pinmap.session") return;
-   if (doc.opts) Object.assign(state.opts, doc.opts);
-@@ -2118,8 +2278,10 @@ async function loadSession() {
-     state.segments = d.segments.map(sg => {
-       const seg = { id: nextId(), kind: KINDS[sg.kind] ? sg.kind : "empty", count: parseInt(sg.count, 10) || 0 };
-       if (sg.weave) seg.weave = sg.weave;
-+      if (sg.role) seg.role = sg.role;
-       return seg;
-     });
-+    state.clutch = clutchSideOf(d, state.segments);
-   }
+   host.innerHTML = `<div class="wl-grid">` + state.weaves.map(w => `
+     <div class="wl-item">
+-      <canvas data-weave="${esc(w.id)}"></canvas>
++      <canvas data-weave="${esc(w.id)}" role="img" aria-label="The ${esc(w.name)} weave, ${w.pins} pins"></canvas>
+       <div style="flex:1;min-width:0">
+         <div class="nm">${esc(w.name)}</div>
+         <div class="sub">${w.width} pins × ${w.height} lines</div>
+@@ -3825,7 +3843,7 @@
+     if (sg.kind === "locking") {
+       const chosen = weaveById(sg.weave);
+       content = `<div class="weave-cell">
+-        <canvas data-rowweave="${sg.id}"></canvas>
++        <canvas data-rowweave="${sg.id}" role="img" aria-label="The weave chosen for this group"></canvas>
+         <select data-act="weave" data-id="${sg.id}" style="flex:1">
+           <optgroup label="Satins and twills">
+             ${BUILTIN_WEAVES.map(w => `<option value="${esc(w.id)}" ${w.id===sg.weave?"selected":""}>${esc(w.name)} · ${w.pins} pins</option>`).join("")}
+@@ -3920,9 +3938,9 @@
+   sel.value = side;
+   const seg = clutchSeg();
+   if (note) note.textContent =
+-      side === "none" ? "Nothing is set aside. Their own 1568-pin loom uses pin 1, so only say otherwise if this loom really gives pins up to a clutch."
+-    : seg ? `${seg.count} pins kept empty at the ${side} end. Move or resize the group like any other.`
+-    : "The empty group has been removed. Change this to put it back.";
++      side === "none" ? "No pins set aside. Say which end only if this loom really gives pins up to a clutch."
++    : seg ? `${seg.count} pins kept empty at the ${side} end — move or resize the group like any other.`
++    : "The group has been removed. Pick an end again to put it back.";
  }
  
-@@ -2149,15 +2311,25 @@ async function autoCommitLoom() {
- }
- 
- async function doAutoSave() {
--  if (saveBusy) return;
-+  // A save asked for while one is already running used to be dropped on the
-+  // floor: the edit was never written and the dot sat on "saving" for good.
-+  // Remember it instead and go round again when the first one is done.
-+  if (saveBusy) { saveAgain = true; return; }
-   saveBusy = true;
-   try {
--    const committed = await autoCommitLoom();
--    await persistSession();
--    await persistBoxPrefs();
--    if (committed) { await persistLooms(); scheduleSync(); }
-+    do {
-+      saveAgain = false;
-+      const committed = await autoCommitLoom();
-+      await persistSession();
-+      await persistBoxPrefs();
-+      if (committed) { await persistLooms(); scheduleSync(); }
-+      if (committed && state.screen === "looms") renderLoomList();
-+    } while (saveAgain);
-     setSaveState("saved");
--    if (committed && state.screen === "looms") renderLoomList();
-+  } catch (err) {
-+    // Whatever went wrong, the dot must not be left hanging. Try again shortly.
-+    clearTimeout(saveTimer);
-+    saveTimer = setTimeout(doAutoSave, 2000);
-   } finally { saveBusy = false; }
- }
- 
-@@ -2184,6 +2356,24 @@ function normalBoxMotion(v) {
-   return (v === "4x1" || v === "2x1") ? "4x1" : "4x4";
- }
- 
-+// Three answers, not two. Not every Sri Tex loom gives pins up to a clutch —
-+// their own 1568-pin sample uses pin 1 for the achu — so the question starts
-+// unanswered and nothing is added until someone says which end.
-+function normalClutch(v) {
-+  return v === "left" || v === "right" ? v : "none";
-+}
-+
-+// Which end the clutch is on: what the file says, or failing that, whichever
-+// end the group is actually sitting at — so a loom saved before the question
-+// was asked comes back looking the way it was drawn.
-+function clutchSideOf(doc, segs) {
-+  if (doc && doc.clutch) return normalClutch(doc.clutch);
-+  const list = segs || [];
-+  const at = list.findIndex(s => s && s.role === "clutch");
-+  if (at < 0) return "none";                 // no group, so no clutch was set
-+  return at >= list.length - 1 ? "right" : "left";
-+}
-+
- function newerOf(a, b) {
-   return ((b && b.savedAt) || "") > ((a && a.savedAt) || "") ? b : a;
- }
-@@ -2250,11 +2440,30 @@ const FB = {
- const CLOUD_CONFIGURED = !!(FB.apiKey && FB.projectId);
- 
- const cloud = {
--  ready: false, user: null, app: null, db: null, auth: null, mod: {}, lastError: null
-+  ready: false, user: null, app: null, db: null, auth: null, mod: {}, lastError: null,
-+  starting: null
- };
- 
-+// Firestore will wait a very long time rather than admit it cannot reach the
-+// network, and a shed PC's connection drops often. Nothing here is allowed to
-+// wait forever: every call to the outside gets a limit, and answers either way.
-+const CLOUD_WAIT_MS = 15000;
-+const TIMED_OUT = Symbol("timed out");
-+function withTimeout(promise, ms) {
-+  let timer;
-+  const bell = new Promise(res => { timer = setTimeout(() => res(TIMED_OUT), ms); });
-+  return Promise.race([
-+    Promise.resolve(promise).then(v => { clearTimeout(timer); return v; },
-+                                  e => { clearTimeout(timer); throw e; }),
-+    bell
-+  ]);
-+}
-+
- async function cloudStart() {
-   if (!CLOUD_CONFIGURED || cloud.ready) return cloud.ready;
-+  // two callers arriving together must not both load Firebase and initialise it
-+  if (cloud.starting) return cloud.starting;
-+  cloud.starting = (async () => {
-   try {
-     const base = "https://www.gstatic.com/firebasejs/10.12.2/";
-     const [appMod, authMod, dbMod] = await Promise.all([
-@@ -2276,6 +2485,9 @@ async function cloudStart() {
-     cloud.ready = false;
-     return false;
-   }
-+  })();
-+  try { return await cloud.starting; }
-+  finally { cloud.starting = null; }   // a failed start may be retried
- }
- 
- // Trade the Google sign-in token for a Firebase session, so the rules
-@@ -2284,7 +2496,8 @@ async function cloudSignIn(googleIdToken) {
-   if (!(await cloudStart())) return null;
-   try {
-     const cred = cloud.mod.GoogleAuthProvider.credential(googleIdToken);
--    const res = await cloud.mod.signInWithCredential(cloud.auth, cred);
-+    const res = await withTimeout(cloud.mod.signInWithCredential(cloud.auth, cred), CLOUD_WAIT_MS);
-+    if (res === TIMED_OUT) { cloud.lastError = new Error("Firebase did not answer in time."); return null; }
-     cloud.user = res.user;
-     return res.user;
-   } catch (err) {
-@@ -2381,6 +2594,7 @@ async function forceReconnect() {
-   if (!clientId) { setSyncState("off", "No Google client ID is set."); return; }
-   setSyncState("busy");
-   try {
-+    setSyncState("busy");
-     await loadGoogleScript();
-     window.google.accounts.id.initialize({
-       client_id: clientId,
-@@ -2408,18 +2622,58 @@ async function forceReconnect() {
- }
- 
- // Bring the two copies together, then write the result to both.
-+let syncBusy = false;
-+let syncAgain = false;
-+
-+// Two rules here, and both matter more than the syncing itself:
-+//   every way out of this leaves a definite answer on the dot, and
-+//   two syncs never run at once, or the second reads the library the
-+//   first has not finished writing and the older copy wins.
- async function syncNow() {
--  if (!CLOUD_CONFIGURED || !cloud.ready || !cloud.user) return false;
--  setSyncState("busy");
--  const remote = await cloudLoad();
--  if (!remote) { setSyncState("off", explainSyncError(cloud.lastError)); return false; }
--  const merged = mergeLibraries(localLibrary(), remote);
--  merged.updatedAt = new Date().toISOString();
--  await adoptLibrary(merged);
--  const saved = await cloudSave(merged);
--  setSyncState(saved ? "ok" : "off", saved ? "" : explainSyncError(cloud.lastError));
--  if (state.screen === "looms") renderLoomList();
--  return saved;
-+  if (!CLOUD_CONFIGURED) return false;
-+  if (!cloud.ready || !cloud.user) {
-+    // scheduleSync has already said "syncing", so it must not be left saying it
-+    setSyncState("off", cloud.lastError
-+      ? explainSyncError(cloud.lastError)
-+      : "Not connected to your account yet. Press Reconnect to try again.");
-+    return false;
-+  }
-+  if (syncBusy) { syncAgain = true; return false; }
-+  syncBusy = true;
-+  try {
-+    let saved = false;
-+    do {
-+      syncAgain = false;
-+      setSyncState("busy");
-+
-+      const remote = await withTimeout(cloudLoad(), CLOUD_WAIT_MS);
-+      if (remote === TIMED_OUT) {
-+        setSyncState("off", "Firebase did not answer in time. Your looms are safe on this device — press Reconnect when the connection is back.");
-+        return false;
-+      }
-+      if (!remote) { setSyncState("off", explainSyncError(cloud.lastError)); return false; }
-+
-+      const merged = mergeLibraries(localLibrary(), remote);
-+      merged.updatedAt = new Date().toISOString();
-+      await adoptLibrary(merged);
-+
-+      const wrote = await withTimeout(cloudSave(merged), CLOUD_WAIT_MS);
-+      if (wrote === TIMED_OUT) {
-+        setSyncState("off", "Firebase did not answer in time. This device is up to date; the shared copy is not.");
-+        return false;
-+      }
-+      saved = wrote;
-+      if (!saved) { setSyncState("off", explainSyncError(cloud.lastError)); return false; }
-+    } while (syncAgain);
-+
-+    setSyncState("ok", "");
-+    if (state.screen === "looms") renderLoomList();
-+    return saved;
-+  } catch (err) {
-+    cloud.lastError = err;
-+    setSyncState("off", explainSyncError(err));
-+    return false;
-+  } finally { syncBusy = false; }
- }
- 
- function scheduleSync() {
-@@ -2645,9 +2899,10 @@ function pinMapDoc() {
-     totalPins: state.totalDeclared || allocated(),
-     boxMotion: normalBoxMotion(state.boxMotion),
-     company: state.company || "",
-+    clutch: normalClutch(state.clutch),
-     version: state.version,
-     savedAt: new Date().toISOString(),
--    segments: state.segments.map(s => (s.weave ? { kind: s.kind, count: s.count, weave: s.weave } : { kind: s.kind, count: s.count })),
-+    segments: state.segments.map(drySeg),
-     options: { ...state.opts },
-     history: []
-   };
-@@ -2673,11 +2928,13 @@ function adoptDoc(doc) {
-     const seg = { id: nextId(), kind, count: parseInt(s.count, 10) || 0 };
-     if (s.weave) seg.weave = s.weave;
-     else if (s.step && stepIsValid(seg.count, parseInt(s.step, 10))) seg.weave = `satin:${seg.count}:${s.step}`;
-+    if (s.role) seg.role = s.role;
-     return seg;
-   });
-   state.totalDeclared = parseInt(doc.totalPins, 10) || sumPins(state.segments);
-   state.boxMotion = normalBoxMotion(doc.boxMotion);
-   state.company = doc.company || "";
-+  state.clutch = clutchSideOf(doc, state.segments);
-   Object.assign(state.opts, doc.options || {});
-   state.borderFiles = {};
-   state.wefts = freshWefts();
-@@ -2728,6 +2985,7 @@ function visibleLooms() {
- 
- function renderLoomList() {
-   const host = el("#loomList");
-+  renderStoreNote();
-   el("#loomTools").hidden = state.looms.length < 2;
-   el("#exportAll").disabled = !state.looms.length && !state.weaves.length;
- 
-@@ -2760,7 +3018,7 @@ function renderLoomList() {
-     return `<div class="loomcard ${isActive ? "active" : ""}">
-       ${isActive ? `<span class="usetag">in use</span>` : ""}
-       <h3>${esc(l.name)}</h3>
--      <div class="meta">${total.toLocaleString()} pins${total > alloc ? ` · ${total - alloc} spare` : ""} · box ${esc(normalBoxMotion(l.boxMotion))}${l.company ? ` · ${esc(companyName(l.company))}` : ""} · v${l.version}</div>
-+      <div class="meta">${total.toLocaleString()} pins${total > alloc ? ` · ${total - alloc} spare` : ""} · box ${esc(normalBoxMotion(l.boxMotion))}${l.company ? ` · ${esc(companyName(l.company))}` : ""}${companyHasClutch(l.company) ? ` · ${esc(clutchLabel(normalClutch(l.clutch)).toLowerCase())}` : ""} · v${l.version}</div>
-       <div style="margin-top:11px">${miniRuler(l.segments, total)}</div>
-       <div style="margin-top:10px">${pills}</div>
-       <div class="when">${whenText(l.lastUsedAt)}</div>
-@@ -2820,11 +3078,45 @@ function applyDefaultLayout() {
-     weave ? { id: nextId(), kind, count, weave } : { id: nextId(), kind, count });
- }
- 
-+// The clutch group is marked, so it can be found again after it has been
-+// dragged about. Marking it is all the mark does — it is edited, moved and
-+// removed exactly like every other group.
-+const clutchAt = (segs) => (segs || []).findIndex(s => s && s.role === "clutch");
-+const clutchSeg = () => state.segments[clutchAt(state.segments)] || null;
-+
-+// Put the empty group at the clutch end, or carry the existing one across.
-+// A count that has been changed is kept — the end moves, the size is yours.
-+function applyClutchGroup(side) {
-+  const segs = state.segments;
-+  const at = clutchAt(segs);
-+  const seg = at >= 0
-+    ? segs.splice(at, 1)[0]
-+    : { id: nextId(), kind: "empty", count: CLUTCH_PINS, role: "clutch" };
-+  seg.role = "clutch";
-+  seg.kind = "empty";
-+  if (!seg.count || seg.count < 1) seg.count = CLUTCH_PINS;
-+  if (normalClutch(side) === "right") segs.push(seg); else segs.unshift(seg);
-+  return seg;
-+}
-+
-+// Moving to a company with no clutch takes the group away again — but only
-+// while it is untouched. A count you set yourself is left where you put it,
-+// still marked, so coming back to Sri Tex finds that group rather than
-+// laying a second one on top of it.
-+function removeClutchGroup(onlyUntouched) {
-+  const at = clutchAt(state.segments);
-+  if (at < 0) return false;
-+  if (onlyUntouched && state.segments[at].count !== CLUTCH_PINS) return false;
-+  state.segments.splice(at, 1);
-+  return true;
-+}
-+
- function startNewLoom() {
-   state.editing = null;
-   state.loomName = "";
-   state.totalDeclared = 0;
-   state.boxMotion = "4x4";
-+  state.clutch = "none";
-   state.version = 1;
-   applyDefaultLayout();
-   state.built = null; state.builtBorder = null;
-@@ -3544,7 +3836,9 @@ function renderSegs() {
-           ${chosen ? "" : `<option value="" selected>— choose a weave —</option>`}
-         </select></div>`;
-     } else {
--      content = `<span class="content-note">${CONTENT_NOTE[sg.kind] || ""}</span>`;
-+      const note = (sg.role === "clutch" && companyHasClutch(state.company))
-+        ? `the clutch — stays down` : (CONTENT_NOTE[sg.kind] || "");
-+      content = `<span class="content-note">${note}</span>`;
-     }
-     html += `<div class="seg-row" data-row="${sg.id}">
-       <div class="griphold">
-@@ -3587,6 +3881,7 @@ els("[data-add]").forEach(b => b.onclick = () => addSeg(b.dataset.add));
- el("#starter").onclick = () => {
-   if (state.segments.length && !confirm("Replace the current groups with the standard order?")) return;
-   applyDefaultLayout();
-+  if (companyHasClutch(state.company) && state.clutch !== "none") applyClutchGroup(state.clutch);
-   state.built = null; state.builtBorder = null; renderLoomScreen();
- };
- 
-@@ -3614,14 +3909,55 @@ function renderCompany() {
-     `<option value="${c.id}"${(state.company || "") === c.id ? " selected" : ""}>${esc(c.name)}</option>`).join("");
- }
- 
-+// Only Sri Tex is asked about the clutch, so the field comes and goes with it.
-+function renderClutch() {
-+  const field = el("#clutchField"), sel = el("#loomClutch"), note = el("#clutchNote");
-+  if (!field || !sel) return;
-+  const show = companyHasClutch(state.company);
-+  field.hidden = !show;
-+  if (!show) return;
-+  const side = normalClutch(state.clutch);
-+  sel.value = side;
-+  const seg = clutchSeg();
-+  if (note) note.textContent =
-+      side === "none" ? "Nothing is set aside. Their own 1568-pin loom uses pin 1, so only say otherwise if this loom really gives pins up to a clutch."
-+    : seg ? `${seg.count} pins kept empty at the ${side} end. Move or resize the group like any other.`
-+    : "The empty group has been removed. Change this to put it back.";
-+}
-+
  el("#loomCompany").addEventListener("change", e => {
-   state.company = e.target.value;
-   const applied = applyCompany(state.company);
-+  let clutchMsg = "";
-+  if (companyHasClutch(state.company) && normalClutch(state.clutch) !== "none") {
-+    const seg = applyClutchGroup(state.clutch);
-+    clutchMsg = ` ${seg.count} pins are held empty at the ${normalClutch(state.clutch)} end for the clutch.`;
-+  } else if (removeClutchGroup(true)) {
-+    clutchMsg = " The clutch group has been taken off again.";
-+  }
-   state.built = null; state.builtBorder = null;
--  renderOpts(); renderLoomChecks(); renderSteps(); scheduleSave();
-+  renderLoomScreen(); renderOpts(); scheduleSave();
-   notify(applied
--    ? `Set to ${companyName(state.company)}. Its conventions are in place — change any of them under How this loom is read.`
--    : "No company set. The loom keeps whatever conventions it has.");
-+    ? `Set to ${companyName(state.company)}. Its conventions are in place — change any of them under How this loom is read.${clutchMsg}`
-+    : `No company set. The loom keeps whatever conventions it has.${clutchMsg}`);
-+});
-+
-+el("#loomClutch").addEventListener("change", e => {
-+  state.clutch = normalClutch(e.target.value);
-+  if (!companyHasClutch(state.company)) return;
-+  let msg;
-+  if (state.clutch === "none") {
-+    // asked for plainly, so it goes, whatever its count
-+    msg = removeClutchGroup(false)
-+      ? "No clutch pins. The empty group has been taken off."
-+      : "No clutch pins.";
-+  } else {
-+    const seg = applyClutchGroup(state.clutch);
-+    msg = `${clutchLabel(state.clutch)}. The ${seg.count} empty pins now sit at the ${state.clutch} end.`;
-+  }
-+  state.built = null; state.builtBorder = null;
-+  renderLoomScreen(); scheduleSave();
-+  notify(msg);
- });
- 
- el("#boxMotion").addEventListener("change", e => {
-@@ -3645,7 +3981,7 @@ function handleSegInput(e) {
-   if (act === "count") {
-     s.count = Math.max(0, parseInt(t.value, 10) || 0);
-     state.built = null; state.builtBorder = null;
--    renderAlloc(); drawBoard(); renderBoardLegend(); renderLoomChecks();
-+    renderAlloc(); drawBoard(); renderBoardLegend(); renderLoomChecks(); renderClutch();
-     els("#segTable .seg-range").forEach((cell, i) => {
-       let from = 1;
-       for (let j = 0; j < i; j++) from += state.segments[j].count || 0;
-@@ -3663,6 +3999,7 @@ function handleSegInput(e) {
+@@ -4209,7 +4227,7 @@
+     const bad = f.width !== expected;
+     state_ += bad ? " bad" : " filled";
+     meta = `${f.width} × ${f.height}${f.rotated ? " · turned to fit" : ""}${bad ? ` — needs ${expected} wide` : ""} · ${f.name}`;
+-    thumb = `<div class="thumb"><canvas data-thumb="${target}|${key}"></canvas></div>`;
++    thumb = `<div class="thumb"><canvas data-thumb="${target}|${key}" role="img" aria-label="Thumbnail of ${esc(title)}"></canvas></div>`;
    }
-   if (act === "kind") {
-     s.kind = t.value;
-+    if (s.kind !== "empty") delete s.role;      // it has been made into something else
-     if (s.kind === "locking" && !s.weave) { s.weave = "satin:8:3"; s.count = 8; }
-     if (s.kind !== "locking") delete s.weave;
-     forgetSideHighlights();
-@@ -3803,6 +4140,7 @@ function renderLoomScreen() {
-   el("#totalDeclared").value = state.totalDeclared || "";
-   el("#boxMotion").value = normalBoxMotion(state.boxMotion);
-   renderCompany();
-+  renderClutch();
-   el("#boardRead").textContent = BOARD_HELP;
-   renderAlloc(); drawBoard(); renderBoardLegend(); renderBoardSelection(); renderSegs(); renderWeaveLibrary(); renderLoomChecks(); renderSteps();
- }
-@@ -4831,6 +5169,14 @@ async function enterApp() {
-   renderWhoami();
-   if (CLOUD_CONFIGURED && state.account && !cloud.user) reconnectCloud();
-   renderOpts();
-+  renderStoreNote();
-+  // If anything would not read, that is the first thing to say, and it is said
-+  // wherever the weaver happens to land — not only on the looms screen.
-+  if ((state.damaged || []).length) {
-+    go("looms");
-+    notify("Some saved data could not be read. The original has been kept — download it from the note below the loom list before saving anything else.");
-+    return;
-+  }
-   go(state.segments.length && state.loomName.trim() ? "loom" : "looms");
+   const acts = (f && !f.error)
+     ? `<div class="acts2">
+@@ -4219,7 +4237,7 @@
+   return `<div class="${state_}">
+     <div class="body">
+       <div class="name">${esc(title)}</div>
+-      <input type="file" accept=".bmp,image/bmp,image/*" data-act="file" data-target="${target}" data-key="${key}">
++      <input type="file" accept=".bmp,image/bmp,image/*" data-act="file" data-target="${target}" data-key="${key}" aria-label="Design file for ${esc(title)}">
+       <div class="meta ${f && (f.error || f.width !== expected) ? "err" : ""}">${esc(meta)}</div>
+       ${acts}
+     </div>${thumb}</div>`;
+diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/package-lock.json ../pinmap/package-lock.json
+--- ../pinmap-remote/package-lock.json	2026-08-03 07:11:55.587172766 +0000
++++ ../pinmap/package-lock.json	2026-08-03 07:22:48.427157834 +0000
+@@ -8,7 +8,7 @@
+       "name": "pinmap",
+       "version": "1.0.0",
+       "devDependencies": {
+-        "jsdom": "^24.1.3"
++        "jsdom": "^26.1.0"
+       },
+       "engines": {
+         "node": ">=18"
+@@ -153,40 +153,6 @@
+         "node": ">= 14"
+       }
+     },
+-    "node_modules/asynckit": {
+-      "version": "0.4.0",
+-      "resolved": "https://registry.npmjs.org/asynckit/-/asynckit-0.4.0.tgz",
+-      "integrity": "sha512-Oei9OH4tRh0YqU3GxhX79dM/mwVgvbZJaSNaRk+bshkj0S5cfHcgYakreBjrHwatXKbz+IoIdYLxrKim2MjW0Q==",
+-      "dev": true,
+-      "license": "MIT"
+-    },
+-    "node_modules/call-bind-apply-helpers": {
+-      "version": "1.0.2",
+-      "resolved": "https://registry.npmjs.org/call-bind-apply-helpers/-/call-bind-apply-helpers-1.0.2.tgz",
+-      "integrity": "sha512-Sp1ablJ0ivDkSzjcaJdxEunN5/XvksFJ2sMBFfq6x0ryhQV/2b/KwFe21cMpmHtPOSij8K99/wSfoEuTObmuMQ==",
+-      "dev": true,
+-      "license": "MIT",
+-      "dependencies": {
+-        "es-errors": "^1.3.0",
+-        "function-bind": "^1.1.2"
+-      },
+-      "engines": {
+-        "node": ">= 0.4"
+-      }
+-    },
+-    "node_modules/combined-stream": {
+-      "version": "1.0.8",
+-      "resolved": "https://registry.npmjs.org/combined-stream/-/combined-stream-1.0.8.tgz",
+-      "integrity": "sha512-FQN4MRfuJeHf7cBbBMJFXhKSDq+2kAArBlmRBvcvFE5BB1HZKXtSFASDhdlz9zOYwxh8lDdnvmMOe/+5cdoEdg==",
+-      "dev": true,
+-      "license": "MIT",
+-      "dependencies": {
+-        "delayed-stream": "~1.0.0"
+-      },
+-      "engines": {
+-        "node": ">= 0.8"
+-      }
+-    },
+     "node_modules/cssstyle": {
+       "version": "4.6.0",
+       "resolved": "https://registry.npmjs.org/cssstyle/-/cssstyle-4.6.0.tgz",
+@@ -201,13 +167,6 @@
+         "node": ">=18"
+       }
+     },
+-    "node_modules/cssstyle/node_modules/rrweb-cssom": {
+-      "version": "0.8.0",
+-      "resolved": "https://registry.npmjs.org/rrweb-cssom/-/rrweb-cssom-0.8.0.tgz",
+-      "integrity": "sha512-guoltQEx+9aMf2gDZ0s62EcV8lsXR+0w8915TC3ITdn2YueuNjdAYh/levpU9nFaoChh9RUS5ZdQMrKfVEN9tw==",
+-      "dev": true,
+-      "license": "MIT"
+-    },
+     "node_modules/data-urls": {
+       "version": "5.0.0",
+       "resolved": "https://registry.npmjs.org/data-urls/-/data-urls-5.0.0.tgz",
+@@ -247,31 +206,6 @@
+       "dev": true,
+       "license": "MIT"
+     },
+-    "node_modules/delayed-stream": {
+-      "version": "1.0.0",
+-      "resolved": "https://registry.npmjs.org/delayed-stream/-/delayed-stream-1.0.0.tgz",
+-      "integrity": "sha512-ZySD7Nf91aLB0RxL4KGrKHBXl7Eds1DAmEdcoVawXnLD7SDhpNgtuII2aAkg7a7QS41jxPSZ17p4VdGnMHk3MQ==",
+-      "dev": true,
+-      "license": "MIT",
+-      "engines": {
+-        "node": ">=0.4.0"
+-      }
+-    },
+-    "node_modules/dunder-proto": {
+-      "version": "1.0.1",
+-      "resolved": "https://registry.npmjs.org/dunder-proto/-/dunder-proto-1.0.1.tgz",
+-      "integrity": "sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==",
+-      "dev": true,
+-      "license": "MIT",
+-      "dependencies": {
+-        "call-bind-apply-helpers": "^1.0.1",
+-        "es-errors": "^1.3.0",
+-        "gopd": "^1.2.0"
+-      },
+-      "engines": {
+-        "node": ">= 0.4"
+-      }
+-    },
+     "node_modules/entities": {
+       "version": "6.0.1",
+       "resolved": "https://registry.npmjs.org/entities/-/entities-6.0.1.tgz",
+@@ -285,176 +219,6 @@
+         "url": "https://github.com/fb55/entities?sponsor=1"
+       }
+     },
+-    "node_modules/es-define-property": {
+-      "version": "1.0.1",
+-      "resolved": "https://registry.npmjs.org/es-define-property/-/es-define-property-1.0.1.tgz",
+-      "integrity": "sha512-e3nRfgfUZ4rNGL232gUgX06QNyyez04KdjFrF+LTRoOXmrOgFKDg4BCdsjW8EnT69eqdYGmRpJwiPVYNrCaW3g==",
+-      "dev": true,
+-      "license": "MIT",
+-      "engines": {
+-        "node": ">= 0.4"
+-      }
+-    },
+-    "node_modules/es-errors": {
+-      "version": "1.3.0",
+-      "resolved": "https://registry.npmjs.org/es-errors/-/es-errors-1.3.0.tgz",
+-      "integrity": "sha512-Zf5H2Kxt2xjTvbJvP2ZWLEICxA6j+hAmMzIlypy4xcBg1vKVnx89Wy0GbS+kf5cwCVFFzdCFh2XSCFNULS6csw==",
+-      "dev": true,
+-      "license": "MIT",
+-      "engines": {
+-        "node": ">= 0.4"
+-      }
+-    },
+-    "node_modules/es-object-atoms": {
+-      "version": "1.1.2",
+-      "resolved": "https://registry.npmjs.org/es-object-atoms/-/es-object-atoms-1.1.2.tgz",
+-      "integrity": "sha512-HWcBoN6NileqtSydK2FqHbS/LoDd2pqrnQHLyJzBj4kOp/ky2MWMN694xOfkK8/SnUsW2DH7EfyVlydKCsm1Zw==",
+-      "dev": true,
+-      "license": "MIT",
+-      "dependencies": {
+-        "es-errors": "^1.3.0"
+-      },
+-      "engines": {
+-        "node": ">= 0.4"
+-      }
+-    },
+-    "node_modules/es-set-tostringtag": {
+-      "version": "2.1.0",
+-      "resolved": "https://registry.npmjs.org/es-set-tostringtag/-/es-set-tostringtag-2.1.0.tgz",
+-      "integrity": "sha512-j6vWzfrGVfyXxge+O0x5sh6cvxAog0a/4Rdd2K36zCMV5eJ+/+tOAngRO8cODMNWbVRdVlmGZQL2YS3yR8bIUA==",
+-      "dev": true,
+-      "license": "MIT",
+-      "dependencies": {
+-        "es-errors": "^1.3.0",
+-        "get-intrinsic": "^1.2.6",
+-        "has-tostringtag": "^1.0.2",
+-        "hasown": "^2.0.2"
+-      },
+-      "engines": {
+-        "node": ">= 0.4"
+-      }
+-    },
+-    "node_modules/form-data": {
+-      "version": "4.0.6",
+-      "resolved": "https://registry.npmjs.org/form-data/-/form-data-4.0.6.tgz",
+-      "integrity": "sha512-vKatAh4SlVfgbv+YtmhiRjhEMJsYpsG1Y2rMQtR+SVSbytsSD1YGzDIcrAJmdFec88u/+VoGmxnl+80gL1tRCQ==",
+-      "dev": true,
+-      "license": "MIT",
+-      "dependencies": {
+-        "asynckit": "^0.4.0",
+-        "combined-stream": "^1.0.8",
+-        "es-set-tostringtag": "^2.1.0",
+-        "hasown": "^2.0.4",
+-        "mime-types": "^2.1.35"
+-      },
+-      "engines": {
+-        "node": ">= 6"
+-      }
+-    },
+-    "node_modules/function-bind": {
+-      "version": "1.1.2",
+-      "resolved": "https://registry.npmjs.org/function-bind/-/function-bind-1.1.2.tgz",
+-      "integrity": "sha512-7XHNxH7qX9xG5mIwxkhumTox/MIRNcOgDrxWsMt2pAr23WHp6MrRlN7FBSFpCpr+oVO0F744iUgR82nJMfG2SA==",
+-      "dev": true,
+-      "license": "MIT",
+-      "funding": {
+-        "url": "https://github.com/sponsors/ljharb"
+-      }
+-    },
+-    "node_modules/get-intrinsic": {
+-      "version": "1.3.0",
+-      "resolved": "https://registry.npmjs.org/get-intrinsic/-/get-intrinsic-1.3.0.tgz",
+-      "integrity": "sha512-9fSjSaos/fRIVIp+xSJlE6lfwhES7LNtKaCBIamHsjr2na1BiABJPo0mOjjz8GJDURarmCPGqaiVg5mfjb98CQ==",
+-      "dev": true,
+-      "license": "MIT",
+-      "dependencies": {
+-        "call-bind-apply-helpers": "^1.0.2",
+-        "es-define-property": "^1.0.1",
+-        "es-errors": "^1.3.0",
+-        "es-object-atoms": "^1.1.1",
+-        "function-bind": "^1.1.2",
+-        "get-proto": "^1.0.1",
+-        "gopd": "^1.2.0",
+-        "has-symbols": "^1.1.0",
+-        "hasown": "^2.0.2",
+-        "math-intrinsics": "^1.1.0"
+-      },
+-      "engines": {
+-        "node": ">= 0.4"
+-      },
+-      "funding": {
+-        "url": "https://github.com/sponsors/ljharb"
+-      }
+-    },
+-    "node_modules/get-proto": {
+-      "version": "1.0.1",
+-      "resolved": "https://registry.npmjs.org/get-proto/-/get-proto-1.0.1.tgz",
+-      "integrity": "sha512-sTSfBjoXBp89JvIKIefqw7U2CCebsc74kiY6awiGogKtoSGbgjYE/G/+l9sF3MWFPNc9IcoOC4ODfKHfxFmp0g==",
+-      "dev": true,
+-      "license": "MIT",
+-      "dependencies": {
+-        "dunder-proto": "^1.0.1",
+-        "es-object-atoms": "^1.0.0"
+-      },
+-      "engines": {
+-        "node": ">= 0.4"
+-      }
+-    },
+-    "node_modules/gopd": {
+-      "version": "1.2.0",
+-      "resolved": "https://registry.npmjs.org/gopd/-/gopd-1.2.0.tgz",
+-      "integrity": "sha512-ZUKRh6/kUFoAiTAtTYPZJ3hw9wNxx+BIBOijnlG9PnrJsCcSjs1wyyD6vJpaYtgnzDrKYRSqf3OO6Rfa93xsRg==",
+-      "dev": true,
+-      "license": "MIT",
+-      "engines": {
+-        "node": ">= 0.4"
+-      },
+-      "funding": {
+-        "url": "https://github.com/sponsors/ljharb"
+-      }
+-    },
+-    "node_modules/has-symbols": {
+-      "version": "1.1.0",
+-      "resolved": "https://registry.npmjs.org/has-symbols/-/has-symbols-1.1.0.tgz",
+-      "integrity": "sha512-1cDNdwJ2Jaohmb3sg4OmKaMBwuC48sYni5HUw2DvsC8LjGTLK9h+eb1X6RyuOHe4hT0ULCW68iomhjUoKUqlPQ==",
+-      "dev": true,
+-      "license": "MIT",
+-      "engines": {
+-        "node": ">= 0.4"
+-      },
+-      "funding": {
+-        "url": "https://github.com/sponsors/ljharb"
+-      }
+-    },
+-    "node_modules/has-tostringtag": {
+-      "version": "1.0.2",
+-      "resolved": "https://registry.npmjs.org/has-tostringtag/-/has-tostringtag-1.0.2.tgz",
+-      "integrity": "sha512-NqADB8VjPFLM2V0VvHUewwwsw0ZWBaIdgo+ieHtK3hasLz4qeCRjYcqfB6AQrBggRKppKF8L52/VqdVsO47Dlw==",
+-      "dev": true,
+-      "license": "MIT",
+-      "dependencies": {
+-        "has-symbols": "^1.0.3"
+-      },
+-      "engines": {
+-        "node": ">= 0.4"
+-      },
+-      "funding": {
+-        "url": "https://github.com/sponsors/ljharb"
+-      }
+-    },
+-    "node_modules/hasown": {
+-      "version": "2.0.4",
+-      "resolved": "https://registry.npmjs.org/hasown/-/hasown-2.0.4.tgz",
+-      "integrity": "sha512-T2UbfbBEF32wiepXIsMlTW9+dDYC6wMh/t/vYA4tuOMKqWz/n3vr1NFSxQiyP+zk2mXsoMA/i/7qV6LKut1t1A==",
+-      "dev": true,
+-      "license": "MIT",
+-      "dependencies": {
+-        "function-bind": "^1.1.2"
+-      },
+-      "engines": {
+-        "node": ">= 0.4"
+-      }
+-    },
+     "node_modules/html-encoding-sniffer": {
+       "version": "4.0.0",
+       "resolved": "https://registry.npmjs.org/html-encoding-sniffer/-/html-encoding-sniffer-4.0.0.tgz",
+@@ -517,31 +281,30 @@
+       "license": "MIT"
+     },
+     "node_modules/jsdom": {
+-      "version": "24.1.3",
+-      "resolved": "https://registry.npmjs.org/jsdom/-/jsdom-24.1.3.tgz",
+-      "integrity": "sha512-MyL55p3Ut3cXbeBEG7Hcv0mVM8pp8PBNWxRqchZnSfAiES1v1mRnMeFfaHWIPULpwsYfvO+ZmMZz5tGCnjzDUQ==",
++      "version": "26.1.0",
++      "resolved": "https://registry.npmjs.org/jsdom/-/jsdom-26.1.0.tgz",
++      "integrity": "sha512-Cvc9WUhxSMEo4McES3P7oK3QaXldCfNWp7pl2NNeiIFlCoLr3kfq9kb1fxftiwk1FLV7CvpvDfonxtzUDeSOPg==",
+       "dev": true,
+       "license": "MIT",
+       "dependencies": {
+-        "cssstyle": "^4.0.1",
++        "cssstyle": "^4.2.1",
+         "data-urls": "^5.0.0",
+-        "decimal.js": "^10.4.3",
+-        "form-data": "^4.0.0",
++        "decimal.js": "^10.5.0",
+         "html-encoding-sniffer": "^4.0.0",
+         "http-proxy-agent": "^7.0.2",
+-        "https-proxy-agent": "^7.0.5",
++        "https-proxy-agent": "^7.0.6",
+         "is-potential-custom-element-name": "^1.0.1",
+-        "nwsapi": "^2.2.12",
+-        "parse5": "^7.1.2",
+-        "rrweb-cssom": "^0.7.1",
++        "nwsapi": "^2.2.16",
++        "parse5": "^7.2.1",
++        "rrweb-cssom": "^0.8.0",
+         "saxes": "^6.0.0",
+         "symbol-tree": "^3.2.4",
+-        "tough-cookie": "^4.1.4",
++        "tough-cookie": "^5.1.1",
+         "w3c-xmlserializer": "^5.0.0",
+         "webidl-conversions": "^7.0.0",
+         "whatwg-encoding": "^3.1.1",
+         "whatwg-mimetype": "^4.0.0",
+-        "whatwg-url": "^14.0.0",
++        "whatwg-url": "^14.1.1",
+         "ws": "^8.18.0",
+         "xml-name-validator": "^5.0.0"
+       },
+@@ -549,7 +312,7 @@
+         "node": ">=18"
+       },
+       "peerDependencies": {
+-        "canvas": "^2.11.2"
++        "canvas": "^3.0.0"
+       },
+       "peerDependenciesMeta": {
+         "canvas": {
+@@ -564,39 +327,6 @@
+       "dev": true,
+       "license": "ISC"
+     },
+-    "node_modules/math-intrinsics": {
+-      "version": "1.1.0",
+-      "resolved": "https://registry.npmjs.org/math-intrinsics/-/math-intrinsics-1.1.0.tgz",
+-      "integrity": "sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==",
+-      "dev": true,
+-      "license": "MIT",
+-      "engines": {
+-        "node": ">= 0.4"
+-      }
+-    },
+-    "node_modules/mime-db": {
+-      "version": "1.52.0",
+-      "resolved": "https://registry.npmjs.org/mime-db/-/mime-db-1.52.0.tgz",
+-      "integrity": "sha512-sPU4uV7dYlvtWJxwwxHD0PuihVNiE7TyAbQ5SWxDCB9mUYvOgroQOwYQQOKPJ8CIbE+1ETVlOoK1UC2nU3gYvg==",
+-      "dev": true,
+-      "license": "MIT",
+-      "engines": {
+-        "node": ">= 0.6"
+-      }
+-    },
+-    "node_modules/mime-types": {
+-      "version": "2.1.35",
+-      "resolved": "https://registry.npmjs.org/mime-types/-/mime-types-2.1.35.tgz",
+-      "integrity": "sha512-ZDY+bPm5zTTF+YpCrAU9nK0UgICYPT0QtT1NZWFv4s++TNkcgVaT0g6+4R2uI4MjQjzysHB1zxuWL50hzaeXiw==",
+-      "dev": true,
+-      "license": "MIT",
+-      "dependencies": {
+-        "mime-db": "1.52.0"
+-      },
+-      "engines": {
+-        "node": ">= 0.6"
+-      }
+-    },
+     "node_modules/ms": {
+       "version": "2.1.3",
+       "resolved": "https://registry.npmjs.org/ms/-/ms-2.1.3.tgz",
+@@ -624,19 +354,6 @@
+         "url": "https://github.com/inikulin/parse5?sponsor=1"
+       }
+     },
+-    "node_modules/psl": {
+-      "version": "1.15.0",
+-      "resolved": "https://registry.npmjs.org/psl/-/psl-1.15.0.tgz",
+-      "integrity": "sha512-JZd3gMVBAVQkSs6HdNZo9Sdo0LNcQeMNP3CozBJb3JYC/QUYZTnKxP+f8oWRX4rHP5EurWxqAHTSwUCjlNKa1w==",
+-      "dev": true,
+-      "license": "MIT",
+-      "dependencies": {
+-        "punycode": "^2.3.1"
+-      },
+-      "funding": {
+-        "url": "https://github.com/sponsors/lupomontero"
+-      }
+-    },
+     "node_modules/punycode": {
+       "version": "2.3.1",
+       "resolved": "https://registry.npmjs.org/punycode/-/punycode-2.3.1.tgz",
+@@ -647,24 +364,10 @@
+         "node": ">=6"
+       }
+     },
+-    "node_modules/querystringify": {
+-      "version": "2.2.0",
+-      "resolved": "https://registry.npmjs.org/querystringify/-/querystringify-2.2.0.tgz",
+-      "integrity": "sha512-FIqgj2EUvTa7R50u0rGsyTftzjYmv/a3hO345bZNrqabNqjtgiDMgmo4mkUjd+nzU5oF3dClKqFIPUKybUyqoQ==",
+-      "dev": true,
+-      "license": "MIT"
+-    },
+-    "node_modules/requires-port": {
+-      "version": "1.0.0",
+-      "resolved": "https://registry.npmjs.org/requires-port/-/requires-port-1.0.0.tgz",
+-      "integrity": "sha512-KigOCHcocU3XODJxsu8i/j8T9tzT4adHiecwORRQ0ZZFcp7ahwXuRU1m+yuO90C5ZUyGeGfocHDI14M3L3yDAQ==",
+-      "dev": true,
+-      "license": "MIT"
+-    },
+     "node_modules/rrweb-cssom": {
+-      "version": "0.7.1",
+-      "resolved": "https://registry.npmjs.org/rrweb-cssom/-/rrweb-cssom-0.7.1.tgz",
+-      "integrity": "sha512-TrEMa7JGdVm0UThDJSx7ddw5nVm3UJS9o9CCIZ72B1vSyEZoziDqBYP3XIoi/12lKrJR8rE3jeFHMok2F/Mnsg==",
++      "version": "0.8.0",
++      "resolved": "https://registry.npmjs.org/rrweb-cssom/-/rrweb-cssom-0.8.0.tgz",
++      "integrity": "sha512-guoltQEx+9aMf2gDZ0s62EcV8lsXR+0w8915TC3ITdn2YueuNjdAYh/levpU9nFaoChh9RUS5ZdQMrKfVEN9tw==",
+       "dev": true,
+       "license": "MIT"
+     },
+@@ -695,20 +398,37 @@
+       "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/tldts": {
++      "version": "6.1.86",
++      "resolved": "https://registry.npmjs.org/tldts/-/tldts-6.1.86.tgz",
++      "integrity": "sha512-WMi/OQ2axVTf/ykqCQgXiIct+mSQDFdH2fkwhPwgEwvJ1kSzZRiinb0zF2Xb8u4+OqPChmyI6MEu4EezNJz+FQ==",
++      "dev": true,
++      "license": "MIT",
++      "dependencies": {
++        "tldts-core": "^6.1.86"
++      },
++      "bin": {
++        "tldts": "bin/cli.js"
++      }
++    },
++    "node_modules/tldts-core": {
++      "version": "6.1.86",
++      "resolved": "https://registry.npmjs.org/tldts-core/-/tldts-core-6.1.86.tgz",
++      "integrity": "sha512-Je6p7pkk+KMzMv2XXKmAE3McmolOQFdxkKw0R8EYNr7sELW46JqnNeTX8ybPiQgvg1ymCoF8LXs5fzFaZvJPTA==",
++      "dev": true,
++      "license": "MIT"
++    },
+     "node_modules/tough-cookie": {
+-      "version": "4.1.4",
+-      "resolved": "https://registry.npmjs.org/tough-cookie/-/tough-cookie-4.1.4.tgz",
+-      "integrity": "sha512-Loo5UUvLD9ScZ6jh8beX1T6sO1w2/MpCRpEP7V280GKMVUQ0Jzar2U3UJPsrdbziLEMMhu3Ujnq//rhiFuIeag==",
++      "version": "5.1.2",
++      "resolved": "https://registry.npmjs.org/tough-cookie/-/tough-cookie-5.1.2.tgz",
++      "integrity": "sha512-FVDYdxtnj0G6Qm/DhNPSb8Ju59ULcup3tuJxkFb5K8Bv2pUXILbf0xZWU8PX8Ov19OXljbUyveOFwRMwkXzO+A==",
+       "dev": true,
+       "license": "BSD-3-Clause",
+       "dependencies": {
+-        "psl": "^1.1.33",
+-        "punycode": "^2.1.1",
+-        "universalify": "^0.2.0",
+-        "url-parse": "^1.5.3"
++        "tldts": "^6.1.32"
+       },
+       "engines": {
+-        "node": ">=6"
++        "node": ">=16"
+       }
+     },
+     "node_modules/tr46": {
+@@ -724,27 +444,6 @@
+         "node": ">=18"
+       }
+     },
+-    "node_modules/universalify": {
+-      "version": "0.2.0",
+-      "resolved": "https://registry.npmjs.org/universalify/-/universalify-0.2.0.tgz",
+-      "integrity": "sha512-CJ1QgKmNg3CwvAv/kOFmtnEN05f0D/cn9QntgNOQlQF9dgvVTHj3t+8JPdjqawCHk7V/KA+fbUqzZ9XWhcqPUg==",
+-      "dev": true,
+-      "license": "MIT",
+-      "engines": {
+-        "node": ">= 4.0.0"
+-      }
+-    },
+-    "node_modules/url-parse": {
+-      "version": "1.5.10",
+-      "resolved": "https://registry.npmjs.org/url-parse/-/url-parse-1.5.10.tgz",
+-      "integrity": "sha512-WypcfiRhfeUP9vvF0j6rw0J3hrWrw6iZv3+22h6iRMJ/8z1Tj6XfLP4DsUix5MhMPnXpiHDoKyoZ/bdCkwBCiQ==",
+-      "dev": true,
+-      "license": "MIT",
+-      "dependencies": {
+-        "querystringify": "^2.1.1",
+-        "requires-port": "^1.0.0"
+-      }
+-    },
+     "node_modules/w3c-xmlserializer": {
+       "version": "5.0.0",
+       "resolved": "https://registry.npmjs.org/w3c-xmlserializer/-/w3c-xmlserializer-5.0.0.tgz",
+diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/package.json ../pinmap/package.json
+--- ../pinmap-remote/package.json	2026-08-03 07:11:40.695173106 +0000
++++ ../pinmap/package.json	2026-08-03 07:22:48.415157834 +0000
+@@ -11,7 +11,7 @@
+     "dev": "npx --yes serve ."
+   },
+   "devDependencies": {
+-    "jsdom": "^24.1.3"
++    "jsdom": "^26.1.0"
+   },
+   "engines": {
+     "node": ">=18"
+diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/tests/ui/14-audit.mjs ../pinmap/tests/ui/14-audit.mjs
+--- ../pinmap-remote/tests/ui/14-audit.mjs	2026-08-03 07:11:40.711735839 +0000
++++ ../pinmap/tests/ui/14-audit.mjs	2026-08-03 07:28:13.340742045 +0000
+@@ -172,6 +172,54 @@
+   note('no new single-class rule pins both width and height', risky.length > 0, risky.join(', '));
  }
  
-diff --git a/tests/extract.mjs b/tests/extract.mjs
-index dfc7753..18a13a5 100644
---- a/tests/extract.mjs
-+++ b/tests/extract.mjs
-@@ -59,7 +59,8 @@ export {
-   SATIN_LIBRARY, BUILTIN_WEAVES, allWeaves, weaveById, weaveRow, satinName,
-   BOX_TABLE, compose, borderFilesLoaded, compareToReference, bitsDiffer,
-   mirrorBits, flipBits, invertBits, state, KINDS, DEFAULT_LAYOUT, labelFor,
--  mergeLibraries, newerOf, normalBoxMotion,
-+  mergeLibraries, newerOf, normalBoxMotion, normalClutch, clutchSideOf,
-+  COMPANIES, COMPANY_BASE, companyById, companyHasClutch, CLUTCH_PINS,
-   freshWefts, filledWefts, borderSlots, bodySlots,
-   WEFT_SLOTS, WEFT_NAMES, totalPins, allocated
- };
-diff --git a/tests/logic/22.mjs b/tests/logic/22.mjs
-index f6bf01d..fd3cc4d 100644
---- a/tests/logic/22.mjs
-+++ b/tests/logic/22.mjs
-@@ -26,9 +26,10 @@ const B = up(bd), Y = mirror(up(b2));
- head('the same loom');
- ok('both are 1568 pins wide', bd.width === 1568 && b2.width === 1568);
- 
--// NOTE: mirroring makes the two samples agree on paper, but on the loom it
--// turns the buttas around and moves the box to the wrong side. So this records
--// what the files look like, not what the app should do — no company mirrors.
-+// NOTE: mirroring makes the two samples exact complements, and 24.mjs shows
-+// why that is not a coincidence — the box comes back beside the achu, not just
-+// the 752 block. Sri Tex therefore ships with mirrorBodyFile on. The checks
-+// below drive the switch by hand, so they describe both ways round.
- head('their two samples only agree on paper if the body is mirrored');
- {
-   const ub = usedPins(B), uy = usedPins(Y);
-@@ -57,7 +58,7 @@ head('read the body the same way round, and they collide');
-   ok('and thirty of them fall inside the right border', both === 33, String(both));
- }
- 
--head('the app does not mirror, because the loom says otherwise');
-+head('the switch turns the body round, and leaves the border alone');
- {
-   const src = { width:720, height:60, bits:new Uint8Array(720*60) };
-   for (let i=0;i<src.bits.length;i++) src.bits[i] = (i % 97 === 0) ? 1 : 0;
-diff --git a/tests/ui/16-company.mjs b/tests/ui/16-company.mjs
-index 56e12e4..42775d2 100644
---- a/tests/ui/16-company.mjs
-+++ b/tests/ui/16-company.mjs
-@@ -49,6 +49,10 @@ setVal($('#loomName'),'Company'); setVal($('#totalDeclared'),'1792');
- await wait(600);
- setSel($('#loomCompany'), 'sritex'); await wait(300);
- ok('it holds the choice', $('#loomCompany').value === 'sritex');
-+// Sri Tex asks about the clutch but assumes nothing, so the pin map is
-+// left exactly as it was.
-+ok('it asks about the clutch', $('#clutchField').hidden === false);
-+ok('but takes no pins without being told to', !/the clutch/.test($('#segTable').textContent));
- setSel($('#boxMotion'), '4x1'); await wait(250);
- ok('box motion still changes freely', $('#boxMotion').value === '4x1');
- ok('and the company is untouched by it', $('#loomCompany').value === 'sritex');
-@@ -109,22 +113,36 @@ console.log('\n== a loom that drifts from its company says so ==');
-      t.replace(/\s+/g,' ').slice(0,140));
- }
- 
--console.log('\n== no company mirrors the body ==');
-+console.log('\n== only Sri Tex mirrors the body ==');
- {
-+  // Their body file is written back to front against their border file. Sai
-+  // Tex writes both the same way round.
-+  const want = { sritex: 'mirrored', saitex: 'same way round' };
-   click($$('nav.steps button').find(x=>x.dataset.go==='loom')); await wait(250);
-   for (const id of ['sritex','saitex']) {
-     setSel($('#loomCompany'), id); await wait(350);
-     click($$('nav.steps button').find(x=>x.dataset.go==='body')); await wait(300);
-     const on = $$('#opts button[data-key=mirrorBodyFile]')
-       .find(b => b.getAttribute('aria-pressed') === 'true');
--    ok(`${id} writes the body the same way round`, on && /same way round/i.test(on.textContent),
-+    ok(`${id} writes the body ${want[id]}`,
-+       on && new RegExp(want[id], 'i').test(on.textContent),
-        on ? on.textContent.trim() : 'none pressed');
--    ok('and the figures do not claim it is mirrored', !/Mirrored/.test($('#bodySummary').textContent),
-+    ok(`and the figures agree for ${id}`,
-+       /Mirrored/.test($('#bodySummary').textContent) === (id === 'sritex'),
-        $('#bodySummary').textContent.replace(/\s+/g,' ').slice(-70));
-     click($$('nav.steps button').find(x=>x.dataset.go==='loom')); await wait(200);
-   }
--  ok('the switch is still there for anyone who needs it',
--     $$('#opts button[data-key=mirrorBodyFile]').length === 0 || true);
++console.log('\n== the page itself ==');
++{
++  const doc = w.document;
++  // Without a doctype the browser renders in quirks mode, which is a different
++  // box model and a different set of rules from the one this CSS was written to.
++  note('the page is in standards mode, not quirks', doc.compatMode !== 'CSS1Compat', doc.compatMode);
++  note('a language is declared, so text is read and spelled correctly',
++       !doc.documentElement.getAttribute('lang'));
++  note('there is a favicon, drawn inline so it works from a pen drive',
++       !doc.querySelector('link[rel*=icon]'));
++  note('the viewport is set for a phone', !doc.querySelector('meta[name=viewport]'));
 +}
 +
-+console.log('\n== and it is the body file only ==');
++console.log('\n== everything can be named out loud ==');
 +{
-+  setSel($('#loomCompany'), 'sritex'); await wait(350);
-+  click($$('nav.steps button').find(x=>x.dataset.go==='body')); await wait(300);
-+  const cap = $$('#opts .cap, #opts .optcap, #opts label')
-+    .map(n=>n.textContent).join(' ');
-+  ok('the setting says plainly that it is the body being turned round',
-+     /body file/i.test(cap), cap.replace(/\s+/g,' ').slice(0,120));
-+  click($$('nav.steps button').find(x=>x.dataset.go==='loom')); await wait(200);
- }
- 
++  const doc = w.document;
++  const unnamed = [];
++  doc.querySelectorAll('input,select,textarea').forEach(e => {
++    if (e.type === 'hidden' || e.hidden || e.closest('[hidden]')) return;
++    const lab = (e.id && doc.querySelector(`label[for="${e.id}"]`)) || e.closest('label');
++    const name = e.getAttribute('aria-label') || e.getAttribute('aria-labelledby')
++              || (lab && lab.textContent.trim()) || e.placeholder;
++    if (!name) unnamed.push(e.tagName.toLowerCase() + '#' + (e.id || '?'));
++  });
++  note('every control the weaver can reach has a name', unnamed.length > 0, unnamed.join(', '));
++
++  const mute = [];
++  doc.querySelectorAll('canvas').forEach(c => {
++    if (!c.getAttribute('aria-label') && !c.getAttribute('role')) mute.push('#' + (c.id || '?'));
++  });
++  note('the previews say what they are showing', mute.length > 0, mute.join(', '));
++
++  // What is wrong with a pin map has to be announced, not just drawn.
++  ['loomChecks','borderChecks','bodyChecks'].forEach(id => {
++    const n = doc.getElementById(id);
++    note(`${id} is announced when it changes`, !n || n.getAttribute('aria-live') !== 'polite');
++  });
++}
++
++console.log('\n== a finger, not a mouse ==');
++{
++  const css = w.document.querySelector('style').textContent;
++  note('touch devices get bigger targets', !/@media \(pointer: coarse\)/.test(css));
++  // the steppers sit either side of a pin count; a mis-hit changes the pin map
++  const coarse = (css.match(/@media \(pointer: coarse\)\s*\{[\s\S]*?\n  \}/) || [''])[0];
++  note('including the pin-count steppers', !/\.stepper/.test(coarse));
++}
++
  console.log('\n== result ==');
+ if (found.length){ console.log('  '+found.length+' problem(s)'); found.forEach(e=>console.log('   - '+e)); }
+ else console.log('  no errors');
+diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/tests/ui/17-clutch.mjs ../pinmap/tests/ui/17-clutch.mjs
+--- ../pinmap-remote/tests/ui/17-clutch.mjs	2026-08-03 07:11:40.711735839 +0000
++++ ../pinmap/tests/ui/17-clutch.mjs	2026-08-03 07:27:41.442483047 +0000
+@@ -46,7 +46,7 @@
+ // until someone says which end the clutch is on.
+ ok('nothing is assumed', $('#loomClutch').value === 'none');
+ ok('and no pins are taken', !/the clutch/.test($('#segTable').textContent));
+-ok('the note says so plainly', /Nothing is set aside/.test($('#clutchNote').textContent),
++ok('the note says so plainly', /No pins set aside/.test($('#clutchNote').textContent),
+    $('#clutchNote').textContent.slice(0,60));
+ 
+ console.log('\n== saying which end ==');

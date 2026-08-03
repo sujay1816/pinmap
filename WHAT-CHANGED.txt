@@ -1,24 +1,23 @@
-Pinmap — Sri Tex clutch end, and the mirrored body file
-=======================================================
+Pinmap — interface fixes and a dependency bump
+==============================================
 
-Copy these over the same paths in your clone, keeping the folder
-structure, then commit in GitHub Desktop. Delete this file and
-CHANGES.diff first — neither belongs in the repository.
+Changed since the version now on GitHub (build 2026-08-03.18):
 
-  index.html               the app
-  README.md                both changes written up
-  tests/extract.mjs        exports the company table to the suites
-  tests/ui/16-company.mjs  updated: Sri Tex now mirrors, and brings a clutch
-  tests/ui/17-clutch.mjs   NEW: the clutch end
-  tests/logic/22.mjs       updated: the stale note about mirroring
-  tests/logic/24.mjs       NEW: holds the body file against their real one
+  index.html              doctype, lang, favicon, accessible names,
+                          live regions, touch targets, clutch wording
+  package.json            jsdom 24 -> 26
+  package-lock.json       to match
+  tests/ui/14-audit.mjs   new checks so none of the above can regress
+  tests/ui/17-clutch.mjs  updated for the shorter clutch note
 
-After copying, run:  npm test
-Expect 449 checks, 24 logic suites and 17 interface suites, all passing.
+Copy over the same paths, delete this file and CHANGES.diff, then
+run:  npm install && npm test
+Expect 449 checks, all passing.
 
-THE ONE THING TO CHECK ON THE LOOM
-----------------------------------
-The body file now comes out back to front against the border file,
-which is what Sri Tex's own body file does. Build one job you already
-have a known-good file for and run it through "Check against a file you
-trust" before weaving anything real.
+WORTH A LOOK BEFORE YOU TRUST IT
+--------------------------------
+Adding the doctype moves the page from quirks mode into standards mode.
+box-sizing was already border-box everywhere and nothing uses percentage
+heights, so this should be invisible — but it is the one change here that
+could shift the layout. Open the deployed page and glance at each of the
+four screens.

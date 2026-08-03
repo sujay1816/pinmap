@@ -172,6 +172,54 @@ console.log('\n== stylesheet hygiene ==');
   note('no new single-class rule pins both width and height', risky.length > 0, risky.join(', '));
 }
 
+console.log('\n== the page itself ==');
+{
+  const doc = w.document;
+  // Without a doctype the browser renders in quirks mode, which is a different
+  // box model and a different set of rules from the one this CSS was written to.
+  note('the page is in standards mode, not quirks', doc.compatMode !== 'CSS1Compat', doc.compatMode);
+  note('a language is declared, so text is read and spelled correctly',
+       !doc.documentElement.getAttribute('lang'));
+  note('there is a favicon, drawn inline so it works from a pen drive',
+       !doc.querySelector('link[rel*=icon]'));
+  note('the viewport is set for a phone', !doc.querySelector('meta[name=viewport]'));
+}
+
+console.log('\n== everything can be named out loud ==');
+{
+  const doc = w.document;
+  const unnamed = [];
+  doc.querySelectorAll('input,select,textarea').forEach(e => {
+    if (e.type === 'hidden' || e.hidden || e.closest('[hidden]')) return;
+    const lab = (e.id && doc.querySelector(`label[for="${e.id}"]`)) || e.closest('label');
+    const name = e.getAttribute('aria-label') || e.getAttribute('aria-labelledby')
+              || (lab && lab.textContent.trim()) || e.placeholder;
+    if (!name) unnamed.push(e.tagName.toLowerCase() + '#' + (e.id || '?'));
+  });
+  note('every control the weaver can reach has a name', unnamed.length > 0, unnamed.join(', '));
+
+  const mute = [];
+  doc.querySelectorAll('canvas').forEach(c => {
+    if (!c.getAttribute('aria-label') && !c.getAttribute('role')) mute.push('#' + (c.id || '?'));
+  });
+  note('the previews say what they are showing', mute.length > 0, mute.join(', '));
+
+  // What is wrong with a pin map has to be announced, not just drawn.
+  ['loomChecks','borderChecks','bodyChecks'].forEach(id => {
+    const n = doc.getElementById(id);
+    note(`${id} is announced when it changes`, !n || n.getAttribute('aria-live') !== 'polite');
+  });
+}
+
+console.log('\n== a finger, not a mouse ==');
+{
+  const css = w.document.querySelector('style').textContent;
+  note('touch devices get bigger targets', !/@media \(pointer: coarse\)/.test(css));
+  // the steppers sit either side of a pin count; a mis-hit changes the pin map
+  const coarse = (css.match(/@media \(pointer: coarse\)\s*\{[\s\S]*?\n  \}/) || [''])[0];
+  note('including the pin-count steppers', !/\.stepper/.test(coarse));
+}
+
 console.log('\n== result ==');
 if (found.length){ console.log('  '+found.length+' problem(s)'); found.forEach(e=>console.log('   - '+e)); }
 else console.log('  no errors');

@@ -46,7 +46,7 @@ ok('the field appears', $('#clutchField').hidden === false);
 // until someone says which end the clutch is on.
 ok('nothing is assumed', $('#loomClutch').value === 'none');
 ok('and no pins are taken', !/the clutch/.test($('#segTable').textContent));
-ok('the note says so plainly', /Nothing is set aside/.test($('#clutchNote').textContent),
+ok('the note says so plainly', /No pins set aside/.test($('#clutchNote').textContent),
    $('#clutchNote').textContent.slice(0,60));
 
 console.log('\n== saying which end ==');

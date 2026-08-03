@@ -1,4 +1,10 @@
+<!doctype html>
+<html lang="en">
 <meta charset="utf-8">
+<meta name="description" content="Register a jacquard loom once, then lay weft designs onto its pins and build the file the machine reads. Works offline.">
+<meta name="theme-color" content="#14181C">
+<meta name="color-scheme" content="light">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2314181C'/%3E%3Cg fill='%23F5F3EE'%3E%3Crect x='6' y='6' width='5' height='5'/%3E%3Crect x='20' y='6' width='5' height='5'/%3E%3Crect x='13' y='13' width='5' height='5'/%3E%3Crect x='6' y='20' width='5' height='5'/%3E%3Crect x='20' y='20' width='5' height='5'/%3E%3C/g%3E%3C/svg%3E">
 
 <!-- ─────────────────────────────────────────────────────────────
      SET THIS ONCE and nobody using the app has to touch Google.
@@ -588,6 +594,17 @@
     .seg-row .seg-acts { grid-column: 2 / 4; justify-content: flex-start; }
     .activeloom { margin-left: 0; text-align: left; }
   }
+  /* On a touchscreen the small controls are hard to hit — the steppers beside a
+     pin count are 26px, and a mis-hit there changes the pin map. A finger wants
+     nearer 44px, so give it that without moving anything on a mouse. */
+  @media (pointer: coarse) {
+    button.tiny { padding: 10px 14px; }
+    .stepper { width: 42px; flex: 0 0 42px; min-height: 42px; }
+    .grip { padding: 11px 10px; }
+    .seg-acts { gap: 8px; }
+    .countcell input[type=number] { min-height: 42px; }
+  }
+
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 
@@ -603,7 +620,7 @@
       <button class="tiny" id="viewerClose">Close</button>
     </div>
   </div>
-  <div class="viewer-body"><canvas id="viewerCanvas"></canvas></div>
+  <div class="viewer-body"><canvas id="viewerCanvas" role="img" aria-label="The design, drawn pin by pin"></canvas></div>
 </div>
 
 <main class="gate" id="gate">
@@ -735,7 +752,7 @@
       </label>
       <label class="field" id="clutchField" hidden>
         <span class="cap">Clutch end</span>
-        <select id="loomClutch">
+        <select id="loomClutch" aria-label="Clutch end" aria-describedby="clutchNote">
           <option value="none">No clutch pins</option>
           <option value="left">Left clutch</option>
           <option value="right">Right clutch</option>
@@ -768,7 +785,7 @@
       </div>
       <div class="wl-add">
         <input type="text" id="weaveName" placeholder="name it, e.g. Murthy lock 8">
-        <input type="file" id="weaveFile" accept=".bmp,image/bmp,image/*">
+        <input type="file" id="weaveFile" accept=".bmp,image/bmp,image/*" aria-label="Weave file to add to the library">
         <button class="ghost" id="addWeave">Add to library</button>
       </div>
       <div id="weaveList"></div>
@@ -789,7 +806,7 @@
       <button class="ghost danger" id="clearSegs">Clear groups</button>
     </div>
 
-    <div id="loomChecks" style="margin-top:22px"></div>
+    <div id="loomChecks" role="status" aria-live="polite" style="margin-top:22px"></div>
 
     <div class="btn-row">
       <button class="solid" id="saveLoom">Save version and continue</button>
@@ -823,7 +840,7 @@
     <div class="sideboard" data-board="border"></div>
     <div id="borderHost"></div>
     <div id="borderAchuNote"></div>
-    <div id="borderChecks" style="margin-top:20px"></div>
+    <div id="borderChecks" role="status" aria-live="polite" style="margin-top:20px"></div>
     <div class="btn-row">
       <button class="solid" id="combineBorder">Combine border</button>
       <button id="downloadBorder" disabled>Download BMP</button>
@@ -834,7 +851,7 @@
         <span class="cap" style="margin:0">Check against a file you trust</span>
         <span class="vf-note">Load the border file the jacquard company's software made for this same design.</span>
       </div>
-      <input type="file" accept=".bmp,image/bmp,image/*" data-vfile="border">
+      <input type="file" accept=".bmp,image/bmp,image/*" data-vfile="border" aria-label="A border file you already trust, to check ours against">
       <div class="vf-out"></div>
     </div>
 
@@ -847,7 +864,7 @@
           <button class="tiny ghost" data-bzoomv="border" data-zoom="3">3×</button>
         </div>
       </div>
-      <div class="pv-frame"><canvas id="borderPv"></canvas></div>
+      <div class="pv-frame"><canvas id="borderPv" role="img" aria-label="Preview of the border file"></canvas></div>
     </div>
     <details class="note">
       <summary>What goes in this file</summary>
@@ -877,7 +894,7 @@
     <div id="bodyHost"></div>
     <div id="boxEditor"></div>
     <div class="chips" id="boxChips" style="margin-top:22px"></div>
-    <div id="bodyChecks" style="margin-top:20px"></div>
+    <div id="bodyChecks" role="status" aria-live="polite" style="margin-top:20px"></div>
     <div class="btn-row">
       <button class="solid" id="combineBody">Combine body</button>
       <button id="download" disabled>Download BMP</button>
@@ -888,7 +905,7 @@
         <span class="cap" style="margin:0">Check against a file you trust</span>
         <span class="vf-note">Load the body file the jacquard company's software made for this same design.</span>
       </div>
-      <input type="file" accept=".bmp,image/bmp,image/*" data-vfile="body">
+      <input type="file" accept=".bmp,image/bmp,image/*" data-vfile="body" aria-label="A body file you already trust, to check ours against">
       <div class="vf-out"></div>
     </div>
 
@@ -902,7 +919,7 @@
           <button class="tiny ghost" id="pvMode" aria-pressed="true">Colour groups</button>
         </div>
       </div>
-      <div class="pv-frame" id="pvFrame"><canvas id="pv" tabindex="0"></canvas></div>
+      <div class="pv-frame" id="pvFrame"><canvas id="pv" tabindex="0" role="img" aria-label="Preview of the file being built"></canvas></div>
       <div class="inspector" id="inspector">Point at the picture to read the pin and line under the cursor.</div>
       <div class="legend" id="pvLegend"></div>
     </div>
@@ -957,7 +974,7 @@ function labelFor(segs, i) {
   for (let j = 0; j <= i; j++) if (isOne(segs[j])) n++;
   return `${base} ${n}`;
 }
-const BUILD = "2026-08-03.18";      // bump when the file changes, so a stale page shows
+const BUILD = "2026-08-03.19";      // bump when the file changes, so a stale page shows
 /* ============================================================
    Whose software wrote the file
 
@@ -3267,7 +3284,8 @@ function paintBoard(host, canvasId, opts) {
   const RULE = 22, GUT = 40, FOOT = 18;
   const W = GUT + cols * pitch + 8, H = RULE + PINS_PER_COLUMN * pitch + FOOT;
 
-  host.innerHTML = `<div class="board-wrap"><canvas id="${canvasId}"${interactive ? ' tabindex="0"' : ""}></canvas></div>`;
+  host.innerHTML = `<div class="board-wrap"><canvas id="${canvasId}"${interactive ? ' tabindex="0"' : ""}
+    role="img" aria-label="The pin board: ${totalPins().toLocaleString()} pins in ${state.segments.length} groups, sixteen to a column"></canvas></div>`;
   const cv = el("#" + canvasId);
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
@@ -3753,7 +3771,7 @@ function renderWeaveLibrary() {
   }
   host.innerHTML = `<div class="wl-grid">` + state.weaves.map(w => `
     <div class="wl-item">
-      <canvas data-weave="${esc(w.id)}"></canvas>
+      <canvas data-weave="${esc(w.id)}" role="img" aria-label="The ${esc(w.name)} weave, ${w.pins} pins"></canvas>
       <div style="flex:1;min-width:0">
         <div class="nm">${esc(w.name)}</div>
         <div class="sub">${w.width} pins × ${w.height} lines</div>
@@ -3825,7 +3843,7 @@ function renderSegs() {
     if (sg.kind === "locking") {
       const chosen = weaveById(sg.weave);
       content = `<div class="weave-cell">
-        <canvas data-rowweave="${sg.id}"></canvas>
+        <canvas data-rowweave="${sg.id}" role="img" aria-label="The weave chosen for this group"></canvas>
         <select data-act="weave" data-id="${sg.id}" style="flex:1">
           <optgroup label="Satins and twills">
             ${BUILTIN_WEAVES.map(w => `<option value="${esc(w.id)}" ${w.id===sg.weave?"selected":""}>${esc(w.name)} · ${w.pins} pins</option>`).join("")}
@@ -3920,9 +3938,9 @@ function renderClutch() {
   sel.value = side;
   const seg = clutchSeg();
   if (note) note.textContent =
-      side === "none" ? "Nothing is set aside. Their own 1568-pin loom uses pin 1, so only say otherwise if this loom really gives pins up to a clutch."
-    : seg ? `${seg.count} pins kept empty at the ${side} end. Move or resize the group like any other.`
-    : "The empty group has been removed. Change this to put it back.";
+      side === "none" ? "No pins set aside. Say which end only if this loom really gives pins up to a clutch."
+    : seg ? `${seg.count} pins kept empty at the ${side} end — move or resize the group like any other.`
+    : "The group has been removed. Pick an end again to put it back.";
 }
 
 el("#loomCompany").addEventListener("change", e => {
@@ -4209,7 +4227,7 @@ function slotHTML(cls, title, sub, target, key, f, expected) {
     const bad = f.width !== expected;
     state_ += bad ? " bad" : " filled";
     meta = `${f.width} × ${f.height}${f.rotated ? " · turned to fit" : ""}${bad ? ` — needs ${expected} wide` : ""} · ${f.name}`;
-    thumb = `<div class="thumb"><canvas data-thumb="${target}|${key}"></canvas></div>`;
+    thumb = `<div class="thumb"><canvas data-thumb="${target}|${key}" role="img" aria-label="Thumbnail of ${esc(title)}"></canvas></div>`;
   }
   const acts = (f && !f.error)
     ? `<div class="acts2">
@@ -4219,7 +4237,7 @@ function slotHTML(cls, title, sub, target, key, f, expected) {
   return `<div class="${state_}">
     <div class="body">
       <div class="name">${esc(title)}</div>
-      <input type="file" accept=".bmp,image/bmp,image/*" data-act="file" data-target="${target}" data-key="${key}">
+      <input type="file" accept=".bmp,image/bmp,image/*" data-act="file" data-target="${target}" data-key="${key}" aria-label="Design file for ${esc(title)}">
       <div class="meta ${f && (f.error || f.width !== expected) ? "err" : ""}">${esc(meta)}</div>
       ${acts}
     </div>${thumb}</div>`;
