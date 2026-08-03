@@ -231,6 +231,23 @@ were already drawn.
 
 ## Where the data lives
 
+### When saved data will not read
+
+There is a difference between *nothing has been saved here yet* and *something
+is saved here and it will not open*, and the two must never be treated alike.
+The first is an empty library. The second, read as an empty library, is how a
+weaver's work disappears: the drawer looks bare, the next save writes over the
+top, and there is nothing left to recover from.
+
+So unreadable data is copied aside before anything else happens, under the same
+key with `:damaged` on the end, and left there untouched — the first copy wins,
+so a second failure cannot write over the rescue. The app says so plainly under
+the loom list, and offers the bytes as a download. It does not carry on as
+though the drawer were empty.
+
+A store that refuses to *write* was already handled: the loom is kept for the
+session and the app says it was not saved, rather than claiming it was.
+
 | What | Kept in |
 | --- | --- |
 | Looms, weaves, box settings, session | Browser storage, scoped per account |

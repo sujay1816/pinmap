@@ -1,5 +1,5 @@
 diff --git a/README.md b/README.md
-index d38823e..e4794b1 100644
+index d38823e..c3b13c7 100644
 --- a/README.md
 +++ b/README.md
 @@ -162,6 +162,8 @@ rather than the software, so it stays a separate choice.
@@ -11,7 +11,7 @@ index d38823e..e4794b1 100644
  | Everything else | the same | the same |
  
  Sri Tex was read off their own border file, in `tests/fixtures`. That file also
-@@ -169,11 +171,64 @@ confirms three rules the app had only been told about: the achu belongs to the
+@@ -169,13 +171,83 @@ confirms three rules the app had only been told about: the achu belongs to the
  border file, the body and locking pins stay down in it, and the achu is half up
  and half down, flipping every line.
  
@@ -75,9 +75,28 @@ index d38823e..e4794b1 100644
 +
  ## Where the data lives
  
++### When saved data will not read
++
++There is a difference between *nothing has been saved here yet* and *something
++is saved here and it will not open*, and the two must never be treated alike.
++The first is an empty library. The second, read as an empty library, is how a
++weaver's work disappears: the drawer looks bare, the next save writes over the
++top, and there is nothing left to recover from.
++
++So unreadable data is copied aside before anything else happens, under the same
++key with `:damaged` on the end, and left there untouched — the first copy wins,
++so a second failure cannot write over the rescue. The app says so plainly under
++the loom list, and offers the bytes as a download. It does not carry on as
++though the drawer were empty.
++
++A store that refuses to *write* was already handled: the loom is kept for the
++session and the app says it was not saved, rather than claiming it was.
++
  | What | Kept in |
+ | --- | --- |
+ | Looms, weaves, box settings, session | Browser storage, scoped per account |
 diff --git a/index.html b/index.html
-index a0e6727..1987cf8 100644
+index a0e6727..977d983 100644
 --- a/index.html
 +++ b/index.html
 @@ -89,6 +89,8 @@
@@ -89,7 +108,18 @@ index a0e6727..1987cf8 100644
    label.field > .cap, .cap {
      display: block; font-family: var(--mono); font-size: var(--t-small); letter-spacing: var(--track);
      text-transform: uppercase; color: var(--ink-3); margin-bottom: 5px;
-@@ -727,6 +729,15 @@
+@@ -574,6 +576,10 @@
+   details.note div { font-size: var(--t-note); color: var(--ink-2); margin-top: 9px; line-height: 1.55; }
+   details.note p { margin: 0 0 9px; }
+   .saved-note { font-family: var(--mono); font-size: var(--t-small); color: var(--ink-3); margin-top: 10px; }
++  .saved-note.damaged { color: var(--ink); background: #FFF4F4; border: 1px solid #C8837E;
++    padding: 11px 13px; line-height: 1.55; }
++  .saved-note.damaged strong { display: block; margin-bottom: 3px; }
++  .saved-note.damaged button { margin-top: 8px; }
+ 
+   @media (max-width: 780px) {
+     .seg-row { grid-template-columns: 18px 1fr 1fr; }
+@@ -727,6 +733,15 @@
            <option value="4x1">4 by 1</option>
          </select>
        </label>
@@ -105,7 +135,7 @@ index a0e6727..1987cf8 100644
      </div>
  
      <div class="alloc" id="alloc"></div>
-@@ -934,13 +945,15 @@ const UNALLOCATED = { label: "Not allocated", colour: "#FFFFFF", code: 8 };
+@@ -934,13 +949,15 @@ const UNALLOCATED = { label: "Not allocated", colour: "#FFFFFF", code: 8 };
  
  // A group's name is its group. Where the same group is used twice, number them.
  function labelFor(segs, i) {
@@ -120,11 +150,11 @@ index a0e6727..1987cf8 100644
    return `${base} ${n}`;
  }
 -const BUILD = "2026-07-31.13";      // bump when the file changes, so a stale page shows
-+const BUILD = "2026-08-03.16";      // bump when the file changes, so a stale page shows
++const BUILD = "2026-08-03.17";      // bump when the file changes, so a stale page shows
  /* ============================================================
     Whose software wrote the file
  
-@@ -957,26 +970,42 @@ const BUILD = "2026-07-31.13";      // bump when the file changes, so a stale pa
+@@ -957,26 +974,42 @@ const BUILD = "2026-07-31.13";      // bump when the file changes, so a stale pa
     where we write black. This was read off their border file and is not
     in doubt.
  
@@ -183,7 +213,7 @@ index a0e6727..1987cf8 100644
     ============================================================ */
  
  const COMPANY_BASE = {
-@@ -991,12 +1020,34 @@ const COMPANIES = [
+@@ -991,12 +1024,34 @@ const COMPANIES = [
    { id: "saitex", name: "Sai Tex", opts: { ...COMPANY_BASE } },
    { id: "sritex", name: "Sri Tex", opts: { ...COMPANY_BASE,
        blackIsIndexZero: false,     // white is the lifted pin
@@ -218,7 +248,7 @@ index a0e6727..1987cf8 100644
  function applyCompany(id) {
    const c = companyById(id);
    if (!c.opts) return false;
-@@ -1035,6 +1086,7 @@ const state = {
+@@ -1035,6 +1090,7 @@ const state = {
    totalDeclared: 0,
    boxMotion: "4x4",
    company: "",
@@ -226,7 +256,7 @@ index a0e6727..1987cf8 100644
    version: 1,
    segments: [],
    borderFiles: {},                 // one file per border group, keyed by group id
-@@ -1100,6 +1152,16 @@ function anyFile() {
+@@ -1100,6 +1156,16 @@ function anyFile() {
  const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
  const sumPins = (segs) => segs.reduce((n, s) => n + (s.count || 0), 0);
  
@@ -243,7 +273,176 @@ index a0e6727..1987cf8 100644
  /* ============================================================
     BMP decoding — returns 1 where the pin is up (black)
     ============================================================ */
-@@ -2067,9 +2129,9 @@ function sessionDoc() {
+@@ -1947,6 +2013,63 @@ const store = (() => {
+ 
+ const hasStore = !!store;
+ 
++/* ------------------------------------------------------------
++   Reading without losing anything
++
++   There is a difference between "nothing has been saved here yet" and
++   "something is saved here and it will not read", and the two must not
++   be treated alike. The first is an empty library. The second, read as
++   an empty library, is how a weaver's work disappears: the drawer looks
++   bare, the next save writes over the top, and the looms are gone with
++   nothing left to recover them from.
++
++   So unreadable bytes are copied aside first, under the same key with
++   :damaged on the end, and left there untouched. Whatever happens
++   afterwards, the original is still on the machine and can be got at.
++   The app says so plainly rather than carrying on as if the drawer were
++   empty.
++   ------------------------------------------------------------ */
++
++const DAMAGED_SUFFIX = ":damaged";
++
++// { found: false }            nothing saved here yet — an empty library is right
++// { found: true, value }      read and parsed
++// { found: true, bad: true }  something is there and it will not read
++async function readJSON(key) {
++  if (!hasStore) return { found: false };
++  let raw;
++  try {
++    const r = await store.get(key);
++    raw = r && r.value;
++  } catch {
++    return { found: false };            // no such key, or the read itself failed
++  }
++  if (raw === undefined || raw === null || raw === "") return { found: false };
++  try {
++    return { found: true, value: JSON.parse(raw) };
++  } catch {
++    await quarantine(key, raw);
++    return { found: true, bad: true };
++  }
++}
++
++// Put the unreadable bytes somewhere safe. The first copy wins: if this runs
++// twice, the second must not write over the one good record of what was there.
++async function quarantine(key, raw) {
++  const to = key + DAMAGED_SUFFIX;
++  try {
++    const existing = await store.get(to);
++    if (existing && existing.value) { noteDamage(key, to); return; }
++  } catch { /* nothing there yet, which is what we want */ }
++  try { await store.set(to, raw); } catch { /* full, but the original is still under its own key */ }
++  noteDamage(key, to);
++}
++
++function noteDamage(key, to) {
++  state.damaged = state.damaged || [];
++  if (!state.damaged.some(d => d.key === key)) state.damaged.push({ key, to });
++}
++
+ // Each account keeps its own looms, weaves and settings.
+ const ACCOUNT_KEY = "pinmap:account";
+ const keyFor = (name) => `pinmap:${state.accountKey || "local"}:${name}`;
+@@ -1958,11 +2081,9 @@ const LOOMS_KEY = () => keyFor("looms");
+ 
+ async function loadLooms() {
+   if (hasStore) {
+-    try {
+-      const r = await store.get(LOOMS_KEY());
+-      state.looms = r && r.value ? JSON.parse(r.value) : [];
+-      return;
+-    } catch { state.looms = []; return; }
++    const r = await readJSON(LOOMS_KEY());
++    state.looms = (r.found && !r.bad && Array.isArray(r.value)) ? r.value : [];
++    return;
+   }
+   state.looms = memLooms;
+ }
+@@ -1979,8 +2100,9 @@ const GRAVEYARD_KEY = () => keyFor("graveyard");
+ 
+ async function loadGraveyard() {
+   if (hasStore) {
+-    try { const r = await store.get(GRAVEYARD_KEY()); state.graveyard = r && r.value ? JSON.parse(r.value) : []; return; }
+-    catch { state.graveyard = []; return; }
++    const r = await readJSON(GRAVEYARD_KEY());
++    state.graveyard = (r.found && !r.bad && Array.isArray(r.value)) ? r.value : [];
++    return;
+   }
+   state.graveyard = memGraveyard;
+ }
+@@ -1992,11 +2114,9 @@ async function persistGraveyard() {
+ 
+ async function loadBoxPrefs() {
+   if (hasStore) {
+-    try {
+-      const r = await store.get(BOXPREFS_KEY());
+-      state.boxPrefs = r && r.value ? JSON.parse(r.value) : {};
+-      return;
+-    } catch { state.boxPrefs = {}; return; }
++    const r = await readJSON(BOXPREFS_KEY());
++    state.boxPrefs = (r.found && !r.bad && r.value && typeof r.value === "object") ? r.value : {};
++    return;
+   }
+   state.boxPrefs = memBoxPrefs;
+ }
+@@ -2013,11 +2133,12 @@ const WEAVES_KEY = () => keyFor("weaves");
+ 
+ async function loadWeaves() {
+   if (hasStore) {
+-    try {
+-      const r = await store.get(WEAVES_KEY());
+-      state.weaves = r && r.value ? JSON.parse(r.value).map(reviveWeave) : [];
+-      return;
+-    } catch { state.weaves = []; return; }
++    const r = await readJSON(WEAVES_KEY());
++    // a single unreadable weave must not take the rest of the library with it
++    state.weaves = (r.found && !r.bad && Array.isArray(r.value))
++      ? r.value.map(w => { try { return reviveWeave(w); } catch { return null; } }).filter(Boolean)
++      : [];
++    return;
+   }
+   state.weaves = memWeaves;
+ }
+@@ -2052,6 +2173,44 @@ let memAccount = null;
+ let saveTimer = null;
+ let saveBusy = false;
+ 
++// If anything was found unreadable, say so where the looms are listed, and
++// give a way to get the bytes off the machine. Nothing about this is silent:
++// a bare drawer with no explanation is exactly what loses a weaver's work.
++function renderStoreNote() {
++  const host = el("#storeNote");
++  if (!host) return;
++  const bad = state.damaged || [];
++  if (!bad.length) {
++    host.className = "saved-note";
++    host.textContent = hasStore ? "" : "Storage is blocked in this browser, so nothing is kept when the tab closes. Back up before you leave.";
++    return;
++  }
++  host.className = "saved-note damaged";
++  host.innerHTML =
++    `<strong>Saved data could not be read.</strong> ${bad.length === 1 ? "One item" : bad.length + " items"} would not open,
++     so what is listed above may be short. The original has been kept, untouched — download it before saving anything else,
++     or it may be written over.
++     <button class="tiny ghost" id="recoverDamaged">Download what could not be read</button>`;
++  const b = el("#recoverDamaged");
++  if (b) b.onclick = () => downloadDamaged();
++}
++
++async function downloadDamaged() {
++  const out = { format: "pinmap.damaged", savedAt: new Date().toISOString(), items: [] };
++  for (const d of (state.damaged || [])) {
++    let raw = "";
++    try { const r = await store.get(d.to); raw = (r && r.value) || ""; } catch {}
++    if (!raw) { try { const r = await store.get(d.key); raw = (r && r.value) || ""; } catch {} }
++    out.items.push({ key: d.key, keptUnder: d.to, raw });
++  }
++  const stamp = new Date().toISOString().slice(0, 10);
++  const url = URL.createObjectURL(new Blob([JSON.stringify(out, null, 2)], { type: "application/json" }));
++  const a = document.createElement("a");
++  a.href = url; a.download = `pinmap_unreadable_${stamp}.json`; a.click();
++  setTimeout(() => URL.revokeObjectURL(url), 4000);
++  notify("Downloaded. Keep that file — it holds whatever could not be read.");
++}
++
+ function setSaveState(kind) {
+   const host = el("#saveState");
+   if (!host) return;
+@@ -2067,9 +2226,9 @@ function sessionDoc() {
      format: "pinmap.session", savedAt: new Date().toISOString(),
      draft: {
        name: state.loomName, totalPins: state.totalDeclared, boxMotion: state.boxMotion,
@@ -256,7 +455,18 @@ index a0e6727..1987cf8 100644
      },
      opts: { ...state.opts },
      activeName: state.activeName,
-@@ -2118,8 +2180,10 @@ async function loadSession() {
+@@ -2088,8 +2247,8 @@ async function persistSession() {
+ async function loadSession() {
+   let doc = memSession;
+   if (hasStore) {
+-    try { const r = await store.get(SESSION_KEY()); doc = r && r.value ? JSON.parse(r.value) : null; }
+-    catch { doc = null; }
++    const r = await readJSON(SESSION_KEY());
++    doc = (r.found && !r.bad) ? r.value : null;
+   }
+   if (!doc || doc.format !== "pinmap.session") return;
+   if (doc.opts) Object.assign(state.opts, doc.opts);
+@@ -2118,8 +2277,10 @@ async function loadSession() {
      state.segments = d.segments.map(sg => {
        const seg = { id: nextId(), kind: KINDS[sg.kind] ? sg.kind : "empty", count: parseInt(sg.count, 10) || 0 };
        if (sg.weave) seg.weave = sg.weave;
@@ -267,7 +477,7 @@ index a0e6727..1987cf8 100644
    }
  }
  
-@@ -2184,6 +2248,24 @@ function normalBoxMotion(v) {
+@@ -2184,6 +2345,24 @@ function normalBoxMotion(v) {
    return (v === "4x1" || v === "2x1") ? "4x1" : "4x4";
  }
  
@@ -292,7 +502,7 @@ index a0e6727..1987cf8 100644
  function newerOf(a, b) {
    return ((b && b.savedAt) || "") > ((a && a.savedAt) || "") ? b : a;
  }
-@@ -2645,9 +2727,10 @@ function pinMapDoc() {
+@@ -2645,9 +2824,10 @@ function pinMapDoc() {
      totalPins: state.totalDeclared || allocated(),
      boxMotion: normalBoxMotion(state.boxMotion),
      company: state.company || "",
@@ -304,7 +514,7 @@ index a0e6727..1987cf8 100644
      options: { ...state.opts },
      history: []
    };
-@@ -2673,11 +2756,13 @@ function adoptDoc(doc) {
+@@ -2673,11 +2853,13 @@ function adoptDoc(doc) {
      const seg = { id: nextId(), kind, count: parseInt(s.count, 10) || 0 };
      if (s.weave) seg.weave = s.weave;
      else if (s.step && stepIsValid(seg.count, parseInt(s.step, 10))) seg.weave = `satin:${seg.count}:${s.step}`;
@@ -318,7 +528,15 @@ index a0e6727..1987cf8 100644
    Object.assign(state.opts, doc.options || {});
    state.borderFiles = {};
    state.wefts = freshWefts();
-@@ -2760,7 +2845,7 @@ function renderLoomList() {
+@@ -2728,6 +2910,7 @@ function visibleLooms() {
+ 
+ function renderLoomList() {
+   const host = el("#loomList");
++  renderStoreNote();
+   el("#loomTools").hidden = state.looms.length < 2;
+   el("#exportAll").disabled = !state.looms.length && !state.weaves.length;
+ 
+@@ -2760,7 +2943,7 @@ function renderLoomList() {
      return `<div class="loomcard ${isActive ? "active" : ""}">
        ${isActive ? `<span class="usetag">in use</span>` : ""}
        <h3>${esc(l.name)}</h3>
@@ -327,7 +545,7 @@ index a0e6727..1987cf8 100644
        <div style="margin-top:11px">${miniRuler(l.segments, total)}</div>
        <div style="margin-top:10px">${pills}</div>
        <div class="when">${whenText(l.lastUsedAt)}</div>
-@@ -2820,11 +2905,45 @@ function applyDefaultLayout() {
+@@ -2820,11 +3003,45 @@ function applyDefaultLayout() {
      weave ? { id: nextId(), kind, count, weave } : { id: nextId(), kind, count });
  }
  
@@ -373,7 +591,7 @@ index a0e6727..1987cf8 100644
    state.version = 1;
    applyDefaultLayout();
    state.built = null; state.builtBorder = null;
-@@ -3544,7 +3663,9 @@ function renderSegs() {
+@@ -3544,7 +3761,9 @@ function renderSegs() {
            ${chosen ? "" : `<option value="" selected>— choose a weave —</option>`}
          </select></div>`;
      } else {
@@ -384,7 +602,7 @@ index a0e6727..1987cf8 100644
      }
      html += `<div class="seg-row" data-row="${sg.id}">
        <div class="griphold">
-@@ -3587,6 +3708,7 @@ els("[data-add]").forEach(b => b.onclick = () => addSeg(b.dataset.add));
+@@ -3587,6 +3806,7 @@ els("[data-add]").forEach(b => b.onclick = () => addSeg(b.dataset.add));
  el("#starter").onclick = () => {
    if (state.segments.length && !confirm("Replace the current groups with the standard order?")) return;
    applyDefaultLayout();
@@ -392,7 +610,7 @@ index a0e6727..1987cf8 100644
    state.built = null; state.builtBorder = null; renderLoomScreen();
  };
  
-@@ -3614,14 +3736,55 @@ function renderCompany() {
+@@ -3614,14 +3834,55 @@ function renderCompany() {
      `<option value="${c.id}"${(state.company || "") === c.id ? " selected" : ""}>${esc(c.name)}</option>`).join("");
  }
  
@@ -451,7 +669,7 @@ index a0e6727..1987cf8 100644
  });
  
  el("#boxMotion").addEventListener("change", e => {
-@@ -3645,7 +3808,7 @@ function handleSegInput(e) {
+@@ -3645,7 +3906,7 @@ function handleSegInput(e) {
    if (act === "count") {
      s.count = Math.max(0, parseInt(t.value, 10) || 0);
      state.built = null; state.builtBorder = null;
@@ -460,7 +678,7 @@ index a0e6727..1987cf8 100644
      els("#segTable .seg-range").forEach((cell, i) => {
        let from = 1;
        for (let j = 0; j < i; j++) from += state.segments[j].count || 0;
-@@ -3663,6 +3826,7 @@ function handleSegInput(e) {
+@@ -3663,6 +3924,7 @@ function handleSegInput(e) {
    }
    if (act === "kind") {
      s.kind = t.value;
@@ -468,7 +686,7 @@ index a0e6727..1987cf8 100644
      if (s.kind === "locking" && !s.weave) { s.weave = "satin:8:3"; s.count = 8; }
      if (s.kind !== "locking") delete s.weave;
      forgetSideHighlights();
-@@ -3803,6 +3967,7 @@ function renderLoomScreen() {
+@@ -3803,6 +4065,7 @@ function renderLoomScreen() {
    el("#totalDeclared").value = state.totalDeclared || "";
    el("#boxMotion").value = normalBoxMotion(state.boxMotion);
    renderCompany();
@@ -476,6 +694,21 @@ index a0e6727..1987cf8 100644
    el("#boardRead").textContent = BOARD_HELP;
    renderAlloc(); drawBoard(); renderBoardLegend(); renderBoardSelection(); renderSegs(); renderWeaveLibrary(); renderLoomChecks(); renderSteps();
  }
+@@ -4831,6 +5094,14 @@ async function enterApp() {
+   renderWhoami();
+   if (CLOUD_CONFIGURED && state.account && !cloud.user) reconnectCloud();
+   renderOpts();
++  renderStoreNote();
++  // If anything would not read, that is the first thing to say, and it is said
++  // wherever the weaver happens to land — not only on the looms screen.
++  if ((state.damaged || []).length) {
++    go("looms");
++    notify("Some saved data could not be read. The original has been kept — download it from the note below the loom list before saving anything else.");
++    return;
++  }
+   go(state.segments.length && state.loomName.trim() ? "loom" : "looms");
+ }
+ 
 diff --git a/tests/extract.mjs b/tests/extract.mjs
 index dfc7753..18a13a5 100644
 --- a/tests/extract.mjs

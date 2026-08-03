@@ -576,6 +576,10 @@
   details.note div { font-size: var(--t-note); color: var(--ink-2); margin-top: 9px; line-height: 1.55; }
   details.note p { margin: 0 0 9px; }
   .saved-note { font-family: var(--mono); font-size: var(--t-small); color: var(--ink-3); margin-top: 10px; }
+  .saved-note.damaged { color: var(--ink); background: #FFF4F4; border: 1px solid #C8837E;
+    padding: 11px 13px; line-height: 1.55; }
+  .saved-note.damaged strong { display: block; margin-bottom: 3px; }
+  .saved-note.damaged button { margin-top: 8px; }
 
   @media (max-width: 780px) {
     .seg-row { grid-template-columns: 18px 1fr 1fr; }
@@ -953,7 +957,7 @@ function labelFor(segs, i) {
   for (let j = 0; j <= i; j++) if (isOne(segs[j])) n++;
   return `${base} ${n}`;
 }
-const BUILD = "2026-08-03.16";      // bump when the file changes, so a stale page shows
+const BUILD = "2026-08-03.17";      // bump when the file changes, so a stale page shows
 /* ============================================================
    Whose software wrote the file
 
@@ -2009,6 +2013,63 @@ const store = (() => {
 
 const hasStore = !!store;
 
+/* ------------------------------------------------------------
+   Reading without losing anything
+
+   There is a difference between "nothing has been saved here yet" and
+   "something is saved here and it will not read", and the two must not
+   be treated alike. The first is an empty library. The second, read as
+   an empty library, is how a weaver's work disappears: the drawer looks
+   bare, the next save writes over the top, and the looms are gone with
+   nothing left to recover them from.
+
+   So unreadable bytes are copied aside first, under the same key with
+   :damaged on the end, and left there untouched. Whatever happens
+   afterwards, the original is still on the machine and can be got at.
+   The app says so plainly rather than carrying on as if the drawer were
+   empty.
+   ------------------------------------------------------------ */
+
+const DAMAGED_SUFFIX = ":damaged";
+
+// { found: false }            nothing saved here yet — an empty library is right
+// { found: true, value }      read and parsed
+// { found: true, bad: true }  something is there and it will not read
+async function readJSON(key) {
+  if (!hasStore) return { found: false };
+  let raw;
+  try {
+    const r = await store.get(key);
+    raw = r && r.value;
+  } catch {
+    return { found: false };            // no such key, or the read itself failed
+  }
+  if (raw === undefined || raw === null || raw === "") return { found: false };
+  try {
+    return { found: true, value: JSON.parse(raw) };
+  } catch {
+    await quarantine(key, raw);
+    return { found: true, bad: true };
+  }
+}
+
+// Put the unreadable bytes somewhere safe. The first copy wins: if this runs
+// twice, the second must not write over the one good record of what was there.
+async function quarantine(key, raw) {
+  const to = key + DAMAGED_SUFFIX;
+  try {
+    const existing = await store.get(to);
+    if (existing && existing.value) { noteDamage(key, to); return; }
+  } catch { /* nothing there yet, which is what we want */ }
+  try { await store.set(to, raw); } catch { /* full, but the original is still under its own key */ }
+  noteDamage(key, to);
+}
+
+function noteDamage(key, to) {
+  state.damaged = state.damaged || [];
+  if (!state.damaged.some(d => d.key === key)) state.damaged.push({ key, to });
+}
+
 // Each account keeps its own looms, weaves and settings.
 const ACCOUNT_KEY = "pinmap:account";
 const keyFor = (name) => `pinmap:${state.accountKey || "local"}:${name}`;
@@ -2020,11 +2081,9 @@ const LOOMS_KEY = () => keyFor("looms");
 
 async function loadLooms() {
   if (hasStore) {
-    try {
-      const r = await store.get(LOOMS_KEY());
-      state.looms = r && r.value ? JSON.parse(r.value) : [];
-      return;
-    } catch { state.looms = []; return; }
+    const r = await readJSON(LOOMS_KEY());
+    state.looms = (r.found && !r.bad && Array.isArray(r.value)) ? r.value : [];
+    return;
   }
   state.looms = memLooms;
 }
@@ -2041,8 +2100,9 @@ const GRAVEYARD_KEY = () => keyFor("graveyard");
 
 async function loadGraveyard() {
   if (hasStore) {
-    try { const r = await store.get(GRAVEYARD_KEY()); state.graveyard = r && r.value ? JSON.parse(r.value) : []; return; }
-    catch { state.graveyard = []; return; }
+    const r = await readJSON(GRAVEYARD_KEY());
+    state.graveyard = (r.found && !r.bad && Array.isArray(r.value)) ? r.value : [];
+    return;
   }
   state.graveyard = memGraveyard;
 }
@@ -2054,11 +2114,9 @@ async function persistGraveyard() {
 
 async function loadBoxPrefs() {
   if (hasStore) {
-    try {
-      const r = await store.get(BOXPREFS_KEY());
-      state.boxPrefs = r && r.value ? JSON.parse(r.value) : {};
-      return;
-    } catch { state.boxPrefs = {}; return; }
+    const r = await readJSON(BOXPREFS_KEY());
+    state.boxPrefs = (r.found && !r.bad && r.value && typeof r.value === "object") ? r.value : {};
+    return;
   }
   state.boxPrefs = memBoxPrefs;
 }
@@ -2075,11 +2133,12 @@ const WEAVES_KEY = () => keyFor("weaves");
 
 async function loadWeaves() {
   if (hasStore) {
-    try {
-      const r = await store.get(WEAVES_KEY());
-      state.weaves = r && r.value ? JSON.parse(r.value).map(reviveWeave) : [];
-      return;
-    } catch { state.weaves = []; return; }
+    const r = await readJSON(WEAVES_KEY());
+    // a single unreadable weave must not take the rest of the library with it
+    state.weaves = (r.found && !r.bad && Array.isArray(r.value))
+      ? r.value.map(w => { try { return reviveWeave(w); } catch { return null; } }).filter(Boolean)
+      : [];
+    return;
   }
   state.weaves = memWeaves;
 }
@@ -2113,6 +2172,44 @@ let memSession = null;
 let memAccount = null;
 let saveTimer = null;
 let saveBusy = false;
+
+// If anything was found unreadable, say so where the looms are listed, and
+// give a way to get the bytes off the machine. Nothing about this is silent:
+// a bare drawer with no explanation is exactly what loses a weaver's work.
+function renderStoreNote() {
+  const host = el("#storeNote");
+  if (!host) return;
+  const bad = state.damaged || [];
+  if (!bad.length) {
+    host.className = "saved-note";
+    host.textContent = hasStore ? "" : "Storage is blocked in this browser, so nothing is kept when the tab closes. Back up before you leave.";
+    return;
+  }
+  host.className = "saved-note damaged";
+  host.innerHTML =
+    `<strong>Saved data could not be read.</strong> ${bad.length === 1 ? "One item" : bad.length + " items"} would not open,
+     so what is listed above may be short. The original has been kept, untouched — download it before saving anything else,
+     or it may be written over.
+     <button class="tiny ghost" id="recoverDamaged">Download what could not be read</button>`;
+  const b = el("#recoverDamaged");
+  if (b) b.onclick = () => downloadDamaged();
+}
+
+async function downloadDamaged() {
+  const out = { format: "pinmap.damaged", savedAt: new Date().toISOString(), items: [] };
+  for (const d of (state.damaged || [])) {
+    let raw = "";
+    try { const r = await store.get(d.to); raw = (r && r.value) || ""; } catch {}
+    if (!raw) { try { const r = await store.get(d.key); raw = (r && r.value) || ""; } catch {} }
+    out.items.push({ key: d.key, keptUnder: d.to, raw });
+  }
+  const stamp = new Date().toISOString().slice(0, 10);
+  const url = URL.createObjectURL(new Blob([JSON.stringify(out, null, 2)], { type: "application/json" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = `pinmap_unreadable_${stamp}.json`; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  notify("Downloaded. Keep that file — it holds whatever could not be read.");
+}
 
 function setSaveState(kind) {
   const host = el("#saveState");
@@ -2150,8 +2247,8 @@ async function persistSession() {
 async function loadSession() {
   let doc = memSession;
   if (hasStore) {
-    try { const r = await store.get(SESSION_KEY()); doc = r && r.value ? JSON.parse(r.value) : null; }
-    catch { doc = null; }
+    const r = await readJSON(SESSION_KEY());
+    doc = (r.found && !r.bad) ? r.value : null;
   }
   if (!doc || doc.format !== "pinmap.session") return;
   if (doc.opts) Object.assign(state.opts, doc.opts);
@@ -2813,6 +2910,7 @@ function visibleLooms() {
 
 function renderLoomList() {
   const host = el("#loomList");
+  renderStoreNote();
   el("#loomTools").hidden = state.looms.length < 2;
   el("#exportAll").disabled = !state.looms.length && !state.weaves.length;
 
@@ -4996,6 +5094,14 @@ async function enterApp() {
   renderWhoami();
   if (CLOUD_CONFIGURED && state.account && !cloud.user) reconnectCloud();
   renderOpts();
+  renderStoreNote();
+  // If anything would not read, that is the first thing to say, and it is said
+  // wherever the weaver happens to land — not only on the looms screen.
+  if ((state.damaged || []).length) {
+    go("looms");
+    notify("Some saved data could not be read. The original has been kept — download it from the note below the loom list before saving anything else.");
+    return;
+  }
   go(state.segments.length && state.loomName.trim() ? "loom" : "looms");
 }
 
