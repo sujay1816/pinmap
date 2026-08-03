@@ -1,22 +1,25 @@
-Pinmap — interface fixes, copy trim, dependency bump
-====================================================
+Pinmap — interface pass (build 2026-08-03.21)
+=============================================
 
-Changed since build 2026-08-03.18 (what is on GitHub now):
+Everything changed since build .18, which is what is on GitHub now.
+This supersedes the earlier pinmap-ui zip.
 
   index.html                   doctype + lang, favicon, accessible names,
-                               live regions, touch targets, copy trimmed
+                               live regions, touch targets, copy trimmed,
+                               number fields normalised, step nav labelled,
+                               raw error text no longer reaches the screen
   package.json / -lock.json    jsdom 24 -> 26
-  tests/ui/14-audit.mjs        new checks so the interface work cannot regress
-  tests/ui/01-walkthrough.mjs  } updated for the new wording — the checks
-  tests/ui/11-achu-switch.mjs  } test the same things, not the old phrasing
+  tests/ui/14-audit.mjs        interface checks
+  tests/ui/20-inputs.mjs       NEW: fields, step nav, file error messages
+  tests/ui/01-walkthrough.mjs  } updated for the new wording — they test
+  tests/ui/11-achu-switch.mjs  } the same behaviour, not the old phrasing
   tests/ui/17-clutch.mjs       }
 
 Copy over the same paths, delete this file and CHANGES.diff, then:
   npm install && npm test
 Expect 449 checks, all passing.
 
-CHECK BY EYE BEFORE TRUSTING IT
--------------------------------
-The doctype moves the page from quirks mode into standards mode. Nothing
-in the CSS should care, but it is the one change that could shift layout.
-Open the deployed page and glance at all four screens.
+CHECK BY EYE
+------------
+The doctype moves the page from quirks mode into standards mode. jsdom
+cannot see pixels. Open the deployed page and glance at all four screens.

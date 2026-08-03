@@ -2,7 +2,7 @@ Only in ../pinmap-remote: CHANGES.diff
 Only in ../pinmap-remote: WHAT-CHANGED.txt
 diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinmap/index.html
 --- ../pinmap-remote/index.html	2026-08-03 07:11:40.695173106 +0000
-+++ ../pinmap/index.html	2026-08-03 07:46:05.927931171 +0000
++++ ../pinmap/index.html	2026-08-03 11:11:37.626523675 +0000
 @@ -1,4 +1,10 @@
 +<!doctype html>
 +<html lang="en">
@@ -41,6 +41,21 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
  </div>
  
  <main class="gate" id="gate">
+@@ -671,10 +688,10 @@
+       <div class="build" id="appBuild"></div>
+     </div>
+     <nav class="steps" id="steps">
+-      <button data-go="looms"><span class="no">01</span>Looms</button>
+-      <button data-go="loom"><span class="no">02</span>Pin map</button>
+-      <button data-go="border"><span class="no">03</span>Border file</button>
+-      <button data-go="body"><span class="no">04</span>Body file</button>
++      <button data-go="looms" aria-label="Step 1: Looms"><span class="no" aria-hidden="true">01</span>Looms</button>
++      <button data-go="loom" aria-label="Step 2: Pin map"><span class="no" aria-hidden="true">02</span>Pin map</button>
++      <button data-go="border" aria-label="Step 3: Border file"><span class="no" aria-hidden="true">03</span>Border file</button>
++      <button data-go="body" aria-label="Step 4: Body file"><span class="no" aria-hidden="true">04</span>Body file</button>
+     </nav>
+   </header>
+ 
 @@ -682,7 +699,7 @@
    <main class="screen" id="sc-looms">
      <div class="head-row">
@@ -50,7 +65,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
      </div>
      <div class="loomtools" id="loomTools" hidden>
        <input type="search" id="loomSearch" placeholder="Search looms…" aria-label="Search looms">
-@@ -710,7 +727,7 @@
+@@ -710,17 +727,17 @@
    <main class="screen" id="sc-loom" hidden>
      <div class="head-row">
        <h2 id="loomFormTitle">Register a loom</h2>
@@ -59,6 +74,18 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
      </div>
  
      <div class="form-top">
+       <label class="field">
+         <span class="cap">Loom number or name</span>
+-        <input type="text" id="loomName" placeholder="e.g. Shed 2 — SEJ 2688">
++        <input type="text" id="loomName" maxlength="60" placeholder="e.g. Shed 2 — SEJ 2688">
+       </label>
+       <label class="field" style="flex:0 0 170px">
+         <span class="cap">Total pins</span>
+-        <input type="number" id="totalDeclared" min="1" step="1" placeholder="e.g. 744">
++        <input type="number" id="totalDeclared" min="1" step="1" inputmode="numeric" placeholder="e.g. 744">
+       </label>
+       <label class="field" style="flex:0 0 180px">
+         <span class="cap">Jacquard company</span>
 @@ -735,7 +752,7 @@
        </label>
        <label class="field" id="clutchField" hidden>
@@ -156,7 +183,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
    return `${base} ${n}`;
  }
 -const BUILD = "2026-08-03.18";      // bump when the file changes, so a stale page shows
-+const BUILD = "2026-08-03.20";      // bump when the file changes, so a stale page shows
++const BUILD = "2026-08-03.21";      // bump when the file changes, so a stale page shows
  /* ============================================================
     Whose software wrote the file
  
@@ -212,7 +239,25 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
        <div style="flex:1;min-width:0">
          <div class="nm">${esc(w.name)}</div>
          <div class="sub">${w.width} pins × ${w.height} lines</div>
-@@ -3825,7 +3843,7 @@
+@@ -3769,8 +3787,15 @@
+   if (!name) { alert("Give the weave a name first."); return; }
+   if (!f) { alert("Choose a BMP of the weave."); return; }
+   let img;
+-  try { img = decodeBMP(await f.arrayBuffer()); }
+-  catch (err) { alert("Could not read that file: " + err.message); return; }
++  try {
++    const buf = await f.arrayBuffer();
++    try { img = decodeBMP(buf); }
++    catch (err) { err.fromDecoder = true; throw err; }
++  } catch (err) {
++    alert(err.fromDecoder ? "Could not read that file: " + err.message
++                          : "Could not read that file — check it is an uncompressed BMP.");
++    return;
++  }
+   if (img.width > 128 || img.height > 128) {
+     alert(`That is ${img.width} × ${img.height}. A weave should be one repeat, no more than 128 either way.`);
+     return;
+@@ -3825,7 +3850,7 @@
      if (sg.kind === "locking") {
        const chosen = weaveById(sg.weave);
        content = `<div class="weave-cell">
@@ -221,7 +266,16 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
          <select data-act="weave" data-id="${sg.id}" style="flex:1">
            <optgroup label="Satins and twills">
              ${BUILTIN_WEAVES.map(w => `<option value="${esc(w.id)}" ${w.id===sg.weave?"selected":""}>${esc(w.name)} · ${w.pins} pins</option>`).join("")}
-@@ -3920,9 +3938,9 @@
+@@ -3856,7 +3881,7 @@
+       <div class="seg-range">${sg.count ? from + "–" + to : "—"}</div>
+       <div class="countcell">
+         <button class="stepper" data-step="-1" data-id="${sg.id}" aria-label="fewer pins" tabindex="-1">−</button>
+-        <input type="number" min="1" step="1" data-act="count" data-id="${sg.id}" value="${sg.count || ""}">
++        <input type="number" min="1" step="1" inputmode="numeric" data-act="count" data-id="${sg.id}" value="${sg.count || ""}">
+         <button class="stepper" data-step="1" data-id="${sg.id}" aria-label="more pins" tabindex="-1">+</button>
+       </div>
+       <div class="seg-acts">
+@@ -3920,9 +3945,9 @@
    sel.value = side;
    const seg = clutchSeg();
    if (note) note.textContent =
@@ -234,7 +288,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
  }
  
  el("#loomCompany").addEventListener("change", e => {
-@@ -3931,15 +3949,15 @@
+@@ -3931,15 +3956,15 @@
    let clutchMsg = "";
    if (companyHasClutch(state.company) && normalClutch(state.clutch) !== "none") {
      const seg = applyClutchGroup(state.clutch);
@@ -254,7 +308,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
  });
  
  el("#loomClutch").addEventListener("change", e => {
-@@ -3948,12 +3966,10 @@
+@@ -3948,12 +3973,10 @@
    let msg;
    if (state.clutch === "none") {
      // asked for plainly, so it goes, whatever its count
@@ -269,7 +323,30 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
    }
    state.built = null; state.builtBorder = null;
    renderLoomScreen(); scheduleSave();
-@@ -4209,7 +4225,7 @@
+@@ -3971,8 +3994,21 @@
+   renderAlloc(); drawBoard(); renderBoardLegend(); renderLoomChecks();
+ });
+ 
++// A pin count is a whole number of pins. Typing "-9" or "1.5" straight into the
++// box left the field showing one thing while the loom used another — the pin map
++// said 0 and the box said -9. Once the field is left alone, it is put back to
++// the number actually in use. Nothing is corrected mid-keystroke.
++el("#totalDeclared").addEventListener("change", e => {
++  e.target.value = state.totalDeclared || "";
++});
++
+ el("#segTable").addEventListener("change", e => {
+-  if (e.target.dataset && e.target.dataset.act === "weave") handleSegInput(e);
++  const t = e.target, act = t.dataset && t.dataset.act;
++  if (act === "weave") { handleSegInput(e); return; }
++  if (act === "count") {
++    const seg = state.segments.find(x => x.id === t.dataset.id);
++    if (seg) t.value = seg.count || "";
++  }
+ });
+ el("#segTable").addEventListener("input", handleSegInput);
+ function handleSegInput(e) {
+@@ -4209,7 +4245,7 @@
      const bad = f.width !== expected;
      state_ += bad ? " bad" : " filled";
      meta = `${f.width} × ${f.height}${f.rotated ? " · turned to fit" : ""}${bad ? ` — needs ${expected} wide` : ""} · ${f.name}`;
@@ -278,7 +355,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
    }
    const acts = (f && !f.error)
      ? `<div class="acts2">
-@@ -4219,7 +4235,7 @@
+@@ -4219,7 +4255,7 @@
    return `<div class="${state_}">
      <div class="body">
        <div class="name">${esc(title)}</div>
@@ -287,7 +364,27 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
        <div class="meta ${f && (f.error || f.width !== expected) ? "err" : ""}">${esc(meta)}</div>
        ${acts}
      </div>${thumb}</div>`;
-@@ -4597,8 +4613,8 @@
+@@ -4522,10 +4558,17 @@
+   if (!file) return;
+   let rec;
+   try {
+-    const img = decodeBMP(await file.arrayBuffer());
++    const buf = await file.arrayBuffer();
++    let img;
++    try { img = decodeBMP(buf); }
++    catch (err) { err.fromDecoder = true; throw err; }
+     rec = { name: file.name, width: img.width, height: img.height, bits: img.bits, offTone: img.offTone > 0 };
+   } catch (err) {
+-    rec = { name: file.name, error: err.message };
++    // The decoder's messages are written to be read — "not a BMP file", "save it
++    // uncompressed". Anything else is a fault in the app, and its text is no use
++    // to someone standing at a loom.
++    rec = { name: file.name, error: err.fromDecoder ? err.message
++      : "could not be read — check it is an uncompressed BMP" };
+   }
+   const isBorder = t.dataset.target === "border";
+   if (isBorder) {
+@@ -4597,8 +4640,8 @@
      : "";
    block.querySelector(".sb-read").textContent = b.hover >= 0
      ? sideHoverText(which, b.hover)
@@ -298,7 +395,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
  }
  
  function sideHoverText(which, oi) {
-@@ -4742,7 +4758,7 @@
+@@ -4742,7 +4785,7 @@
    el("#borderAchuNote").innerHTML = achuSeg
      ? `<p class="achu-note">The achu ${borderFilesLoaded()
          ? "is generated into this file, because a border is loaded."
@@ -307,7 +404,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
      : "";
    el("#combineBorder").disabled = !renderChecksInto(el("#borderChecks"), validateBorder(),
      "The border files match their groups. Combine them.");
-@@ -4758,10 +4774,10 @@
+@@ -4758,10 +4801,10 @@
    const rani = !!(state.wefts[0] && state.wefts[0].file && !state.wefts[0].file.error);
    const on = state.opts.achuInBody;
    let why = "";
@@ -322,7 +419,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
  
    const gw = state.opts.bodyGround;
    host.innerHTML = `<label class="achubox">
-@@ -4777,7 +4793,7 @@
+@@ -4777,7 +4820,7 @@
      </select>
      <span class="ab-why">${gw
        ? "Where a weft has no design of its own, this weave holds it down."
@@ -331,7 +428,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
    </label>`;
    const gsel = el("#bodyGround");
    if (gsel) gsel.onchange = (e) => {
-@@ -4798,7 +4814,7 @@
+@@ -4798,7 +4841,7 @@
      el("#pvWrap").hidden = true;
      el("#download").disabled = true;
      scheduleSave();
@@ -340,7 +437,17 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/index.html ../pinm
                              : "Achu removed from the body file.");
    };
  }
-@@ -5174,7 +5190,7 @@
+@@ -5110,7 +5153,8 @@
+ function renderSteps() {
+   els("nav.steps button").forEach(b => {
+     const n = b.dataset.go;
+-    b.setAttribute("aria-current", String(state.screen === n));
++    if (state.screen === n) b.setAttribute("aria-current", "step");
++    else b.removeAttribute("aria-current");
+     b.disabled = !canGo(n) && state.screen !== n;
+   });
+   el("#activeLoom").innerHTML = (state.activeName || state.loomName)
+@@ -5174,7 +5218,7 @@
    // wherever the weaver happens to land — not only on the looms screen.
    if ((state.damaged || []).length) {
      go("looms");
@@ -963,3 +1070,4 @@ diff -ru -x node_modules -x .git -x core.mjs ../pinmap-remote/tests/ui/17-clutch
     $('#clutchNote').textContent.slice(0,60));
  
  console.log('\n== saying which end ==');
+Only in ../pinmap/tests/ui: 20-inputs.mjs
