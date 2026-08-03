@@ -231,6 +231,27 @@ were already drawn.
 
 ## Where the data lives
 
+### Waiting for something that never comes
+
+There are no threads here, so no deadlock in the textbook sense. The shapes
+that do occur are a guard taken and never given back, and a spinner that never
+stops — which is worse than an error, because it looks like the app is still
+working.
+
+Two rules hold everywhere:
+
+- **A save or sync asked for while one is running is remembered, not dropped.**
+  It used to be dropped: the edit was never written and the dot sat on *saving*
+  for good, while the weaver believed the work was safe.
+- **Every call out to the network has a time limit**, and every way out of a
+  sync leaves a definite answer on the dot. Firestore will wait a very long
+  time rather than admit it cannot reach anything, and a shed connection drops
+  often.
+
+`tests/ui/19-locks.mjs` drives a deliberately slow store and checks that an
+overlapping edit still lands, that the guard is given back even when a write
+throws, and that the indicator always settles.
+
 ### When saved data will not read
 
 There is a difference between *nothing has been saved here yet* and *something

@@ -957,7 +957,7 @@ function labelFor(segs, i) {
   for (let j = 0; j <= i; j++) if (isOne(segs[j])) n++;
   return `${base} ${n}`;
 }
-const BUILD = "2026-08-03.17";      // bump when the file changes, so a stale page shows
+const BUILD = "2026-08-03.18";      // bump when the file changes, so a stale page shows
 /* ============================================================
    Whose software wrote the file
 
@@ -2172,6 +2172,7 @@ let memSession = null;
 let memAccount = null;
 let saveTimer = null;
 let saveBusy = false;
+let saveAgain = false;
 
 // If anything was found unreadable, say so where the looms are listed, and
 // give a way to get the bytes off the machine. Nothing about this is silent:
@@ -2310,15 +2311,25 @@ async function autoCommitLoom() {
 }
 
 async function doAutoSave() {
-  if (saveBusy) return;
+  // A save asked for while one is already running used to be dropped on the
+  // floor: the edit was never written and the dot sat on "saving" for good.
+  // Remember it instead and go round again when the first one is done.
+  if (saveBusy) { saveAgain = true; return; }
   saveBusy = true;
   try {
-    const committed = await autoCommitLoom();
-    await persistSession();
-    await persistBoxPrefs();
-    if (committed) { await persistLooms(); scheduleSync(); }
+    do {
+      saveAgain = false;
+      const committed = await autoCommitLoom();
+      await persistSession();
+      await persistBoxPrefs();
+      if (committed) { await persistLooms(); scheduleSync(); }
+      if (committed && state.screen === "looms") renderLoomList();
+    } while (saveAgain);
     setSaveState("saved");
-    if (committed && state.screen === "looms") renderLoomList();
+  } catch (err) {
+    // Whatever went wrong, the dot must not be left hanging. Try again shortly.
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(doAutoSave, 2000);
   } finally { saveBusy = false; }
 }
 
@@ -2429,11 +2440,30 @@ const FB = {
 const CLOUD_CONFIGURED = !!(FB.apiKey && FB.projectId);
 
 const cloud = {
-  ready: false, user: null, app: null, db: null, auth: null, mod: {}, lastError: null
+  ready: false, user: null, app: null, db: null, auth: null, mod: {}, lastError: null,
+  starting: null
 };
+
+// Firestore will wait a very long time rather than admit it cannot reach the
+// network, and a shed PC's connection drops often. Nothing here is allowed to
+// wait forever: every call to the outside gets a limit, and answers either way.
+const CLOUD_WAIT_MS = 15000;
+const TIMED_OUT = Symbol("timed out");
+function withTimeout(promise, ms) {
+  let timer;
+  const bell = new Promise(res => { timer = setTimeout(() => res(TIMED_OUT), ms); });
+  return Promise.race([
+    Promise.resolve(promise).then(v => { clearTimeout(timer); return v; },
+                                  e => { clearTimeout(timer); throw e; }),
+    bell
+  ]);
+}
 
 async function cloudStart() {
   if (!CLOUD_CONFIGURED || cloud.ready) return cloud.ready;
+  // two callers arriving together must not both load Firebase and initialise it
+  if (cloud.starting) return cloud.starting;
+  cloud.starting = (async () => {
   try {
     const base = "https://www.gstatic.com/firebasejs/10.12.2/";
     const [appMod, authMod, dbMod] = await Promise.all([
@@ -2455,6 +2485,9 @@ async function cloudStart() {
     cloud.ready = false;
     return false;
   }
+  })();
+  try { return await cloud.starting; }
+  finally { cloud.starting = null; }   // a failed start may be retried
 }
 
 // Trade the Google sign-in token for a Firebase session, so the rules
@@ -2463,7 +2496,8 @@ async function cloudSignIn(googleIdToken) {
   if (!(await cloudStart())) return null;
   try {
     const cred = cloud.mod.GoogleAuthProvider.credential(googleIdToken);
-    const res = await cloud.mod.signInWithCredential(cloud.auth, cred);
+    const res = await withTimeout(cloud.mod.signInWithCredential(cloud.auth, cred), CLOUD_WAIT_MS);
+    if (res === TIMED_OUT) { cloud.lastError = new Error("Firebase did not answer in time."); return null; }
     cloud.user = res.user;
     return res.user;
   } catch (err) {
@@ -2560,6 +2594,7 @@ async function forceReconnect() {
   if (!clientId) { setSyncState("off", "No Google client ID is set."); return; }
   setSyncState("busy");
   try {
+    setSyncState("busy");
     await loadGoogleScript();
     window.google.accounts.id.initialize({
       client_id: clientId,
@@ -2587,18 +2622,58 @@ async function forceReconnect() {
 }
 
 // Bring the two copies together, then write the result to both.
+let syncBusy = false;
+let syncAgain = false;
+
+// Two rules here, and both matter more than the syncing itself:
+//   every way out of this leaves a definite answer on the dot, and
+//   two syncs never run at once, or the second reads the library the
+//   first has not finished writing and the older copy wins.
 async function syncNow() {
-  if (!CLOUD_CONFIGURED || !cloud.ready || !cloud.user) return false;
-  setSyncState("busy");
-  const remote = await cloudLoad();
-  if (!remote) { setSyncState("off", explainSyncError(cloud.lastError)); return false; }
-  const merged = mergeLibraries(localLibrary(), remote);
-  merged.updatedAt = new Date().toISOString();
-  await adoptLibrary(merged);
-  const saved = await cloudSave(merged);
-  setSyncState(saved ? "ok" : "off", saved ? "" : explainSyncError(cloud.lastError));
-  if (state.screen === "looms") renderLoomList();
-  return saved;
+  if (!CLOUD_CONFIGURED) return false;
+  if (!cloud.ready || !cloud.user) {
+    // scheduleSync has already said "syncing", so it must not be left saying it
+    setSyncState("off", cloud.lastError
+      ? explainSyncError(cloud.lastError)
+      : "Not connected to your account yet. Press Reconnect to try again.");
+    return false;
+  }
+  if (syncBusy) { syncAgain = true; return false; }
+  syncBusy = true;
+  try {
+    let saved = false;
+    do {
+      syncAgain = false;
+      setSyncState("busy");
+
+      const remote = await withTimeout(cloudLoad(), CLOUD_WAIT_MS);
+      if (remote === TIMED_OUT) {
+        setSyncState("off", "Firebase did not answer in time. Your looms are safe on this device — press Reconnect when the connection is back.");
+        return false;
+      }
+      if (!remote) { setSyncState("off", explainSyncError(cloud.lastError)); return false; }
+
+      const merged = mergeLibraries(localLibrary(), remote);
+      merged.updatedAt = new Date().toISOString();
+      await adoptLibrary(merged);
+
+      const wrote = await withTimeout(cloudSave(merged), CLOUD_WAIT_MS);
+      if (wrote === TIMED_OUT) {
+        setSyncState("off", "Firebase did not answer in time. This device is up to date; the shared copy is not.");
+        return false;
+      }
+      saved = wrote;
+      if (!saved) { setSyncState("off", explainSyncError(cloud.lastError)); return false; }
+    } while (syncAgain);
+
+    setSyncState("ok", "");
+    if (state.screen === "looms") renderLoomList();
+    return saved;
+  } catch (err) {
+    cloud.lastError = err;
+    setSyncState("off", explainSyncError(err));
+    return false;
+  } finally { syncBusy = false; }
 }
 
 function scheduleSync() {

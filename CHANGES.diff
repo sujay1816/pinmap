@@ -1,5 +1,5 @@
 diff --git a/README.md b/README.md
-index d38823e..c3b13c7 100644
+index d38823e..59329c2 100644
 --- a/README.md
 +++ b/README.md
 @@ -162,6 +162,8 @@ rather than the software, so it stays a separate choice.
@@ -11,7 +11,7 @@ index d38823e..c3b13c7 100644
  | Everything else | the same | the same |
  
  Sri Tex was read off their own border file, in `tests/fixtures`. That file also
-@@ -169,13 +171,83 @@ confirms three rules the app had only been told about: the achu belongs to the
+@@ -169,13 +171,104 @@ confirms three rules the app had only been told about: the achu belongs to the
  border file, the body and locking pins stay down in it, and the achu is half up
  and half down, flipping every line.
  
@@ -75,6 +75,27 @@ index d38823e..c3b13c7 100644
 +
  ## Where the data lives
  
++### Waiting for something that never comes
++
++There are no threads here, so no deadlock in the textbook sense. The shapes
++that do occur are a guard taken and never given back, and a spinner that never
++stops — which is worse than an error, because it looks like the app is still
++working.
++
++Two rules hold everywhere:
++
++- **A save or sync asked for while one is running is remembered, not dropped.**
++  It used to be dropped: the edit was never written and the dot sat on *saving*
++  for good, while the weaver believed the work was safe.
++- **Every call out to the network has a time limit**, and every way out of a
++  sync leaves a definite answer on the dot. Firestore will wait a very long
++  time rather than admit it cannot reach anything, and a shed connection drops
++  often.
++
++`tests/ui/19-locks.mjs` drives a deliberately slow store and checks that an
++overlapping edit still lands, that the guard is given back even when a write
++throws, and that the indicator always settles.
++
 +### When saved data will not read
 +
 +There is a difference between *nothing has been saved here yet* and *something
@@ -96,7 +117,7 @@ index d38823e..c3b13c7 100644
  | --- | --- |
  | Looms, weaves, box settings, session | Browser storage, scoped per account |
 diff --git a/index.html b/index.html
-index a0e6727..977d983 100644
+index a0e6727..f00f418 100644
 --- a/index.html
 +++ b/index.html
 @@ -89,6 +89,8 @@
@@ -150,7 +171,7 @@ index a0e6727..977d983 100644
    return `${base} ${n}`;
  }
 -const BUILD = "2026-07-31.13";      // bump when the file changes, so a stale page shows
-+const BUILD = "2026-08-03.17";      // bump when the file changes, so a stale page shows
++const BUILD = "2026-08-03.18";      // bump when the file changes, so a stale page shows
  /* ============================================================
     Whose software wrote the file
  
@@ -397,10 +418,12 @@ index a0e6727..977d983 100644
    }
    state.weaves = memWeaves;
  }
-@@ -2052,6 +2173,44 @@ let memAccount = null;
+@@ -2051,6 +2172,45 @@ let memSession = null;
+ let memAccount = null;
  let saveTimer = null;
  let saveBusy = false;
- 
++let saveAgain = false;
++
 +// If anything was found unreadable, say so where the looms are listed, and
 +// give a way to get the bytes off the machine. Nothing about this is silent:
 +// a bare drawer with no explanation is exactly what loses a weaver's work.
@@ -438,11 +461,10 @@ index a0e6727..977d983 100644
 +  setTimeout(() => URL.revokeObjectURL(url), 4000);
 +  notify("Downloaded. Keep that file — it holds whatever could not be read.");
 +}
-+
+ 
  function setSaveState(kind) {
    const host = el("#saveState");
-   if (!host) return;
-@@ -2067,9 +2226,9 @@ function sessionDoc() {
+@@ -2067,9 +2227,9 @@ function sessionDoc() {
      format: "pinmap.session", savedAt: new Date().toISOString(),
      draft: {
        name: state.loomName, totalPins: state.totalDeclared, boxMotion: state.boxMotion,
@@ -455,7 +477,7 @@ index a0e6727..977d983 100644
      },
      opts: { ...state.opts },
      activeName: state.activeName,
-@@ -2088,8 +2247,8 @@ async function persistSession() {
+@@ -2088,8 +2248,8 @@ async function persistSession() {
  async function loadSession() {
    let doc = memSession;
    if (hasStore) {
@@ -466,7 +488,7 @@ index a0e6727..977d983 100644
    }
    if (!doc || doc.format !== "pinmap.session") return;
    if (doc.opts) Object.assign(state.opts, doc.opts);
-@@ -2118,8 +2277,10 @@ async function loadSession() {
+@@ -2118,8 +2278,10 @@ async function loadSession() {
      state.segments = d.segments.map(sg => {
        const seg = { id: nextId(), kind: KINDS[sg.kind] ? sg.kind : "empty", count: parseInt(sg.count, 10) || 0 };
        if (sg.weave) seg.weave = sg.weave;
@@ -477,7 +499,39 @@ index a0e6727..977d983 100644
    }
  }
  
-@@ -2184,6 +2345,24 @@ function normalBoxMotion(v) {
+@@ -2149,15 +2311,25 @@ async function autoCommitLoom() {
+ }
+ 
+ async function doAutoSave() {
+-  if (saveBusy) return;
++  // A save asked for while one is already running used to be dropped on the
++  // floor: the edit was never written and the dot sat on "saving" for good.
++  // Remember it instead and go round again when the first one is done.
++  if (saveBusy) { saveAgain = true; return; }
+   saveBusy = true;
+   try {
+-    const committed = await autoCommitLoom();
+-    await persistSession();
+-    await persistBoxPrefs();
+-    if (committed) { await persistLooms(); scheduleSync(); }
++    do {
++      saveAgain = false;
++      const committed = await autoCommitLoom();
++      await persistSession();
++      await persistBoxPrefs();
++      if (committed) { await persistLooms(); scheduleSync(); }
++      if (committed && state.screen === "looms") renderLoomList();
++    } while (saveAgain);
+     setSaveState("saved");
+-    if (committed && state.screen === "looms") renderLoomList();
++  } catch (err) {
++    // Whatever went wrong, the dot must not be left hanging. Try again shortly.
++    clearTimeout(saveTimer);
++    saveTimer = setTimeout(doAutoSave, 2000);
+   } finally { saveBusy = false; }
+ }
+ 
+@@ -2184,6 +2356,24 @@ function normalBoxMotion(v) {
    return (v === "4x1" || v === "2x1") ? "4x1" : "4x4";
  }
  
@@ -502,7 +556,137 @@ index a0e6727..977d983 100644
  function newerOf(a, b) {
    return ((b && b.savedAt) || "") > ((a && a.savedAt) || "") ? b : a;
  }
-@@ -2645,9 +2824,10 @@ function pinMapDoc() {
+@@ -2250,11 +2440,30 @@ const FB = {
+ const CLOUD_CONFIGURED = !!(FB.apiKey && FB.projectId);
+ 
+ const cloud = {
+-  ready: false, user: null, app: null, db: null, auth: null, mod: {}, lastError: null
++  ready: false, user: null, app: null, db: null, auth: null, mod: {}, lastError: null,
++  starting: null
+ };
+ 
++// Firestore will wait a very long time rather than admit it cannot reach the
++// network, and a shed PC's connection drops often. Nothing here is allowed to
++// wait forever: every call to the outside gets a limit, and answers either way.
++const CLOUD_WAIT_MS = 15000;
++const TIMED_OUT = Symbol("timed out");
++function withTimeout(promise, ms) {
++  let timer;
++  const bell = new Promise(res => { timer = setTimeout(() => res(TIMED_OUT), ms); });
++  return Promise.race([
++    Promise.resolve(promise).then(v => { clearTimeout(timer); return v; },
++                                  e => { clearTimeout(timer); throw e; }),
++    bell
++  ]);
++}
++
+ async function cloudStart() {
+   if (!CLOUD_CONFIGURED || cloud.ready) return cloud.ready;
++  // two callers arriving together must not both load Firebase and initialise it
++  if (cloud.starting) return cloud.starting;
++  cloud.starting = (async () => {
+   try {
+     const base = "https://www.gstatic.com/firebasejs/10.12.2/";
+     const [appMod, authMod, dbMod] = await Promise.all([
+@@ -2276,6 +2485,9 @@ async function cloudStart() {
+     cloud.ready = false;
+     return false;
+   }
++  })();
++  try { return await cloud.starting; }
++  finally { cloud.starting = null; }   // a failed start may be retried
+ }
+ 
+ // Trade the Google sign-in token for a Firebase session, so the rules
+@@ -2284,7 +2496,8 @@ async function cloudSignIn(googleIdToken) {
+   if (!(await cloudStart())) return null;
+   try {
+     const cred = cloud.mod.GoogleAuthProvider.credential(googleIdToken);
+-    const res = await cloud.mod.signInWithCredential(cloud.auth, cred);
++    const res = await withTimeout(cloud.mod.signInWithCredential(cloud.auth, cred), CLOUD_WAIT_MS);
++    if (res === TIMED_OUT) { cloud.lastError = new Error("Firebase did not answer in time."); return null; }
+     cloud.user = res.user;
+     return res.user;
+   } catch (err) {
+@@ -2381,6 +2594,7 @@ async function forceReconnect() {
+   if (!clientId) { setSyncState("off", "No Google client ID is set."); return; }
+   setSyncState("busy");
+   try {
++    setSyncState("busy");
+     await loadGoogleScript();
+     window.google.accounts.id.initialize({
+       client_id: clientId,
+@@ -2408,18 +2622,58 @@ async function forceReconnect() {
+ }
+ 
+ // Bring the two copies together, then write the result to both.
++let syncBusy = false;
++let syncAgain = false;
++
++// Two rules here, and both matter more than the syncing itself:
++//   every way out of this leaves a definite answer on the dot, and
++//   two syncs never run at once, or the second reads the library the
++//   first has not finished writing and the older copy wins.
+ async function syncNow() {
+-  if (!CLOUD_CONFIGURED || !cloud.ready || !cloud.user) return false;
+-  setSyncState("busy");
+-  const remote = await cloudLoad();
+-  if (!remote) { setSyncState("off", explainSyncError(cloud.lastError)); return false; }
+-  const merged = mergeLibraries(localLibrary(), remote);
+-  merged.updatedAt = new Date().toISOString();
+-  await adoptLibrary(merged);
+-  const saved = await cloudSave(merged);
+-  setSyncState(saved ? "ok" : "off", saved ? "" : explainSyncError(cloud.lastError));
+-  if (state.screen === "looms") renderLoomList();
+-  return saved;
++  if (!CLOUD_CONFIGURED) return false;
++  if (!cloud.ready || !cloud.user) {
++    // scheduleSync has already said "syncing", so it must not be left saying it
++    setSyncState("off", cloud.lastError
++      ? explainSyncError(cloud.lastError)
++      : "Not connected to your account yet. Press Reconnect to try again.");
++    return false;
++  }
++  if (syncBusy) { syncAgain = true; return false; }
++  syncBusy = true;
++  try {
++    let saved = false;
++    do {
++      syncAgain = false;
++      setSyncState("busy");
++
++      const remote = await withTimeout(cloudLoad(), CLOUD_WAIT_MS);
++      if (remote === TIMED_OUT) {
++        setSyncState("off", "Firebase did not answer in time. Your looms are safe on this device — press Reconnect when the connection is back.");
++        return false;
++      }
++      if (!remote) { setSyncState("off", explainSyncError(cloud.lastError)); return false; }
++
++      const merged = mergeLibraries(localLibrary(), remote);
++      merged.updatedAt = new Date().toISOString();
++      await adoptLibrary(merged);
++
++      const wrote = await withTimeout(cloudSave(merged), CLOUD_WAIT_MS);
++      if (wrote === TIMED_OUT) {
++        setSyncState("off", "Firebase did not answer in time. This device is up to date; the shared copy is not.");
++        return false;
++      }
++      saved = wrote;
++      if (!saved) { setSyncState("off", explainSyncError(cloud.lastError)); return false; }
++    } while (syncAgain);
++
++    setSyncState("ok", "");
++    if (state.screen === "looms") renderLoomList();
++    return saved;
++  } catch (err) {
++    cloud.lastError = err;
++    setSyncState("off", explainSyncError(err));
++    return false;
++  } finally { syncBusy = false; }
+ }
+ 
+ function scheduleSync() {
+@@ -2645,9 +2899,10 @@ function pinMapDoc() {
      totalPins: state.totalDeclared || allocated(),
      boxMotion: normalBoxMotion(state.boxMotion),
      company: state.company || "",
@@ -514,7 +698,7 @@ index a0e6727..977d983 100644
      options: { ...state.opts },
      history: []
    };
-@@ -2673,11 +2853,13 @@ function adoptDoc(doc) {
+@@ -2673,11 +2928,13 @@ function adoptDoc(doc) {
      const seg = { id: nextId(), kind, count: parseInt(s.count, 10) || 0 };
      if (s.weave) seg.weave = s.weave;
      else if (s.step && stepIsValid(seg.count, parseInt(s.step, 10))) seg.weave = `satin:${seg.count}:${s.step}`;
@@ -528,7 +712,7 @@ index a0e6727..977d983 100644
    Object.assign(state.opts, doc.options || {});
    state.borderFiles = {};
    state.wefts = freshWefts();
-@@ -2728,6 +2910,7 @@ function visibleLooms() {
+@@ -2728,6 +2985,7 @@ function visibleLooms() {
  
  function renderLoomList() {
    const host = el("#loomList");
@@ -536,7 +720,7 @@ index a0e6727..977d983 100644
    el("#loomTools").hidden = state.looms.length < 2;
    el("#exportAll").disabled = !state.looms.length && !state.weaves.length;
  
-@@ -2760,7 +2943,7 @@ function renderLoomList() {
+@@ -2760,7 +3018,7 @@ function renderLoomList() {
      return `<div class="loomcard ${isActive ? "active" : ""}">
        ${isActive ? `<span class="usetag">in use</span>` : ""}
        <h3>${esc(l.name)}</h3>
@@ -545,7 +729,7 @@ index a0e6727..977d983 100644
        <div style="margin-top:11px">${miniRuler(l.segments, total)}</div>
        <div style="margin-top:10px">${pills}</div>
        <div class="when">${whenText(l.lastUsedAt)}</div>
-@@ -2820,11 +3003,45 @@ function applyDefaultLayout() {
+@@ -2820,11 +3078,45 @@ function applyDefaultLayout() {
      weave ? { id: nextId(), kind, count, weave } : { id: nextId(), kind, count });
  }
  
@@ -591,7 +775,7 @@ index a0e6727..977d983 100644
    state.version = 1;
    applyDefaultLayout();
    state.built = null; state.builtBorder = null;
-@@ -3544,7 +3761,9 @@ function renderSegs() {
+@@ -3544,7 +3836,9 @@ function renderSegs() {
            ${chosen ? "" : `<option value="" selected>— choose a weave —</option>`}
          </select></div>`;
      } else {
@@ -602,7 +786,7 @@ index a0e6727..977d983 100644
      }
      html += `<div class="seg-row" data-row="${sg.id}">
        <div class="griphold">
-@@ -3587,6 +3806,7 @@ els("[data-add]").forEach(b => b.onclick = () => addSeg(b.dataset.add));
+@@ -3587,6 +3881,7 @@ els("[data-add]").forEach(b => b.onclick = () => addSeg(b.dataset.add));
  el("#starter").onclick = () => {
    if (state.segments.length && !confirm("Replace the current groups with the standard order?")) return;
    applyDefaultLayout();
@@ -610,7 +794,7 @@ index a0e6727..977d983 100644
    state.built = null; state.builtBorder = null; renderLoomScreen();
  };
  
-@@ -3614,14 +3834,55 @@ function renderCompany() {
+@@ -3614,14 +3909,55 @@ function renderCompany() {
      `<option value="${c.id}"${(state.company || "") === c.id ? " selected" : ""}>${esc(c.name)}</option>`).join("");
  }
  
@@ -669,7 +853,7 @@ index a0e6727..977d983 100644
  });
  
  el("#boxMotion").addEventListener("change", e => {
-@@ -3645,7 +3906,7 @@ function handleSegInput(e) {
+@@ -3645,7 +3981,7 @@ function handleSegInput(e) {
    if (act === "count") {
      s.count = Math.max(0, parseInt(t.value, 10) || 0);
      state.built = null; state.builtBorder = null;
@@ -678,7 +862,7 @@ index a0e6727..977d983 100644
      els("#segTable .seg-range").forEach((cell, i) => {
        let from = 1;
        for (let j = 0; j < i; j++) from += state.segments[j].count || 0;
-@@ -3663,6 +3924,7 @@ function handleSegInput(e) {
+@@ -3663,6 +3999,7 @@ function handleSegInput(e) {
    }
    if (act === "kind") {
      s.kind = t.value;
@@ -686,7 +870,7 @@ index a0e6727..977d983 100644
      if (s.kind === "locking" && !s.weave) { s.weave = "satin:8:3"; s.count = 8; }
      if (s.kind !== "locking") delete s.weave;
      forgetSideHighlights();
-@@ -3803,6 +4065,7 @@ function renderLoomScreen() {
+@@ -3803,6 +4140,7 @@ function renderLoomScreen() {
    el("#totalDeclared").value = state.totalDeclared || "";
    el("#boxMotion").value = normalBoxMotion(state.boxMotion);
    renderCompany();
@@ -694,7 +878,7 @@ index a0e6727..977d983 100644
    el("#boardRead").textContent = BOARD_HELP;
    renderAlloc(); drawBoard(); renderBoardLegend(); renderBoardSelection(); renderSegs(); renderWeaveLibrary(); renderLoomChecks(); renderSteps();
  }
-@@ -4831,6 +5094,14 @@ async function enterApp() {
+@@ -4831,6 +5169,14 @@ async function enterApp() {
    renderWhoami();
    if (CLOUD_CONFIGURED && state.account && !cloud.user) reconnectCloud();
    renderOpts();
