@@ -429,6 +429,13 @@
     justify-content: flex-end; padding-bottom: 2px;
   }
   .savestate i { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); display: inline-block; }
+  .credits {
+    font-family: var(--mono); font-size: var(--t-small); letter-spacing: var(--track); text-transform: uppercase;
+    color: var(--ink-3); display: flex; align-items: center; gap: 8px; flex-basis: 100%; justify-content: flex-end;
+  }
+  .credits b { font-weight: 700; color: var(--ink); }
+  .credits.low b { color: var(--meena); }
+  .credits.out { color: var(--meena); }
   .syncstate {
     font-family: var(--mono); font-size: var(--t-small); letter-spacing: var(--track); text-transform: uppercase;
     color: var(--ink-3); display: flex; align-items: center; gap: 6px; flex-basis: 100%;
@@ -714,6 +721,7 @@
       <div class="savestate" id="saveState" aria-live="polite"></div>
       <div class="whoami" id="whoami" style="flex-basis:100%;justify-content:flex-end">
       </div>
+      <div class="credits" id="credits" aria-live="polite"></div>
       <div class="syncstate" id="syncState" aria-live="polite"></div>
       <div class="syncwhy" id="syncWhy" hidden></div>
       <div id="syncBtnSlot" hidden></div>
@@ -1017,7 +1025,7 @@ function labelFor(segs, i) {
   for (let j = 0; j <= i; j++) if (isOne(segs[j])) n++;
   return `${base} ${n}`;
 }
-const BUILD = "2026-08-03.32";      // bump when the file changes, so a stale page shows
+const BUILD = "2026-08-03.33";      // bump when the file changes, so a stale page shows
 /* ============================================================
    Whose software wrote the file
 
@@ -2251,6 +2259,29 @@ async function persistBoxPrefs() {
   return false;
 }
 
+const CREDITS_KEY = () => keyFor("credits");
+let memCredits = null;
+
+async function loadCredits() {
+  if (hasStore) {
+    const r = await readJSON(CREDITS_KEY());
+    state.credits = (r.found && !r.bad && r.value && typeof r.value === "object")
+      ? mergeCredits(freshCredits(), r.value)   // an old or short record is filled out
+      : freshCredits();
+    return;
+  }
+  state.credits = memCredits || freshCredits();
+}
+
+async function persistCredits() {
+  memCredits = state.credits;
+  if (hasStore) {
+    try { await store.set(CREDITS_KEY(), JSON.stringify(state.credits)); return true; }
+    catch { return false; }
+  }
+  return false;
+}
+
 const WEAVES_KEY = () => keyFor("weaves");
 
 async function loadWeaves() {
@@ -2332,6 +2363,37 @@ async function downloadDamaged() {
   a.href = url; a.download = `pinmap_unreadable_${stamp}.json`; a.click();
   setTimeout(() => URL.revokeObjectURL(url), 4000);
   notify("Downloaded. Keep that file — it holds whatever could not be read.");
+}
+
+// The balance, and a way to add to it. Kept in the header beside the account,
+// because it belongs to the account rather than to any one loom.
+function renderCredits() {
+  const host = el("#credits");
+  if (!host) return;
+  const left = creditsLeft();
+  host.className = "credits" + (left === 0 ? " out" : left <= 5 ? " low" : "");
+  host.innerHTML = left === 0
+    ? `No credits left <button class="tiny ghost" id="recharge">Recharge</button>`
+    : `<span><b>${left}</b> credit${left === 1 ? "" : "s"} left</span>
+       <button class="tiny ghost" id="recharge">Recharge</button>`;
+  const b = el("#recharge");
+  if (b) b.onclick = askForCode;
+
+  // a download that cannot be paid for should not look available
+  const short = left < COST_PER_FILE;
+  const db = el("#download"), bb = el("#downloadBorder");
+  if (db && state.built) db.disabled = short;
+  if (bb && state.builtBorder) bb.disabled = short;
+}
+
+// Spend, or say plainly why not. Every download goes through here.
+function payFor(what) {
+  if (spendCredits(COST_PER_FILE)) return true;
+  alert(`No credits left, so the ${what} file cannot be downloaded.\n\n` +
+        `Building, previewing and checking against a file you trust all stay free — ` +
+        `only a finished file costs a credit. Press Recharge to add more.`);
+  renderCredits();
+  return false;
 }
 
 function setSaveState(kind) {
@@ -2444,6 +2506,7 @@ async function doAutoSave() {
       const committed = await autoCommitLoom();
       await persistSession();
       await persistBoxPrefs();
+      await persistCredits();
       if (committed) { await persistLooms(); scheduleSync(); }
       if (committed && state.screen === "looms") renderLoomList();
     } while (saveAgain);
@@ -2502,6 +2565,87 @@ function newerOf(a, b) {
   return ((b && b.savedAt) || "") > ((a && a.savedAt) || "") ? b : a;
 }
 
+/* ------------------------------------------------------------
+   Credits
+
+   A credit is spent when a finished file is downloaded — the border file
+   and the body file are one each. Building, previewing and checking
+   against a file you trust are all free, on purpose: those are the steps
+   that catch a wrong pin map, and charging for them would teach people
+   to skip the very thing that saves the silk.
+
+   Two numbers are kept, not one. Both only ever go up, so two machines
+   working the same account can be merged without either losing a spend
+   or inventing a credit: take the larger of each and subtract.
+
+   THIS IS A METER, NOT A LOCK. Everything here runs in the weaver's own
+   browser, so the numbers are theirs to edit and the page runs offline
+   with no network at all. It counts honest use and shows what is left.
+   Making it binding needs the conversion itself to happen somewhere the
+   weaver does not control, which is a different shape of product.
+   Everything below is arranged so that day only replaces spendCredits().
+   ------------------------------------------------------------ */
+
+const CREDITS_ON_JOINING = 25;      // what a new account starts with
+const COST_PER_FILE = 1;            // a finished BMP, border or body
+
+const freshCredits = () => ({ granted: CREDITS_ON_JOINING, spent: 0, codes: [] });
+const creditsLeft = () => {
+  const c = state.credits || freshCredits();
+  return Math.max(0, (c.granted || 0) - (c.spent || 0));
+};
+
+// Both halves only climb, so merging is taking whichever side has seen more.
+function mergeCredits(a, b) {
+  const A = a || freshCredits(), B = b || freshCredits();
+  return {
+    granted: Math.max(A.granted || 0, B.granted || 0),
+    spent:   Math.max(A.spent   || 0, B.spent   || 0),
+    // every code either side has seen, so one cannot be spent twice by
+    // recharging on two machines at once
+    codes: [...new Set([...(A.codes || []), ...(B.codes || [])])]
+  };
+}
+
+
+/* ------------------------------------------------------------
+   Recharge codes
+
+   A stand-in until payment is wired up, so accounts can be topped up by
+   hand and the whole path can be walked end to end. A code carries the
+   number of credits and a check made from that number and the secret
+   below, which stops a mistyped code from working — it does NOT stop
+   anyone reading this page from writing their own. It is not meant to.
+
+   When payment arrives, redeemCode is what it replaces: the amount comes
+   back from the payment provider instead of out of the code.
+   ------------------------------------------------------------ */
+
+const CODE_SALT = "pinmap-2026";     // change this and old codes stop working
+
+function codeCheck(amount) {
+  let h = 0;
+  const t = `${amount}:${CODE_SALT}`;
+  for (let i = 0; i < t.length; i++) h = (h * 33 + t.charCodeAt(i)) >>> 0;
+  return h.toString(36).toUpperCase().slice(0, 4).padStart(4, "0");
+}
+
+const makeCode = (amount) => `PIN-${amount}-${codeCheck(amount)}`;
+
+// { ok, amount } or { ok:false, why }
+function readCode(raw) {
+  const t = String(raw || "").trim().toUpperCase().replace(/\s+/g, "");
+  const m = /^PIN-(\d{1,5})-([A-Z0-9]{4})$/.exec(t);
+  if (!m) return { ok: false, why: "That is not a recharge code. They look like PIN-50-AB12." };
+  const amount = parseInt(m[1], 10);
+  if (!amount) return { ok: false, why: "That code is for no credits at all." };
+  if (m[2] !== codeCheck(amount)) return { ok: false, why: "That code did not check out. Try typing it again." };
+  if (usedCodes().includes(t)) return { ok: false, why: "That code has already been used on this account." };
+  return { ok: true, amount, code: t };
+}
+
+const usedCodes = () => (state.credits && state.credits.codes) || [];
+
 function mergeLibraries(local, remote) {
   local = local || {}; remote = remote || {};
   const lTime = local.updatedAt || "";
@@ -2539,6 +2683,8 @@ function mergeLibraries(local, remote) {
   return {
     looms: [...looms.values()],
     weaves: [...weaves.values()],
+    // credits are not settings — neither side may lose a spend or gain a grant
+    credits: mergeCredits(local.credits, remote.credits),
     boxPrefs,
     graveyard: [...graves].map(([name, deletedAt]) => ({ name, deletedAt })),
     updatedAt: rTime > lTime ? rTime : lTime
@@ -2673,10 +2819,40 @@ async function cloudSave(payload) {
 
 /* ---------- what this device holds, in one shape ---------- */
 
+// The one place a credit is taken. A server would answer here instead.
+function spendCredits(n) {
+  const c = state.credits || (state.credits = freshCredits());
+  if (creditsLeft() < n) return false;
+  c.spent = (c.spent || 0) + n;
+  persistCredits();                 // straight away: a spend must not wait on a debounce
+  renderCredits(); scheduleSave(); scheduleSync();
+  return true;
+}
+
+function askForCode() {
+  const raw = prompt("Enter your recharge code:");
+  if (raw === null) return;
+  const r = readCode(raw);
+  if (!r.ok) { alert(r.why); return; }
+  const c = state.credits || (state.credits = freshCredits());
+  c.codes = usedCodes().concat(r.code);      // so the same code cannot be used twice
+  grantCredits(r.amount);
+  notify(`${r.amount} credits added. ${creditsLeft()} left.`);
+}
+
+function grantCredits(n) {
+  const c = state.credits || (state.credits = freshCredits());
+  c.granted = (c.granted || 0) + n;
+  persistCredits();
+  renderCredits(); scheduleSave(); scheduleSync();
+}
+
+
 function localLibrary() {
   return {
     looms: state.looms,
     weaves: state.weaves.map(dryWeave),
+    credits: state.credits || freshCredits(),
     boxPrefs: state.boxPrefs,
     graveyard: state.graveyard || [],
     updatedAt: state.libraryUpdatedAt || ""
@@ -2687,9 +2863,11 @@ async function adoptLibrary(lib) {
   state.looms = lib.looms || [];
   state.weaves = (lib.weaves || []).map(reviveWeave);
   state.boxPrefs = lib.boxPrefs || {};
+  state.credits = mergeCredits(state.credits, lib.credits);
   state.graveyard = lib.graveyard || [];
   state.libraryUpdatedAt = lib.updatedAt || new Date().toISOString();
   await persistLooms(); await persistWeaves(); await persistBoxPrefs(); await persistGraveyard();
+  await persistCredits(); renderCredits();
 }
 
 let syncTimer = null;
@@ -5054,6 +5232,7 @@ el("#combineBorder").onclick = () => {
     state.builtBorder = compose("border");
     renderBorderPreview();
     el("#downloadBorder").disabled = false;
+    renderCredits();   // and only while there is a credit to spend
     notify("Border file built.");
   } catch (err) { alert("Could not combine the border: " + err.message); }
 };
@@ -5127,12 +5306,14 @@ function renderBorderPreview() {
     ? "Colours mark the groups. The downloaded BMP is black and white only."
     : "This is the file as it downloads — one bit a pin, black and white.";
   el("#downloadBorder").disabled = false;
+  renderCredits();   // and only while there is a credit to spend
 }
 
 el("#borderPvMode").onclick = () => { state.pvColour = !state.pvColour; renderBorderPreview(); };
 
 el("#downloadBorder").onclick = () => {
   const b = state.builtBorder; if (!b) return;
+  if (!payFor("border")) return;
   const bytes = encodeBMP1(b.bits, b.width, b.height, state.opts.blackIsIndexZero);
   const safe = (state.loomName || "loom").replace(/[^A-Za-z0-9_-]+/g, "_").replace(/^_|_$/g, "");
   const url = URL.createObjectURL(new Blob([bytes], { type: "image/bmp" }));
@@ -5277,6 +5458,7 @@ function renderPreview() {
   el("#pvLegend").innerHTML = !state.pvColour ? "" :
     [...used].map(k => `<span><i style="background:${KINDS[k].colour};border-radius:0"></i>${KINDS[k].label}</span>`).join("");
   el("#download").disabled = false;
+  renderCredits();   // and only while there is a credit to spend
 }
 
 function applyZoom() {
@@ -5313,6 +5495,7 @@ el("#pv").addEventListener("mouseleave", () => {
 
 el("#download").onclick = () => {
   const b = state.built; if (!b) return;
+  if (!payFor("body")) return;
   const bytes = encodeBMP1(b.bits, b.width, b.height, state.opts.blackIsIndexZero);
   const safe = (state.loomName || "loom").replace(/[^A-Za-z0-9_-]+/g, "_").replace(/^_|_$/g, "");
   const url = URL.createObjectURL(new Blob([bytes], { type: "image/bmp" }));
@@ -5414,11 +5597,13 @@ async function enterApp() {
   await loadLooms();
   await loadWeaves();
   await loadBoxPrefs();
+  await loadCredits();
   await loadGraveyard();
   await loadSession();
   setSaveState(hasStore ? "saved" : "off");
   setSyncState(CLOUD_CONFIGURED && state.account ? "off" : "ok");
   renderWhoami();
+  renderCredits();
   if (CLOUD_CONFIGURED && state.account && !cloud.user) restoreCloud();
   renderOpts();
   renderStoreNote();

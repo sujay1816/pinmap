@@ -1,7 +1,7 @@
 Only in ../verify: CHANGES.diff
 diff -ru -x node_modules -x .git -x core.mjs ../verify/README.md ../pinmap/README.md
 --- ../verify/README.md	2026-08-03 11:34:51.543374973 +0000
-+++ ../pinmap/README.md	2026-08-04 05:33:51.782881439 +0000
++++ ../pinmap/README.md	2026-08-04 05:56:30.533955796 +0000
 @@ -171,6 +171,37 @@
  border file, the body and locking pins stay down in it, and the achu is half up
  and half down, flipping every line.
@@ -84,10 +84,45 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/README.md ../pinmap/READM
  
  Changing the loom to a company with no clutch takes the group away again, but
  only while it is still thirty-two pins. A count you set yourself is yours, so
-@@ -272,6 +323,22 @@
+@@ -272,6 +323,57 @@
  | What | Kept in |
  | --- | --- |
  | Looms, weaves, box settings, session | Browser storage, scoped per account |
++
++### Credits
++
++A credit is spent when a **finished file is downloaded** — the border file and
++the body file are one each. Building, previewing and checking against a file you
++trust are all free, on purpose: those are the steps that catch a wrong pin map,
++and charging for them would teach people to skip the one thing that saves the
++silk. A new account starts with `CREDITS_ON_JOINING`.
++
++Two numbers are kept rather than one, and both only ever climb: `granted` and
++`spent`. Merging two machines takes the larger of each, so neither a spend nor a
++grant can be lost when the same account is used in two places.
++
++**This is a meter, not a lock.** Everything runs in the weaver's own browser, so
++the numbers are theirs to edit, and the page works offline with no network at
++all. It counts honest use and shows what is left. Making it binding would mean
++the conversion itself happening somewhere the weaver does not control — a
++different shape of product, and one that gives up working offline. The code is
++arranged so that day replaces one function, `spendCredits`.
++
++#### Recharge codes
++
++A stand-in until payment is wired up, so accounts can be topped up by hand.
++A code is `PIN-<credits>-<check>`, where the check is made from the amount and
++`CODE_SALT`. It stops a mistyped code from working; it does not stop anyone
++reading this page from writing their own, and is not meant to. Codes already
++used are kept against the account so one cannot be redeemed twice, on this
++machine or another.
++
++Generate them with `makeCode(n)` from `tests/core.mjs`:
++
++    10 -> PIN-10-BNM8      50 -> PIN-50-6DV7
++    25 -> PIN-25-1V6F     100 -> PIN-100-D5RL
++
++Change `CODE_SALT` and every code issued before it stops working.
 +
 +### Staying signed in
 +
@@ -110,7 +145,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/README.md ../pinmap/READM
 Only in ../verify: WHAT-CHANGED.txt
 diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/index.html
 --- ../verify/index.html	2026-08-03 11:34:51.543374973 +0000
-+++ ../pinmap/index.html	2026-08-04 05:30:21.557749396 +0000
++++ ../pinmap/index.html	2026-08-04 05:53:01.189199157 +0000
 @@ -47,6 +47,7 @@
      --c-body:   #52737E;
      --c-empty:  #B9C3C8;
@@ -196,7 +231,21 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    .k-none { background: #fff; }
  
    /* ---------- layers ---------- */
-@@ -512,6 +530,8 @@
+@@ -411,6 +429,13 @@
+     justify-content: flex-end; padding-bottom: 2px;
+   }
+   .savestate i { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); display: inline-block; }
++  .credits {
++    font-family: var(--mono); font-size: var(--t-small); letter-spacing: var(--track); text-transform: uppercase;
++    color: var(--ink-3); display: flex; align-items: center; gap: 8px; flex-basis: 100%; justify-content: flex-end;
++  }
++  .credits b { font-weight: 700; color: var(--ink); }
++  .credits.low b { color: var(--meena); }
++  .credits.out { color: var(--meena); }
+   .syncstate {
+     font-family: var(--mono); font-size: var(--t-small); letter-spacing: var(--track); text-transform: uppercase;
+     color: var(--ink-3); display: flex; align-items: center; gap: 6px; flex-basis: 100%;
+@@ -512,6 +537,8 @@
    .wl-item .sub { font-family: var(--mono); font-size: var(--t-small); color: var(--ink-3); margin-top: 3px; }
    .wl-empty { font-size: var(--t-note); color: var(--ink-3); }
    .weave-cell { display: flex; align-items: center; gap: 7px; }
@@ -205,7 +254,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    .weave-cell canvas { width: 22px; height: 22px; image-rendering: pixelated; border: 1px solid var(--rule); flex: 0 0 22px; }
    .content-note { font-family: var(--mono); font-size: var(--t-small); color: var(--ink-3); }
    h3.sec {
-@@ -608,6 +628,8 @@
+@@ -608,6 +635,8 @@
       pin count are 26px, and a mis-hit there changes the pin map. A finger wants
       nearer 44px, so give it that without moving anything on a mouse. */
    @media (pointer: coarse) {
@@ -214,7 +263,15 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
      button.tiny { padding: 10px 14px; }
      .stepper { width: 42px; flex: 0 0 42px; min-height: 42px; }
      .grip { padding: 11px 10px; }
-@@ -791,7 +813,7 @@
+@@ -692,6 +721,7 @@
+       <div class="savestate" id="saveState" aria-live="polite"></div>
+       <div class="whoami" id="whoami" style="flex-basis:100%;justify-content:flex-end">
+       </div>
++      <div class="credits" id="credits" aria-live="polite"></div>
+       <div class="syncstate" id="syncState" aria-live="polite"></div>
+       <div class="syncwhy" id="syncWhy" hidden></div>
+       <div id="syncBtnSlot" hidden></div>
+@@ -791,7 +821,7 @@
      <div class="weavelib">
        <div class="wl-head">
          <span class="cap" style="margin:0">Weave library</span>
@@ -223,7 +280,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
        </div>
        <div class="wl-add">
          <input type="text" id="weaveName" placeholder="name it, e.g. Murthy lock 8">
-@@ -806,6 +828,7 @@
+@@ -806,6 +836,7 @@
        <button data-add="box">+ Box</button>
        <button data-add="leftBorder">+ Left border</button>
        <button data-add="locking">+ Locking</button>
@@ -231,7 +288,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
        <button data-add="body">+ Body</button>
        <button data-add="rightBorder">+ Right border</button>
        <button data-add="empty">+ Empty</button>
-@@ -872,9 +895,12 @@
+@@ -872,9 +903,12 @@
            <button class="tiny ghost" data-bzoomv="border" data-zoom="fit">Fit</button>
            <button class="tiny ghost" data-bzoomv="border" data-zoom="1">1:1</button>
            <button class="tiny ghost" data-bzoomv="border" data-zoom="3">3×</button>
@@ -244,7 +301,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
      </div>
      <details class="note">
        <summary>What goes in this file</summary>
-@@ -963,10 +989,17 @@
+@@ -963,10 +997,17 @@
    box:         { label: "Box",          cls: "k-box",         colour: "#2E3A45", code: 1, source: "generated" },
    leftBorder:  { label: "Left border",  cls: "k-leftBorder",  colour: "#1F4E6B", code: 2, source: "border"    },
    locking:     { label: "Locking",      cls: "k-locking",     colour: "#7A4E86", code: 5, source: "generated" },
@@ -262,16 +319,16 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
  const WEFT_SLOTS = 4;                 // how many slots you start with
  const MAX_WEFTS = 8;                  // and how many you may add up to
  const WEFT_NAMES = ["Rani", "Zari", "Meena 1", "Meena 2"];
-@@ -984,7 +1017,7 @@
+@@ -984,7 +1025,7 @@
    for (let j = 0; j <= i; j++) if (isOne(segs[j])) n++;
    return `${base} ${n}`;
  }
 -const BUILD = "2026-08-03.22";      // bump when the file changes, so a stale page shows
-+const BUILD = "2026-08-03.32";      // bump when the file changes, so a stale page shows
++const BUILD = "2026-08-03.33";      // bump when the file changes, so a stale page shows
  /* ============================================================
     Whose software wrote the file
  
-@@ -1043,7 +1076,7 @@
+@@ -1043,7 +1084,7 @@
    pinOneLeft: true, topRowFirstPick: true, blackIsIndexZero: true,
    achuStartsBlack: true, stackMode: "interleave", weavePerDesignLine: true,
    satinWarpFaced: false, boxWholeBand: true, autoRotate: true,
@@ -280,7 +337,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
  };
  
  const COMPANIES = [
-@@ -1051,6 +1084,7 @@
+@@ -1051,6 +1092,7 @@
    { id: "saitex", name: "Sai Tex", opts: { ...COMPANY_BASE } },
    { id: "sritex", name: "Sri Tex", opts: { ...COMPANY_BASE,
        blackIsIndexZero: false,     // white is the lifted pin
@@ -288,7 +345,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
        mirrorBodyFile: true,        // their body file is written back to front
        bodyGround: "satin:2:1" } }  // and a plain ground under every weft
  ];
-@@ -1140,7 +1174,8 @@
+@@ -1140,7 +1182,8 @@
      boxWholeBand: true,
      autoRotate: true,
      weavePerDesignLine: true,
@@ -298,7 +355,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    },
    built: null,
    builtBorder: null,
-@@ -1482,7 +1517,35 @@
+@@ -1482,7 +1525,35 @@
    }
  }
  
@@ -335,7 +392,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    if (weftCount <= 1) return "none";        // one weft: nothing to choose
    if (!figureOnLine) return "none";         // plain ground line: box stays white
    return (BOX_TABLE[weftCount] || [])[weftIndex] || "none";
-@@ -1491,7 +1554,12 @@
+@@ -1491,7 +1562,12 @@
  // Each weft may carry its own box pattern. Until the user changes one, it comes
  // from the standard table for however many wefts are loaded.
  function defaultBoxPattern(count, weftIndex, weftCount) {
@@ -349,7 +406,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
  }
  
  // A pattern set by hand is kept, first for this session and then in the
-@@ -1513,8 +1581,8 @@
+@@ -1513,8 +1589,8 @@
    return defaultBoxPattern(count, weftIndex, weftCount);
  }
  
@@ -360,7 +417,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    const row = new Uint8Array(count);
    const half = Math.ceil(count / 2);
    if (plan === "all")    row.fill(1);
-@@ -1584,6 +1652,27 @@
+@@ -1584,6 +1660,27 @@
      if (o.boxWholeBand) closeBandGaps(figureOnLine);
    }
  
@@ -388,7 +445,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    // Achu goes in the border file when there is one, otherwise in the body.
    // In the body it also waits on the rani, since that is the ground it binds.
    const raniLoaded = !!(state.wefts[0] && state.wefts[0].file && !state.wefts[0].file.error);
-@@ -1642,21 +1731,27 @@
+@@ -1642,21 +1739,27 @@
          const r = achuRow(seg.count, achuRowIndex, o.achuStartsBlack);
          for (let x = 0; x < seg.count; x++) bits[rowBase + at + x] = r[x];
  
@@ -422,7 +479,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
          const r = active ? pat : new Uint8Array(seg.count);
          for (let x = 0; x < seg.count; x++) bits[rowBase + at + x] = r[x];
  
-@@ -1868,7 +1963,7 @@
+@@ -1868,7 +1971,7 @@
      if (!s.count || s.count < 1) errs.push(`${where}: enter a pin count above zero.`);
      if (s.kind === "achu" && s.count % 2) errs.push(`${where}: achu needs an even count — ${s.count} cannot split in half.`);
      if (s.kind === "box" && s.count % 2) errs.push(`${where}: ${s.count} box pins cannot split into two sides. Enter an even number.`);
@@ -431,7 +488,83 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
        const w = weaveById(s.weave);
        if (!w) warns.push(`${where}: no weave chosen, so a satin is worked out from the pin count.`);
        else if (s.count % w.pins)
-@@ -2398,6 +2493,8 @@
+@@ -2156,6 +2259,29 @@
+   return false;
+ }
+ 
++const CREDITS_KEY = () => keyFor("credits");
++let memCredits = null;
++
++async function loadCredits() {
++  if (hasStore) {
++    const r = await readJSON(CREDITS_KEY());
++    state.credits = (r.found && !r.bad && r.value && typeof r.value === "object")
++      ? mergeCredits(freshCredits(), r.value)   // an old or short record is filled out
++      : freshCredits();
++    return;
++  }
++  state.credits = memCredits || freshCredits();
++}
++
++async function persistCredits() {
++  memCredits = state.credits;
++  if (hasStore) {
++    try { await store.set(CREDITS_KEY(), JSON.stringify(state.credits)); return true; }
++    catch { return false; }
++  }
++  return false;
++}
++
+ const WEAVES_KEY = () => keyFor("weaves");
+ 
+ async function loadWeaves() {
+@@ -2239,6 +2365,37 @@
+   notify("Downloaded. Keep that file — it holds whatever could not be read.");
+ }
+ 
++// The balance, and a way to add to it. Kept in the header beside the account,
++// because it belongs to the account rather than to any one loom.
++function renderCredits() {
++  const host = el("#credits");
++  if (!host) return;
++  const left = creditsLeft();
++  host.className = "credits" + (left === 0 ? " out" : left <= 5 ? " low" : "");
++  host.innerHTML = left === 0
++    ? `No credits left <button class="tiny ghost" id="recharge">Recharge</button>`
++    : `<span><b>${left}</b> credit${left === 1 ? "" : "s"} left</span>
++       <button class="tiny ghost" id="recharge">Recharge</button>`;
++  const b = el("#recharge");
++  if (b) b.onclick = askForCode;
++
++  // a download that cannot be paid for should not look available
++  const short = left < COST_PER_FILE;
++  const db = el("#download"), bb = el("#downloadBorder");
++  if (db && state.built) db.disabled = short;
++  if (bb && state.builtBorder) bb.disabled = short;
++}
++
++// Spend, or say plainly why not. Every download goes through here.
++function payFor(what) {
++  if (spendCredits(COST_PER_FILE)) return true;
++  alert(`No credits left, so the ${what} file cannot be downloaded.\n\n` +
++        `Building, previewing and checking against a file you trust all stay free — ` +
++        `only a finished file costs a credit. Press Recharge to add more.`);
++  renderCredits();
++  return false;
++}
++
+ function setSaveState(kind) {
+   const host = el("#saveState");
+   if (!host) return;
+@@ -2349,6 +2506,7 @@
+       const committed = await autoCommitLoom();
+       await persistSession();
+       await persistBoxPrefs();
++      await persistCredits();
+       if (committed) { await persistLooms(); scheduleSync(); }
+       if (committed && state.screen === "looms") renderLoomList();
+     } while (saveAgain);
+@@ -2398,6 +2556,8 @@
    const list = segs || [];
    const at = list.findIndex(s => s && s.role === "clutch");
    if (at < 0) return "none";                 // no group, so no clutch was set
@@ -440,7 +573,104 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    return at >= list.length - 1 ? "right" : "left";
  }
  
-@@ -2505,6 +2602,28 @@
+@@ -2405,6 +2565,87 @@
+   return ((b && b.savedAt) || "") > ((a && a.savedAt) || "") ? b : a;
+ }
+ 
++/* ------------------------------------------------------------
++   Credits
++
++   A credit is spent when a finished file is downloaded — the border file
++   and the body file are one each. Building, previewing and checking
++   against a file you trust are all free, on purpose: those are the steps
++   that catch a wrong pin map, and charging for them would teach people
++   to skip the very thing that saves the silk.
++
++   Two numbers are kept, not one. Both only ever go up, so two machines
++   working the same account can be merged without either losing a spend
++   or inventing a credit: take the larger of each and subtract.
++
++   THIS IS A METER, NOT A LOCK. Everything here runs in the weaver's own
++   browser, so the numbers are theirs to edit and the page runs offline
++   with no network at all. It counts honest use and shows what is left.
++   Making it binding needs the conversion itself to happen somewhere the
++   weaver does not control, which is a different shape of product.
++   Everything below is arranged so that day only replaces spendCredits().
++   ------------------------------------------------------------ */
++
++const CREDITS_ON_JOINING = 25;      // what a new account starts with
++const COST_PER_FILE = 1;            // a finished BMP, border or body
++
++const freshCredits = () => ({ granted: CREDITS_ON_JOINING, spent: 0, codes: [] });
++const creditsLeft = () => {
++  const c = state.credits || freshCredits();
++  return Math.max(0, (c.granted || 0) - (c.spent || 0));
++};
++
++// Both halves only climb, so merging is taking whichever side has seen more.
++function mergeCredits(a, b) {
++  const A = a || freshCredits(), B = b || freshCredits();
++  return {
++    granted: Math.max(A.granted || 0, B.granted || 0),
++    spent:   Math.max(A.spent   || 0, B.spent   || 0),
++    // every code either side has seen, so one cannot be spent twice by
++    // recharging on two machines at once
++    codes: [...new Set([...(A.codes || []), ...(B.codes || [])])]
++  };
++}
++
++
++/* ------------------------------------------------------------
++   Recharge codes
++
++   A stand-in until payment is wired up, so accounts can be topped up by
++   hand and the whole path can be walked end to end. A code carries the
++   number of credits and a check made from that number and the secret
++   below, which stops a mistyped code from working — it does NOT stop
++   anyone reading this page from writing their own. It is not meant to.
++
++   When payment arrives, redeemCode is what it replaces: the amount comes
++   back from the payment provider instead of out of the code.
++   ------------------------------------------------------------ */
++
++const CODE_SALT = "pinmap-2026";     // change this and old codes stop working
++
++function codeCheck(amount) {
++  let h = 0;
++  const t = `${amount}:${CODE_SALT}`;
++  for (let i = 0; i < t.length; i++) h = (h * 33 + t.charCodeAt(i)) >>> 0;
++  return h.toString(36).toUpperCase().slice(0, 4).padStart(4, "0");
++}
++
++const makeCode = (amount) => `PIN-${amount}-${codeCheck(amount)}`;
++
++// { ok, amount } or { ok:false, why }
++function readCode(raw) {
++  const t = String(raw || "").trim().toUpperCase().replace(/\s+/g, "");
++  const m = /^PIN-(\d{1,5})-([A-Z0-9]{4})$/.exec(t);
++  if (!m) return { ok: false, why: "That is not a recharge code. They look like PIN-50-AB12." };
++  const amount = parseInt(m[1], 10);
++  if (!amount) return { ok: false, why: "That code is for no credits at all." };
++  if (m[2] !== codeCheck(amount)) return { ok: false, why: "That code did not check out. Try typing it again." };
++  if (usedCodes().includes(t)) return { ok: false, why: "That code has already been used on this account." };
++  return { ok: true, amount, code: t };
++}
++
++const usedCodes = () => (state.credits && state.credits.codes) || [];
++
+ function mergeLibraries(local, remote) {
+   local = local || {}; remote = remote || {};
+   const lTime = local.updatedAt || "";
+@@ -2442,6 +2683,8 @@
+   return {
+     looms: [...looms.values()],
+     weaves: [...weaves.values()],
++    // credits are not settings — neither side may lose a spend or gain a grant
++    credits: mergeCredits(local.credits, remote.credits),
+     boxPrefs,
+     graveyard: [...graves].map(([name, deletedAt]) => ({ name, deletedAt })),
+     updatedAt: rTime > lTime ? rTime : lTime
+@@ -2505,6 +2748,28 @@
      cloud.auth = authMod.getAuth(cloud.app);
      cloud.db = dbMod.getFirestore(cloud.app);
      cloud.mod = { ...authMod, ...dbMod };
@@ -469,7 +699,60 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
      cloud.ready = true;
      return true;
    } catch (err) {
-@@ -2863,6 +2982,16 @@
+@@ -2554,10 +2819,40 @@
+ 
+ /* ---------- what this device holds, in one shape ---------- */
+ 
++// The one place a credit is taken. A server would answer here instead.
++function spendCredits(n) {
++  const c = state.credits || (state.credits = freshCredits());
++  if (creditsLeft() < n) return false;
++  c.spent = (c.spent || 0) + n;
++  persistCredits();                 // straight away: a spend must not wait on a debounce
++  renderCredits(); scheduleSave(); scheduleSync();
++  return true;
++}
++
++function askForCode() {
++  const raw = prompt("Enter your recharge code:");
++  if (raw === null) return;
++  const r = readCode(raw);
++  if (!r.ok) { alert(r.why); return; }
++  const c = state.credits || (state.credits = freshCredits());
++  c.codes = usedCodes().concat(r.code);      // so the same code cannot be used twice
++  grantCredits(r.amount);
++  notify(`${r.amount} credits added. ${creditsLeft()} left.`);
++}
++
++function grantCredits(n) {
++  const c = state.credits || (state.credits = freshCredits());
++  c.granted = (c.granted || 0) + n;
++  persistCredits();
++  renderCredits(); scheduleSave(); scheduleSync();
++}
++
++
+ function localLibrary() {
+   return {
+     looms: state.looms,
+     weaves: state.weaves.map(dryWeave),
++    credits: state.credits || freshCredits(),
+     boxPrefs: state.boxPrefs,
+     graveyard: state.graveyard || [],
+     updatedAt: state.libraryUpdatedAt || ""
+@@ -2568,9 +2863,11 @@
+   state.looms = lib.looms || [];
+   state.weaves = (lib.weaves || []).map(reviveWeave);
+   state.boxPrefs = lib.boxPrefs || {};
++  state.credits = mergeCredits(state.credits, lib.credits);
+   state.graveyard = lib.graveyard || [];
+   state.libraryUpdatedAt = lib.updatedAt || new Date().toISOString();
+   await persistLooms(); await persistWeaves(); await persistBoxPrefs(); await persistGraveyard();
++  await persistCredits(); renderCredits();
+ }
+ 
+ let syncTimer = null;
+@@ -2863,6 +3160,16 @@
  
  // A returning visitor is already past the sign-in screen, so ask Google
  // quietly for a fresh token to talk to the shared store with.
@@ -486,7 +769,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
  async function reconnectCloud() {
    const clientId = CLIENT_ID_IS_BUILT_IN ? DEFAULT_CLIENT_ID : ((el("#clientId").value || "").trim());
    if (!clientId || (typeof navigator !== "undefined" && navigator.onLine === false)) {
-@@ -2899,6 +3028,10 @@
+@@ -2899,6 +3206,10 @@
    await doAutoSave();
    try { if (window.google && window.google.accounts && window.google.accounts.id)
            window.google.accounts.id.disableAutoSelect(); } catch {}
@@ -497,7 +780,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    state.account = null; state.accountKey = "local";
    if (hasStore) { try { await store.delete(ACCOUNT_KEY); } catch {} }
    memAccount = null;
-@@ -3111,8 +3244,12 @@
+@@ -3111,8 +3422,12 @@
  const clutchAt = (segs) => (segs || []).findIndex(s => s && s.role === "clutch");
  const clutchSeg = () => state.segments[clutchAt(state.segments)] || null;
  
@@ -512,7 +795,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
  function applyClutchGroup(side) {
    const segs = state.segments;
    const at = clutchAt(segs);
-@@ -3122,7 +3259,7 @@
+@@ -3122,7 +3437,7 @@
    seg.role = "clutch";
    seg.kind = "empty";
    if (!seg.count || seg.count < 1) seg.count = CLUTCH_PINS;
@@ -521,7 +804,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    return seg;
  }
  
-@@ -3291,7 +3428,7 @@
+@@ -3291,7 +3606,7 @@
    const pitch = zoom === "fit"
      ? Math.max(4, Math.min(24, (Math.max(260, host.clientWidth - 28) - 40) / cols))
      : parseFloat(zoom);
@@ -530,7 +813,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    const W = GUT + cols * pitch + 8, H = RULE + PINS_PER_COLUMN * pitch + FOOT;
  
    host.innerHTML = `<div class="board-wrap"><canvas id="${canvasId}"${interactive ? ' tabindex="0"' : ""}
-@@ -3449,14 +3586,6 @@
+@@ -3449,14 +3764,6 @@
      }
    });
  
@@ -545,7 +828,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    /* ---- a scale along the foot, so the shape of the loom is readable ---- */
    const fy = RULE + PINS_PER_COLUMN * pitch + 7;
    let at = 0;
-@@ -3474,6 +3603,41 @@
+@@ -3474,6 +3781,41 @@
      ctx.strokeRect(GUT + (at / T) * (cols * pitch) + 0.5, fy + 0.5, Math.max(1, ((T - at) / T) * (cols * pitch) - 1), 5);
    }
  
@@ -587,7 +870,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    return { pitch, T, owners, W, H, spans, bounds, cols, GUT, RULE, cx, cy, xy };
  }
  
-@@ -3562,7 +3726,7 @@
+@@ -3562,7 +3904,7 @@
    const sg = state.segments[idx];
    if (!sg) return n;
    if (sg.kind === "achu") return Math.max(2, Math.round(n / 2) * 2);
@@ -596,7 +879,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
      const wv = weaveById(sg.weave);
      if (wv && wv.pins) return Math.max(wv.pins, Math.round(n / wv.pins) * wv.pins);
    }
-@@ -3689,7 +3853,7 @@
+@@ -3689,7 +4031,7 @@
    const sg = state.segments[idx];
    if (!sg) return 1;
    if (sg.kind === "achu") return 2;
@@ -605,7 +888,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    return 1;
  }
  
-@@ -3779,7 +3943,13 @@
+@@ -3779,7 +4121,13 @@
      host.innerHTML = `<div class="wl-empty">Nothing uploaded. The built-in satins and twills are always in the Locking row.</div>`;
      return;
    }
@@ -620,7 +903,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
      <div class="wl-item">
        <canvas data-weave="${esc(w.id)}" role="img" aria-label="The ${esc(w.name)} weave, ${w.pins} pins"></canvas>
        <div style="flex:1;min-width:0">
-@@ -3857,18 +4027,24 @@
+@@ -3857,18 +4205,24 @@
    state.segments.forEach((sg, i) => {
      const from = at, to = at + (sg.count || 0) - 1; at += (sg.count || 0);
      let content;
@@ -654,7 +937,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
          </select></div>`;
      } else {
        const note = (sg.role === "clutch" && companyHasClutch(state.company))
-@@ -3956,7 +4132,7 @@
+@@ -3956,7 +4310,7 @@
    const seg = clutchSeg();
    if (note) note.textContent =
        side === "none" ? "No pins set aside. Say which end only if this loom really gives pins up to a clutch."
@@ -663,7 +946,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
      : "The group has been removed. Pick an end again to put it back.";
  }
  
-@@ -3966,7 +4142,7 @@
+@@ -3966,7 +4320,7 @@
    let clutchMsg = "";
    if (companyHasClutch(state.company) && normalClutch(state.clutch) !== "none") {
      const seg = applyClutchGroup(state.clutch);
@@ -672,7 +955,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    } else if (removeClutchGroup(true)) {
      clutchMsg = " Clutch group removed.";
    }
-@@ -3986,7 +4162,7 @@
+@@ -3986,7 +4340,7 @@
      msg = removeClutchGroup(false) ? "Clutch group removed." : "No clutch pins.";
    } else {
      const seg = applyClutchGroup(state.clutch);
@@ -681,7 +964,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    }
    state.built = null; state.builtBorder = null;
    renderLoomScreen(); scheduleSave();
-@@ -4047,7 +4223,12 @@
+@@ -4047,7 +4401,12 @@
      s.kind = t.value;
      if (s.kind !== "empty") delete s.role;      // it has been made into something else
      if (s.kind === "locking" && !s.weave) { s.weave = "satin:8:3"; s.count = 8; }
@@ -695,7 +978,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
      forgetSideHighlights();
      if (s.kind === "achu" && !s.count) s.count = 4;
      if (s.kind === "box" && !s.count) s.count = 4;
-@@ -4156,7 +4337,7 @@
+@@ -4156,7 +4515,7 @@
      const idx = state.segments.indexOf(sg);
      let jump = 1;
      if (sg.kind === "achu") jump = 2;
@@ -704,7 +987,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
        const wv = weaveById(sg.weave);
        jump = wv && wv.pins ? wv.pins : 1;
      }
-@@ -4523,7 +4704,7 @@
+@@ -4523,7 +4882,7 @@
    const wefts = filledWefts();
    let html = "";
  
@@ -713,7 +996,15 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    if (lockSeg) {
      const lw = weaveById(lockSeg.weave);
      const n = lockSeg.count;
-@@ -4922,8 +5103,9 @@
+@@ -4873,6 +5232,7 @@
+     state.builtBorder = compose("border");
+     renderBorderPreview();
+     el("#downloadBorder").disabled = false;
++    renderCredits();   // and only while there is a credit to spend
+     notify("Border file built.");
+   } catch (err) { alert("Could not combine the border: " + err.message); }
+ };
+@@ -4922,8 +5282,9 @@
        const p = (y * w + x) * 4;
        const up = b.bits[sy * b.width + sx];
        let r, g, bl;
@@ -725,7 +1016,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
        img.data[p] = r; img.data[p+1] = g; img.data[p+2] = bl; img.data[p+3] = 255;
      }
    }
-@@ -4931,9 +5113,24 @@
+@@ -4931,11 +5292,28 @@
    if (borderZoom === "fit") { cv.style.width = "100%"; cv.style.height = "auto"; }
    el("#borderDims").textContent =
      `${b.width} pins × ${b.height} lines${step > 1 ? ` · preview reduced ${step}×` : ""}`;
@@ -743,14 +1034,18 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
 +    ? "Colours mark the groups. The downloaded BMP is black and white only."
 +    : "This is the file as it downloads — one bit a pin, black and white.";
    el("#downloadBorder").disabled = false;
++  renderCredits();   // and only while there is a credit to spend
  }
  
 +el("#borderPvMode").onclick = () => { state.pvColour = !state.pvColour; renderBorderPreview(); };
 +
  el("#downloadBorder").onclick = () => {
    const b = state.builtBorder; if (!b) return;
++  if (!payFor("border")) return;
    const bytes = encodeBMP1(b.bits, b.width, b.height, state.opts.blackIsIndexZero);
-@@ -5002,7 +5199,8 @@
+   const safe = (state.loomName || "loom").replace(/[^A-Za-z0-9_-]+/g, "_").replace(/^_|_$/g, "");
+   const url = URL.createObjectURL(new Blob([bytes], { type: "image/bmp" }));
+@@ -5002,7 +5380,8 @@
    5: [122,78,134],  // locking
    6: [82,115,126],  // body
    7: [185,195,200], // empty
@@ -760,7 +1055,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
  };
  let pvStep = 1;
  
-@@ -5013,7 +5211,7 @@
+@@ -5013,7 +5392,7 @@
    const H = ref ? ref.height : 0;
    const perShuttle = (state.opts.stackMode === "interleave" && normalBoxMotion(state.boxMotion) === "4x1") ? 2 : 1;
    const lines = !H ? 0 : (state.opts.stackMode === "overlay" ? H : H * Math.max(1, K));
@@ -769,23 +1064,48 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    const lw = lockSeg ? weaveById(lockSeg.weave) : null;
    const cell = (k, v, sm, full) =>
      `<div class="cell"><div class="k">${k}</div>
-@@ -5221,7 +5419,7 @@
+@@ -5079,6 +5458,7 @@
+   el("#pvLegend").innerHTML = !state.pvColour ? "" :
+     [...used].map(k => `<span><i style="background:${KINDS[k].colour};border-radius:0"></i>${KINDS[k].label}</span>`).join("");
+   el("#download").disabled = false;
++  renderCredits();   // and only while there is a credit to spend
+ }
+ 
+ function applyZoom() {
+@@ -5115,6 +5495,7 @@
+ 
+ el("#download").onclick = () => {
+   const b = state.built; if (!b) return;
++  if (!payFor("body")) return;
+   const bytes = encodeBMP1(b.bits, b.width, b.height, state.opts.blackIsIndexZero);
+   const safe = (state.loomName || "loom").replace(/[^A-Za-z0-9_-]+/g, "_").replace(/^_|_$/g, "");
+   const url = URL.createObjectURL(new Blob([bytes], { type: "image/bmp" }));
+@@ -5216,12 +5597,14 @@
+   await loadLooms();
+   await loadWeaves();
+   await loadBoxPrefs();
++  await loadCredits();
+   await loadGraveyard();
+   await loadSession();
    setSaveState(hasStore ? "saved" : "off");
    setSyncState(CLOUD_CONFIGURED && state.account ? "off" : "ok");
    renderWhoami();
 -  if (CLOUD_CONFIGURED && state.account && !cloud.user) reconnectCloud();
++  renderCredits();
 +  if (CLOUD_CONFIGURED && state.account && !cloud.user) restoreCloud();
    renderOpts();
    renderStoreNote();
    // If anything would not read, that is the first thing to say, and it is said
 diff -ru -x node_modules -x .git -x core.mjs ../verify/tests/extract.mjs ../pinmap/tests/extract.mjs
 --- ../verify/tests/extract.mjs	2026-08-03 11:34:51.545163124 +0000
-+++ ../pinmap/tests/extract.mjs	2026-08-03 16:20:35.085928019 +0000
-@@ -61,6 +61,7 @@
++++ ../pinmap/tests/extract.mjs	2026-08-04 05:51:03.817168892 +0000
+@@ -61,6 +61,9 @@
    mirrorBits, flipBits, invertBits, state, KINDS, DEFAULT_LAYOUT, labelFor,
    mergeLibraries, newerOf, normalBoxMotion, normalClutch, clutchSideOf,
    COMPANIES, COMPANY_BASE, companyById, companyHasClutch, CLUTCH_PINS,
 +  SRITEX_BOX,
++  freshCredits, creditsLeft, mergeCredits,
++  makeCode, readCode, codeCheck, CREDITS_ON_JOINING, COST_PER_FILE,
    freshWefts, filledWefts, borderSlots, bodySlots,
    WEFT_SLOTS, WEFT_NAMES, totalPins, allocated
  };
@@ -1081,3 +1401,4 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/tests/ui/20-inputs.mjs ..
    const src=fs.readFileSync(process.argv[2],'utf8');
 Only in ../pinmap/tests/ui: 21-border-mono.mjs
 Only in ../pinmap/tests/ui: 22-board-ends.mjs
+Only in ../pinmap/tests/ui: 23-credits.mjs

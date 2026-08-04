@@ -324,6 +324,41 @@ session and the app says it was not saved, rather than claiming it was.
 | --- | --- |
 | Looms, weaves, box settings, session | Browser storage, scoped per account |
 
+### Credits
+
+A credit is spent when a **finished file is downloaded** — the border file and
+the body file are one each. Building, previewing and checking against a file you
+trust are all free, on purpose: those are the steps that catch a wrong pin map,
+and charging for them would teach people to skip the one thing that saves the
+silk. A new account starts with `CREDITS_ON_JOINING`.
+
+Two numbers are kept rather than one, and both only ever climb: `granted` and
+`spent`. Merging two machines takes the larger of each, so neither a spend nor a
+grant can be lost when the same account is used in two places.
+
+**This is a meter, not a lock.** Everything runs in the weaver's own browser, so
+the numbers are theirs to edit, and the page works offline with no network at
+all. It counts honest use and shows what is left. Making it binding would mean
+the conversion itself happening somewhere the weaver does not control — a
+different shape of product, and one that gives up working offline. The code is
+arranged so that day replaces one function, `spendCredits`.
+
+#### Recharge codes
+
+A stand-in until payment is wired up, so accounts can be topped up by hand.
+A code is `PIN-<credits>-<check>`, where the check is made from the amount and
+`CODE_SALT`. It stops a mistyped code from working; it does not stop anyone
+reading this page from writing their own, and is not meant to. Codes already
+used are kept against the account so one cannot be redeemed twice, on this
+machine or another.
+
+Generate them with `makeCode(n)` from `tests/core.mjs`:
+
+    10 -> PIN-10-BNM8      50 -> PIN-50-6DV7
+    25 -> PIN-25-1V6F     100 -> PIN-100-D5RL
+
+Change `CODE_SALT` and every code issued before it stops working.
+
 ### Staying signed in
 
 Firebase keeps the sign-in in the browser it was made in. The app used not to

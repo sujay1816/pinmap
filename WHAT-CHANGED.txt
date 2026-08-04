@@ -1,27 +1,24 @@
-Pinmap — build 2026-08-03.32
+Pinmap — build 2026-08-03.33
 ============================
 
-Everything since build .22 on GitHub.
+Everything since build .22 on GitHub. New this round: credits.
 
-  index.html                  the kept sign-in is now restored on waking;
-                              Weave library as its own group; board ends;
-                              Sri Tex box halves; clutch pins at the left;
-                              border preview switch; fonts and buttons
-  README.md                   staying signed in, weaves, box rule, layout
-  tests/extract.mjs           exports SRITEX_BOX
-  tests/logic/01.mjs          eight groups now
-  tests/logic/24.mjs, 25.mjs  the Sri Tex box rule
-  tests/ui/09-pinboard.mjs    foot height
-  tests/ui/17-clutch.mjs      clutch group no longer moves ends
-  tests/ui/19-locks.mjs       NEW checks: staying signed in
-  tests/ui/20-inputs.mjs      the Weave library group
-  tests/ui/21-border-mono.mjs border preview and what gets written
-  tests/ui/22-board-ends.mjs  board labels never collide
+  index.html                  credits: balance in the header, one per
+                              finished file, recharge codes; plus the
+                              sign-in fix, Weave library group, board
+                              ends, Sri Tex box, clutch, fonts/buttons
+  README.md                   credits and recharge codes written up
+  tests/extract.mjs           exports the credit helpers
+  tests/ui/23-credits.mjs     NEW: the whole credit path
+  (other suites as before)
 
   npm test  ->  473 checks, all passing
 
-THIS ONE NEEDS TESTING ON THE REAL THING
-----------------------------------------
-Firebase cannot run under jsdom, so these checks read the source rather
-than drive it. Sign in, close the tab, and open it again: the dot should
-go straight to synced with no Google prompt at all.
+CODES YOU CAN HAND OUT
+----------------------
+   10 -> PIN-10-BNM8      50 -> PIN-50-6DV7
+   25 -> PIN-25-1V6F     100 -> PIN-100-D5RL
+  250 -> PIN-250-1XMS
+
+Generate more with makeCode(n). Change CODE_SALT in index.html and every
+code issued before it stops working.
