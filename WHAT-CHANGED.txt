@@ -1,20 +1,27 @@
-Pinmap — build 2026-08-03.31
+Pinmap — build 2026-08-03.32
 ============================
 
 Everything since build .22 on GitHub.
 
-  index.html                  Weave library is now a group of its own;
-                              board ends named under the board; Sri Tex
-                              box halves; clutch pins fixed at the left;
+  index.html                  the kept sign-in is now restored on waking;
+                              Weave library as its own group; board ends;
+                              Sri Tex box halves; clutch pins at the left;
                               border preview switch; fonts and buttons
-  README.md                   choosing a weave, box rule, loom layout
+  README.md                   staying signed in, weaves, box rule, layout
   tests/extract.mjs           exports SRITEX_BOX
-  tests/logic/01.mjs          eight groups now, not seven
+  tests/logic/01.mjs          eight groups now
   tests/logic/24.mjs, 25.mjs  the Sri Tex box rule
-  tests/ui/09-pinboard.mjs    foot height updated
+  tests/ui/09-pinboard.mjs    foot height
   tests/ui/17-clutch.mjs      clutch group no longer moves ends
+  tests/ui/19-locks.mjs       NEW checks: staying signed in
   tests/ui/20-inputs.mjs      the Weave library group
   tests/ui/21-border-mono.mjs border preview and what gets written
   tests/ui/22-board-ends.mjs  board labels never collide
 
   npm test  ->  473 checks, all passing
+
+THIS ONE NEEDS TESTING ON THE REAL THING
+----------------------------------------
+Firebase cannot run under jsdom, so these checks read the source rather
+than drive it. Sign in, close the tab, and open it again: the dot should
+go straight to synced with no Google prompt at all.

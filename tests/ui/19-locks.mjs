@@ -90,6 +90,26 @@ console.log('\n== the source keeps its promises ==');
   note('loading Google is given a time limit', !/Google did not answer/.test(src));
   note('two cloud starts cannot race', !/if \(cloud\.starting\) return cloud\.starting/.test(src));
 }
+
+console.log('\n== the account is not asked to sign in again every time ==');
+{
+  const src = fs.readFileSync(process.argv[2],'utf8');
+  // Firebase keeps the sign-in in the browser. Nothing used to ask it for one,
+  // so every reload woke with no user and sent the weaver back to Google.
+  note('the kept sign-in is listened for', !/onAuthStateChanged\(cloud\.auth/.test(src));
+  note('and it is kept in this browser on purpose',
+       !/setPersistence\(cloud\.auth, authMod\.browserLocalPersistence\)/.test(src));
+  note('waking looks for that sign-in first', !/restoreCloud\(\)/.test(src));
+  note('and boot no longer goes straight to Google',
+       /state\.account && !cloud\.user\) reconnectCloud\(\)/.test(src));
+  note('Google is only troubled when there is no session',
+       !/if \(ready && cloud\.user\) \{ await syncNow\(\); return true; \}/.test(src));
+  // and the other way about: signing out has to end the Firebase session too
+  note('signing out ends the Firebase session as well',
+       !/cloud\.mod\.signOut\(cloud\.auth\)/.test(src));
+  note('a session that runs out says so rather than going quiet',
+       !/The sign-in has run out/.test(src));
+}
 function note(n,bad,detail){ bad?(errors.push(n),console.log('  FAIL '+n+(detail?'  -> '+detail:''))):console.log('  ok   '+n); }
 
 console.log('\n== result ==');

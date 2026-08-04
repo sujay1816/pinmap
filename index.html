@@ -1017,7 +1017,7 @@ function labelFor(segs, i) {
   for (let j = 0; j <= i; j++) if (isOne(segs[j])) n++;
   return `${base} ${n}`;
 }
-const BUILD = "2026-08-03.31";      // bump when the file changes, so a stale page shows
+const BUILD = "2026-08-03.32";      // bump when the file changes, so a stale page shows
 /* ============================================================
    Whose software wrote the file
 
@@ -2602,6 +2602,28 @@ async function cloudStart() {
     cloud.auth = authMod.getAuth(cloud.app);
     cloud.db = dbMod.getFirestore(cloud.app);
     cloud.mod = { ...authMod, ...dbMod };
+
+    // Firebase keeps the sign-in in this browser, but nothing here ever asked
+    // it for one. Without this listener the app woke with no user every single
+    // time and sent the weaver back to Google, on a machine that had never
+    // signed out. Wait for the first answer before saying the account is off.
+    try {
+      if (authMod.browserLocalPersistence)
+        await authMod.setPersistence(cloud.auth, authMod.browserLocalPersistence);
+    } catch { /* the default is already local; carry on */ }
+
+    const settled = await withTimeout(new Promise(resolve => {
+      let first = true;
+      authMod.onAuthStateChanged(cloud.auth, user => {
+        cloud.user = user || null;
+        if (first) { first = false; resolve(true); return; }
+        // Later changes: a session that expired, or a sign-out somewhere else.
+        if (!cloud.user) setSyncState("off", "The sign-in has run out. Press Reconnect to sign in again.");
+        else scheduleSync();
+      });
+    }), CLOUD_WAIT_MS);
+    if (settled === TIMED_OUT) cloud.lastError = new Error("Firebase did not answer in time.");
+
     cloud.ready = true;
     return true;
   } catch (err) {
@@ -2960,6 +2982,16 @@ async function signInLocal() {
 
 // A returning visitor is already past the sign-in screen, so ask Google
 // quietly for a fresh token to talk to the shared store with.
+// On waking, look for the sign-in this browser already holds before troubling
+// Google for a new one. Only when there is genuinely none does the prompt go up.
+async function restoreCloud() {
+  setSyncState("busy");
+  const ready = await cloudStart();
+  if (ready && cloud.user) { await syncNow(); return true; }
+  await reconnectCloud();
+  return false;
+}
+
 async function reconnectCloud() {
   const clientId = CLIENT_ID_IS_BUILT_IN ? DEFAULT_CLIENT_ID : ((el("#clientId").value || "").trim());
   if (!clientId || (typeof navigator !== "undefined" && navigator.onLine === false)) {
@@ -2996,6 +3028,10 @@ async function signOut() {
   await doAutoSave();
   try { if (window.google && window.google.accounts && window.google.accounts.id)
           window.google.accounts.id.disableAutoSelect(); } catch {}
+  // The session Firebase keeps has to go as well, or the restore on the next
+  // boot signs straight back into the account just left.
+  try { if (cloud.auth && cloud.mod.signOut) await withTimeout(cloud.mod.signOut(cloud.auth), CLOUD_WAIT_MS); } catch {}
+  cloud.user = null;
   state.account = null; state.accountKey = "local";
   if (hasStore) { try { await store.delete(ACCOUNT_KEY); } catch {} }
   memAccount = null;
@@ -5383,7 +5419,7 @@ async function enterApp() {
   setSaveState(hasStore ? "saved" : "off");
   setSyncState(CLOUD_CONFIGURED && state.account ? "off" : "ok");
   renderWhoami();
-  if (CLOUD_CONFIGURED && state.account && !cloud.user) reconnectCloud();
+  if (CLOUD_CONFIGURED && state.account && !cloud.user) restoreCloud();
   renderOpts();
   renderStoreNote();
   // If anything would not read, that is the first thing to say, and it is said

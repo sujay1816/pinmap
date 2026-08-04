@@ -1,7 +1,7 @@
 Only in ../verify: CHANGES.diff
 diff -ru -x node_modules -x .git -x core.mjs ../verify/README.md ../pinmap/README.md
 --- ../verify/README.md	2026-08-03 11:34:51.543374973 +0000
-+++ ../pinmap/README.md	2026-08-03 18:28:38.507386290 +0000
++++ ../pinmap/README.md	2026-08-04 05:33:51.782881439 +0000
 @@ -171,6 +171,37 @@
  border file, the body and locking pins stay down in it, and the achu is half up
  and half down, flipping every line.
@@ -84,10 +84,33 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/README.md ../pinmap/READM
  
  Changing the loom to a company with no clutch takes the group away again, but
  only while it is still thirty-two pins. A count you set yourself is yours, so
+@@ -272,6 +323,22 @@
+ | What | Kept in |
+ | --- | --- |
+ | Looms, weaves, box settings, session | Browser storage, scoped per account |
++
++### Staying signed in
++
++Firebase keeps the sign-in in the browser it was made in. The app used not to
++ask it for one: nothing listened for the kept session, so every reload woke with
++no user and went straight back to Google for a fresh token — on a machine that
++had never signed out. If the One Tap prompt was blocked, or had been dismissed
++often enough for Google to back off, the account simply stayed disconnected.
++
++Now the session is asked for first. Waking calls `restoreCloud`, which starts
++Firebase, waits for `onAuthStateChanged` to say whether a sign-in was kept, and
++syncs straight away if one was. Google is only troubled when there is genuinely
++no session. A session that later runs out says so on the dot rather than going
++quiet, and signing out ends the Firebase session as well — otherwise the next
++restore would walk straight back into the account just left.
++
+ | The same, shared between machines | Firestore, if configured — see above |
+ | Backups | `pinmap_backup_YYYY-MM-DD.json`, written by *Back up everything* |
+ | Uploaded design files | Not kept — reselect them after a reload |
 Only in ../verify: WHAT-CHANGED.txt
 diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/index.html
 --- ../verify/index.html	2026-08-03 11:34:51.543374973 +0000
-+++ ../pinmap/index.html	2026-08-03 18:25:28.449702780 +0000
++++ ../pinmap/index.html	2026-08-04 05:30:21.557749396 +0000
 @@ -47,6 +47,7 @@
      --c-body:   #52737E;
      --c-empty:  #B9C3C8;
@@ -244,7 +267,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    return `${base} ${n}`;
  }
 -const BUILD = "2026-08-03.22";      // bump when the file changes, so a stale page shows
-+const BUILD = "2026-08-03.31";      // bump when the file changes, so a stale page shows
++const BUILD = "2026-08-03.32";      // bump when the file changes, so a stale page shows
  /* ============================================================
     Whose software wrote the file
  
@@ -417,7 +440,64 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    return at >= list.length - 1 ? "right" : "left";
  }
  
-@@ -3111,8 +3208,12 @@
+@@ -2505,6 +2602,28 @@
+     cloud.auth = authMod.getAuth(cloud.app);
+     cloud.db = dbMod.getFirestore(cloud.app);
+     cloud.mod = { ...authMod, ...dbMod };
++
++    // Firebase keeps the sign-in in this browser, but nothing here ever asked
++    // it for one. Without this listener the app woke with no user every single
++    // time and sent the weaver back to Google, on a machine that had never
++    // signed out. Wait for the first answer before saying the account is off.
++    try {
++      if (authMod.browserLocalPersistence)
++        await authMod.setPersistence(cloud.auth, authMod.browserLocalPersistence);
++    } catch { /* the default is already local; carry on */ }
++
++    const settled = await withTimeout(new Promise(resolve => {
++      let first = true;
++      authMod.onAuthStateChanged(cloud.auth, user => {
++        cloud.user = user || null;
++        if (first) { first = false; resolve(true); return; }
++        // Later changes: a session that expired, or a sign-out somewhere else.
++        if (!cloud.user) setSyncState("off", "The sign-in has run out. Press Reconnect to sign in again.");
++        else scheduleSync();
++      });
++    }), CLOUD_WAIT_MS);
++    if (settled === TIMED_OUT) cloud.lastError = new Error("Firebase did not answer in time.");
++
+     cloud.ready = true;
+     return true;
+   } catch (err) {
+@@ -2863,6 +2982,16 @@
+ 
+ // A returning visitor is already past the sign-in screen, so ask Google
+ // quietly for a fresh token to talk to the shared store with.
++// On waking, look for the sign-in this browser already holds before troubling
++// Google for a new one. Only when there is genuinely none does the prompt go up.
++async function restoreCloud() {
++  setSyncState("busy");
++  const ready = await cloudStart();
++  if (ready && cloud.user) { await syncNow(); return true; }
++  await reconnectCloud();
++  return false;
++}
++
+ async function reconnectCloud() {
+   const clientId = CLIENT_ID_IS_BUILT_IN ? DEFAULT_CLIENT_ID : ((el("#clientId").value || "").trim());
+   if (!clientId || (typeof navigator !== "undefined" && navigator.onLine === false)) {
+@@ -2899,6 +3028,10 @@
+   await doAutoSave();
+   try { if (window.google && window.google.accounts && window.google.accounts.id)
+           window.google.accounts.id.disableAutoSelect(); } catch {}
++  // The session Firebase keeps has to go as well, or the restore on the next
++  // boot signs straight back into the account just left.
++  try { if (cloud.auth && cloud.mod.signOut) await withTimeout(cloud.mod.signOut(cloud.auth), CLOUD_WAIT_MS); } catch {}
++  cloud.user = null;
+   state.account = null; state.accountKey = "local";
+   if (hasStore) { try { await store.delete(ACCOUNT_KEY); } catch {} }
+   memAccount = null;
+@@ -3111,8 +3244,12 @@
  const clutchAt = (segs) => (segs || []).findIndex(s => s && s.role === "clutch");
  const clutchSeg = () => state.segments[clutchAt(state.segments)] || null;
  
@@ -432,7 +512,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
  function applyClutchGroup(side) {
    const segs = state.segments;
    const at = clutchAt(segs);
-@@ -3122,7 +3223,7 @@
+@@ -3122,7 +3259,7 @@
    seg.role = "clutch";
    seg.kind = "empty";
    if (!seg.count || seg.count < 1) seg.count = CLUTCH_PINS;
@@ -441,7 +521,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    return seg;
  }
  
-@@ -3291,7 +3392,7 @@
+@@ -3291,7 +3428,7 @@
    const pitch = zoom === "fit"
      ? Math.max(4, Math.min(24, (Math.max(260, host.clientWidth - 28) - 40) / cols))
      : parseFloat(zoom);
@@ -450,7 +530,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    const W = GUT + cols * pitch + 8, H = RULE + PINS_PER_COLUMN * pitch + FOOT;
  
    host.innerHTML = `<div class="board-wrap"><canvas id="${canvasId}"${interactive ? ' tabindex="0"' : ""}
-@@ -3449,14 +3550,6 @@
+@@ -3449,14 +3586,6 @@
      }
    });
  
@@ -465,7 +545,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    /* ---- a scale along the foot, so the shape of the loom is readable ---- */
    const fy = RULE + PINS_PER_COLUMN * pitch + 7;
    let at = 0;
-@@ -3474,6 +3567,41 @@
+@@ -3474,6 +3603,41 @@
      ctx.strokeRect(GUT + (at / T) * (cols * pitch) + 0.5, fy + 0.5, Math.max(1, ((T - at) / T) * (cols * pitch) - 1), 5);
    }
  
@@ -507,7 +587,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    return { pitch, T, owners, W, H, spans, bounds, cols, GUT, RULE, cx, cy, xy };
  }
  
-@@ -3562,7 +3690,7 @@
+@@ -3562,7 +3726,7 @@
    const sg = state.segments[idx];
    if (!sg) return n;
    if (sg.kind === "achu") return Math.max(2, Math.round(n / 2) * 2);
@@ -516,7 +596,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
      const wv = weaveById(sg.weave);
      if (wv && wv.pins) return Math.max(wv.pins, Math.round(n / wv.pins) * wv.pins);
    }
-@@ -3689,7 +3817,7 @@
+@@ -3689,7 +3853,7 @@
    const sg = state.segments[idx];
    if (!sg) return 1;
    if (sg.kind === "achu") return 2;
@@ -525,7 +605,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    return 1;
  }
  
-@@ -3779,7 +3907,13 @@
+@@ -3779,7 +3943,13 @@
      host.innerHTML = `<div class="wl-empty">Nothing uploaded. The built-in satins and twills are always in the Locking row.</div>`;
      return;
    }
@@ -540,7 +620,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
      <div class="wl-item">
        <canvas data-weave="${esc(w.id)}" role="img" aria-label="The ${esc(w.name)} weave, ${w.pins} pins"></canvas>
        <div style="flex:1;min-width:0">
-@@ -3857,18 +3991,24 @@
+@@ -3857,18 +4027,24 @@
    state.segments.forEach((sg, i) => {
      const from = at, to = at + (sg.count || 0) - 1; at += (sg.count || 0);
      let content;
@@ -574,7 +654,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
          </select></div>`;
      } else {
        const note = (sg.role === "clutch" && companyHasClutch(state.company))
-@@ -3956,7 +4096,7 @@
+@@ -3956,7 +4132,7 @@
    const seg = clutchSeg();
    if (note) note.textContent =
        side === "none" ? "No pins set aside. Say which end only if this loom really gives pins up to a clutch."
@@ -583,7 +663,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
      : "The group has been removed. Pick an end again to put it back.";
  }
  
-@@ -3966,7 +4106,7 @@
+@@ -3966,7 +4142,7 @@
    let clutchMsg = "";
    if (companyHasClutch(state.company) && normalClutch(state.clutch) !== "none") {
      const seg = applyClutchGroup(state.clutch);
@@ -592,7 +672,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    } else if (removeClutchGroup(true)) {
      clutchMsg = " Clutch group removed.";
    }
-@@ -3986,7 +4126,7 @@
+@@ -3986,7 +4162,7 @@
      msg = removeClutchGroup(false) ? "Clutch group removed." : "No clutch pins.";
    } else {
      const seg = applyClutchGroup(state.clutch);
@@ -601,7 +681,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    }
    state.built = null; state.builtBorder = null;
    renderLoomScreen(); scheduleSave();
-@@ -4047,7 +4187,12 @@
+@@ -4047,7 +4223,12 @@
      s.kind = t.value;
      if (s.kind !== "empty") delete s.role;      // it has been made into something else
      if (s.kind === "locking" && !s.weave) { s.weave = "satin:8:3"; s.count = 8; }
@@ -615,7 +695,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
      forgetSideHighlights();
      if (s.kind === "achu" && !s.count) s.count = 4;
      if (s.kind === "box" && !s.count) s.count = 4;
-@@ -4156,7 +4301,7 @@
+@@ -4156,7 +4337,7 @@
      const idx = state.segments.indexOf(sg);
      let jump = 1;
      if (sg.kind === "achu") jump = 2;
@@ -624,7 +704,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
        const wv = weaveById(sg.weave);
        jump = wv && wv.pins ? wv.pins : 1;
      }
-@@ -4523,7 +4668,7 @@
+@@ -4523,7 +4704,7 @@
    const wefts = filledWefts();
    let html = "";
  
@@ -633,7 +713,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    if (lockSeg) {
      const lw = weaveById(lockSeg.weave);
      const n = lockSeg.count;
-@@ -4922,8 +5067,9 @@
+@@ -4922,8 +5103,9 @@
        const p = (y * w + x) * 4;
        const up = b.bits[sy * b.width + sx];
        let r, g, bl;
@@ -645,7 +725,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
        img.data[p] = r; img.data[p+1] = g; img.data[p+2] = bl; img.data[p+3] = 255;
      }
    }
-@@ -4931,9 +5077,24 @@
+@@ -4931,9 +5113,24 @@
    if (borderZoom === "fit") { cv.style.width = "100%"; cv.style.height = "auto"; }
    el("#borderDims").textContent =
      `${b.width} pins × ${b.height} lines${step > 1 ? ` · preview reduced ${step}×` : ""}`;
@@ -670,7 +750,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
  el("#downloadBorder").onclick = () => {
    const b = state.builtBorder; if (!b) return;
    const bytes = encodeBMP1(b.bits, b.width, b.height, state.opts.blackIsIndexZero);
-@@ -5002,7 +5163,8 @@
+@@ -5002,7 +5199,8 @@
    5: [122,78,134],  // locking
    6: [82,115,126],  // body
    7: [185,195,200], // empty
@@ -680,7 +760,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
  };
  let pvStep = 1;
  
-@@ -5013,7 +5175,7 @@
+@@ -5013,7 +5211,7 @@
    const H = ref ? ref.height : 0;
    const perShuttle = (state.opts.stackMode === "interleave" && normalBoxMotion(state.boxMotion) === "4x1") ? 2 : 1;
    const lines = !H ? 0 : (state.opts.stackMode === "overlay" ? H : H * Math.max(1, K));
@@ -689,6 +769,15 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    const lw = lockSeg ? weaveById(lockSeg.weave) : null;
    const cell = (k, v, sm, full) =>
      `<div class="cell"><div class="k">${k}</div>
+@@ -5221,7 +5419,7 @@
+   setSaveState(hasStore ? "saved" : "off");
+   setSyncState(CLOUD_CONFIGURED && state.account ? "off" : "ok");
+   renderWhoami();
+-  if (CLOUD_CONFIGURED && state.account && !cloud.user) reconnectCloud();
++  if (CLOUD_CONFIGURED && state.account && !cloud.user) restoreCloud();
+   renderOpts();
+   renderStoreNote();
+   // If anything would not read, that is the first thing to say, and it is said
 diff -ru -x node_modules -x .git -x core.mjs ../verify/tests/extract.mjs ../pinmap/tests/extract.mjs
 --- ../verify/tests/extract.mjs	2026-08-03 11:34:51.545163124 +0000
 +++ ../pinmap/tests/extract.mjs	2026-08-03 16:20:35.085928019 +0000
@@ -880,6 +969,36 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/tests/ui/17-clutch.mjs ..
  
  console.log('\n== result ==');
  if (errors.length){ console.log('  '+errors.length+' problem(s)'); errors.forEach(e=>console.log('   - '+e)); }
+diff -ru -x node_modules -x .git -x core.mjs ../verify/tests/ui/19-locks.mjs ../pinmap/tests/ui/19-locks.mjs
+--- ../verify/tests/ui/19-locks.mjs	2026-08-03 11:34:51.581800249 +0000
++++ ../pinmap/tests/ui/19-locks.mjs	2026-08-04 05:29:36.661510701 +0000
+@@ -90,6 +90,26 @@
+   note('loading Google is given a time limit', !/Google did not answer/.test(src));
+   note('two cloud starts cannot race', !/if \(cloud\.starting\) return cloud\.starting/.test(src));
+ }
++
++console.log('\n== the account is not asked to sign in again every time ==');
++{
++  const src = fs.readFileSync(process.argv[2],'utf8');
++  // Firebase keeps the sign-in in the browser. Nothing used to ask it for one,
++  // so every reload woke with no user and sent the weaver back to Google.
++  note('the kept sign-in is listened for', !/onAuthStateChanged\(cloud\.auth/.test(src));
++  note('and it is kept in this browser on purpose',
++       !/setPersistence\(cloud\.auth, authMod\.browserLocalPersistence\)/.test(src));
++  note('waking looks for that sign-in first', !/restoreCloud\(\)/.test(src));
++  note('and boot no longer goes straight to Google',
++       /state\.account && !cloud\.user\) reconnectCloud\(\)/.test(src));
++  note('Google is only troubled when there is no session',
++       !/if \(ready && cloud\.user\) \{ await syncNow\(\); return true; \}/.test(src));
++  // and the other way about: signing out has to end the Firebase session too
++  note('signing out ends the Firebase session as well',
++       !/cloud\.mod\.signOut\(cloud\.auth\)/.test(src));
++  note('a session that runs out says so rather than going quiet',
++       !/The sign-in has run out/.test(src));
++}
+ function note(n,bad,detail){ bad?(errors.push(n),console.log('  FAIL '+n+(detail?'  -> '+detail:''))):console.log('  ok   '+n); }
+ 
+ console.log('\n== result ==');
 diff -ru -x node_modules -x .git -x core.mjs ../verify/tests/ui/20-inputs.mjs ../pinmap/tests/ui/20-inputs.mjs
 --- ../verify/tests/ui/20-inputs.mjs	2026-08-03 11:34:51.581800249 +0000
 +++ ../pinmap/tests/ui/20-inputs.mjs	2026-08-03 18:22:07.589345162 +0000

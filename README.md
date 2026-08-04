@@ -323,6 +323,22 @@ session and the app says it was not saved, rather than claiming it was.
 | What | Kept in |
 | --- | --- |
 | Looms, weaves, box settings, session | Browser storage, scoped per account |
+
+### Staying signed in
+
+Firebase keeps the sign-in in the browser it was made in. The app used not to
+ask it for one: nothing listened for the kept session, so every reload woke with
+no user and went straight back to Google for a fresh token — on a machine that
+had never signed out. If the One Tap prompt was blocked, or had been dismissed
+often enough for Google to back off, the account simply stayed disconnected.
+
+Now the session is asked for first. Waking calls `restoreCloud`, which starts
+Firebase, waits for `onAuthStateChanged` to say whether a sign-in was kept, and
+syncs straight away if one was. Google is only troubled when there is genuinely
+no session. A session that later runs out says so on the dot rather than going
+quiet, and signing out ends the Firebase session as well — otherwise the next
+restore would walk straight back into the account just left.
+
 | The same, shared between machines | Firestore, if configured — see above |
 | Backups | `pinmap_backup_YYYY-MM-DD.json`, written by *Back up everything* |
 | Uploaded design files | Not kept — reselect them after a reload |
