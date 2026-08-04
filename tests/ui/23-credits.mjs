@@ -40,6 +40,9 @@ function bmp(w,h){
   return b;
 }
 
+const { makeCode } = await import('../core.mjs');
+const CODE_50 = makeCode(50);
+
 let w=boot(); await wait(400);
 let $=s=>w.document.querySelector(s), $$=s=>[...w.document.querySelectorAll(s)];
 const click=e=>e&&e.dispatchEvent(new w.MouseEvent('click',{bubbles:true}));
@@ -122,7 +125,8 @@ console.log('\n== a download with nothing to pay with ==');
 
 console.log('\n== recharging ==');
 {
-  answer='PIN-50-6DV7';                      // 50 credits
+  // a code minted for this test; every code issued is a different string
+  answer=CODE_50;
   click($('#recharge')); await wait(500);
   ok('a good code adds its credits', left() === 50, $('#credits').textContent.trim());
   ok('and the download comes back', $('#downloadBorder').disabled === false);
@@ -132,7 +136,7 @@ console.log('\n== recharging ==');
   ok('the same code cannot be used twice', left() === 50 && alerts.some(a=>/already been used/i.test(a)),
      alerts.join(' | '));
 
-  alerts=[]; answer='PIN-50-XXXX';
+  alerts=[]; answer=CODE_50.slice(0,-1)+'Z';
   click($('#recharge')); await wait(400);
   ok('a mistyped code is refused', left() === 50 && alerts.some(a=>/did not check out/i.test(a)),
      alerts.join(' | '));

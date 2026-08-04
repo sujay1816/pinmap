@@ -63,7 +63,7 @@ export {
   COMPANIES, COMPANY_BASE, companyById, companyHasClutch, CLUTCH_PINS,
   SRITEX_BOX,
   freshCredits, creditsLeft, mergeCredits,
-  makeCode, readCode, codeCheck, CREDITS_ON_JOINING, COST_PER_FILE,
+  makeCode, makeCodes, readCode, codeCheck, newSerial, CREDITS_ON_JOINING, COST_PER_FILE,
   freshWefts, filledWefts, borderSlots, bodySlots,
   WEFT_SLOTS, WEFT_NAMES, totalPins, allocated
 };

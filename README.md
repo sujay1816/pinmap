@@ -346,16 +346,22 @@ arranged so that day replaces one function, `spendCredits`.
 #### Recharge codes
 
 A stand-in until payment is wired up, so accounts can be topped up by hand.
-A code is `PIN-<credits>-<check>`, where the check is made from the amount and
-`CODE_SALT`. It stops a mistyped code from working; it does not stop anyone
-reading this page from writing their own, and is not meant to. Codes already
-used are kept against the account so one cannot be redeemed twice, on this
-machine or another.
+A code is `PIN-<credits>-<serial>-<check>`, where the check is made from the
+amount, the serial and `CODE_SALT`.
 
-Generate them with `makeCode(n)` from `tests/core.mjs`:
+Print a batch with:
 
-    10 -> PIN-10-BNM8      50 -> PIN-50-6DV7
-    25 -> PIN-25-1V6F     100 -> PIN-100-D5RL
+    node tools-codes.mjs 50 20      # twenty codes worth 50 credits each
+
+Every code is a different string. That matters: one universal code for "50
+credits" is a password for free credits, not a recharge. Give each customer
+their own and keep a note of who got which, so a leak can be traced.
+
+**What it can and cannot do.** The check stops a mistyped code and stops the
+same code being redeemed twice on one account. It cannot stop a code being used
+on a *second* account, and it cannot stop anyone reading this page from writing
+their own — there is no server to record what has been spent. Real one-time
+codes need the redemption recorded somewhere the weaver does not control.
 
 Change `CODE_SALT` and every code issued before it stops working.
 

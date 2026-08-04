@@ -1,24 +1,18 @@
-Pinmap — build 2026-08-03.33
+Pinmap — build 2026-08-03.34
 ============================
 
-Everything since build .22 on GitHub. New this round: credits.
+This zip holds only what changed since the credits zip. If you have not
+applied that one yet, use CHANGES.diff, which covers everything since
+build .22 on GitHub.
 
-  index.html                  credits: balance in the header, one per
-                              finished file, recharge codes; plus the
-                              sign-in fix, Weave library group, board
-                              ends, Sri Tex box, clutch, fonts/buttons
-  README.md                   credits and recharge codes written up
-  tests/extract.mjs           exports the credit helpers
-  tests/ui/23-credits.mjs     NEW: the whole credit path
-  (other suites as before)
+  index.html              every recharge code is now a different string
+  README.md               what the codes can and cannot do
+  tools-codes.mjs         NEW: print a batch of codes
+  tests/extract.mjs       exports makeCodes
+  tests/ui/23-credits.mjs mints its own code rather than using a fixed one
 
   npm test  ->  473 checks, all passing
 
-CODES YOU CAN HAND OUT
-----------------------
-   10 -> PIN-10-BNM8      50 -> PIN-50-6DV7
-   25 -> PIN-25-1V6F     100 -> PIN-100-D5RL
-  250 -> PIN-250-1XMS
-
-Generate more with makeCode(n). Change CODE_SALT in index.html and every
-code issued before it stops working.
+PRINT CODES
+-----------
+  node tools-codes.mjs 50 20     twenty codes worth 50 credits each

@@ -1025,7 +1025,7 @@ function labelFor(segs, i) {
   for (let j = 0; j <= i; j++) if (isOne(segs[j])) n++;
   return `${base} ${n}`;
 }
-const BUILD = "2026-08-03.33";      // bump when the file changes, so a stale page shows
+const BUILD = "2026-08-03.34";      // bump when the file changes, so a stale page shows
 /* ============================================================
    Whose software wrote the file
 
@@ -2621,25 +2621,39 @@ function mergeCredits(a, b) {
    back from the payment provider instead of out of the code.
    ------------------------------------------------------------ */
 
-const CODE_SALT = "pinmap-2026";     // change this and old codes stop working
+const CODE_SALT = "pinmap-2026";     // change this and every code issued stops working
 
-function codeCheck(amount) {
+// The check is made from the amount AND the serial, so each code issued is a
+// different string. One code for "50 credits" that everybody shares would be a
+// password for free credits, not a recharge.
+function codeCheck(amount, serial) {
   let h = 0;
-  const t = `${amount}:${CODE_SALT}`;
+  const t = `${amount}:${serial}:${CODE_SALT}`;
   for (let i = 0; i < t.length; i++) h = (h * 33 + t.charCodeAt(i)) >>> 0;
   return h.toString(36).toUpperCase().slice(0, 4).padStart(4, "0");
 }
 
-const makeCode = (amount) => `PIN-${amount}-${codeCheck(amount)}`;
+const newSerial = () =>
+  Math.floor(Math.random() * 36 ** 5).toString(36).toUpperCase().padStart(5, "0");
 
-// { ok, amount } or { ok:false, why }
+// makeCode(50) gives a fresh one; makeCode(50, "AB12X") repeats a known one.
+const makeCode = (amount, serial) => {
+  const sn = (serial || newSerial()).toUpperCase();
+  return `PIN-${amount}-${sn}-${codeCheck(amount, sn)}`;
+};
+
+// a batch to print and hand out, each one different
+const makeCodes = (amount, howMany) =>
+  Array.from({ length: howMany }, () => makeCode(amount));
+
+// { ok, amount, code } or { ok:false, why }
 function readCode(raw) {
   const t = String(raw || "").trim().toUpperCase().replace(/\s+/g, "");
-  const m = /^PIN-(\d{1,5})-([A-Z0-9]{4})$/.exec(t);
-  if (!m) return { ok: false, why: "That is not a recharge code. They look like PIN-50-AB12." };
+  const m = /^PIN-(\d{1,5})-([A-Z0-9]{4,6})-([A-Z0-9]{4})$/.exec(t);
+  if (!m) return { ok: false, why: "That is not a recharge code. They look like PIN-50-AB12X-9QR3." };
   const amount = parseInt(m[1], 10);
   if (!amount) return { ok: false, why: "That code is for no credits at all." };
-  if (m[2] !== codeCheck(amount)) return { ok: false, why: "That code did not check out. Try typing it again." };
+  if (m[3] !== codeCheck(amount, m[2])) return { ok: false, why: "That code did not check out. Try typing it again." };
   if (usedCodes().includes(t)) return { ok: false, why: "That code has already been used on this account." };
   return { ok: true, amount, code: t };
 }

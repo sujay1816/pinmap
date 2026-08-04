@@ -1,7 +1,7 @@
 Only in ../verify: CHANGES.diff
 diff -ru -x node_modules -x .git -x core.mjs ../verify/README.md ../pinmap/README.md
 --- ../verify/README.md	2026-08-03 11:34:51.543374973 +0000
-+++ ../pinmap/README.md	2026-08-04 05:56:30.533955796 +0000
++++ ../pinmap/README.md	2026-08-04 06:03:37.878465595 +0000
 @@ -171,6 +171,37 @@
  border file, the body and locking pins stay down in it, and the achu is half up
  and half down, flipping every line.
@@ -84,7 +84,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/README.md ../pinmap/READM
  
  Changing the loom to a company with no clutch takes the group away again, but
  only while it is still thirty-two pins. A count you set yourself is yours, so
-@@ -272,6 +323,57 @@
+@@ -272,6 +323,63 @@
  | What | Kept in |
  | --- | --- |
  | Looms, weaves, box settings, session | Browser storage, scoped per account |
@@ -111,16 +111,22 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/README.md ../pinmap/READM
 +#### Recharge codes
 +
 +A stand-in until payment is wired up, so accounts can be topped up by hand.
-+A code is `PIN-<credits>-<check>`, where the check is made from the amount and
-+`CODE_SALT`. It stops a mistyped code from working; it does not stop anyone
-+reading this page from writing their own, and is not meant to. Codes already
-+used are kept against the account so one cannot be redeemed twice, on this
-+machine or another.
++A code is `PIN-<credits>-<serial>-<check>`, where the check is made from the
++amount, the serial and `CODE_SALT`.
 +
-+Generate them with `makeCode(n)` from `tests/core.mjs`:
++Print a batch with:
 +
-+    10 -> PIN-10-BNM8      50 -> PIN-50-6DV7
-+    25 -> PIN-25-1V6F     100 -> PIN-100-D5RL
++    node tools-codes.mjs 50 20      # twenty codes worth 50 credits each
++
++Every code is a different string. That matters: one universal code for "50
++credits" is a password for free credits, not a recharge. Give each customer
++their own and keep a note of who got which, so a leak can be traced.
++
++**What it can and cannot do.** The check stops a mistyped code and stops the
++same code being redeemed twice on one account. It cannot stop a code being used
++on a *second* account, and it cannot stop anyone reading this page from writing
++their own — there is no server to record what has been spent. Real one-time
++codes need the redemption recorded somewhere the weaver does not control.
 +
 +Change `CODE_SALT` and every code issued before it stops working.
 +
@@ -145,7 +151,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/README.md ../pinmap/READM
 Only in ../verify: WHAT-CHANGED.txt
 diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/index.html
 --- ../verify/index.html	2026-08-03 11:34:51.543374973 +0000
-+++ ../pinmap/index.html	2026-08-04 05:53:01.189199157 +0000
++++ ../pinmap/index.html	2026-08-04 06:00:13.654167952 +0000
 @@ -47,6 +47,7 @@
      --c-body:   #52737E;
      --c-empty:  #B9C3C8;
@@ -324,7 +330,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    return `${base} ${n}`;
  }
 -const BUILD = "2026-08-03.22";      // bump when the file changes, so a stale page shows
-+const BUILD = "2026-08-03.33";      // bump when the file changes, so a stale page shows
++const BUILD = "2026-08-03.34";      // bump when the file changes, so a stale page shows
  /* ============================================================
     Whose software wrote the file
  
@@ -573,7 +579,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    return at >= list.length - 1 ? "right" : "left";
  }
  
-@@ -2405,6 +2565,87 @@
+@@ -2405,6 +2565,101 @@
    return ((b && b.savedAt) || "") > ((a && a.savedAt) || "") ? b : a;
  }
  
@@ -633,25 +639,39 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
 +   back from the payment provider instead of out of the code.
 +   ------------------------------------------------------------ */
 +
-+const CODE_SALT = "pinmap-2026";     // change this and old codes stop working
++const CODE_SALT = "pinmap-2026";     // change this and every code issued stops working
 +
-+function codeCheck(amount) {
++// The check is made from the amount AND the serial, so each code issued is a
++// different string. One code for "50 credits" that everybody shares would be a
++// password for free credits, not a recharge.
++function codeCheck(amount, serial) {
 +  let h = 0;
-+  const t = `${amount}:${CODE_SALT}`;
++  const t = `${amount}:${serial}:${CODE_SALT}`;
 +  for (let i = 0; i < t.length; i++) h = (h * 33 + t.charCodeAt(i)) >>> 0;
 +  return h.toString(36).toUpperCase().slice(0, 4).padStart(4, "0");
 +}
 +
-+const makeCode = (amount) => `PIN-${amount}-${codeCheck(amount)}`;
++const newSerial = () =>
++  Math.floor(Math.random() * 36 ** 5).toString(36).toUpperCase().padStart(5, "0");
 +
-+// { ok, amount } or { ok:false, why }
++// makeCode(50) gives a fresh one; makeCode(50, "AB12X") repeats a known one.
++const makeCode = (amount, serial) => {
++  const sn = (serial || newSerial()).toUpperCase();
++  return `PIN-${amount}-${sn}-${codeCheck(amount, sn)}`;
++};
++
++// a batch to print and hand out, each one different
++const makeCodes = (amount, howMany) =>
++  Array.from({ length: howMany }, () => makeCode(amount));
++
++// { ok, amount, code } or { ok:false, why }
 +function readCode(raw) {
 +  const t = String(raw || "").trim().toUpperCase().replace(/\s+/g, "");
-+  const m = /^PIN-(\d{1,5})-([A-Z0-9]{4})$/.exec(t);
-+  if (!m) return { ok: false, why: "That is not a recharge code. They look like PIN-50-AB12." };
++  const m = /^PIN-(\d{1,5})-([A-Z0-9]{4,6})-([A-Z0-9]{4})$/.exec(t);
++  if (!m) return { ok: false, why: "That is not a recharge code. They look like PIN-50-AB12X-9QR3." };
 +  const amount = parseInt(m[1], 10);
 +  if (!amount) return { ok: false, why: "That code is for no credits at all." };
-+  if (m[2] !== codeCheck(amount)) return { ok: false, why: "That code did not check out. Try typing it again." };
++  if (m[3] !== codeCheck(amount, m[2])) return { ok: false, why: "That code did not check out. Try typing it again." };
 +  if (usedCodes().includes(t)) return { ok: false, why: "That code has already been used on this account." };
 +  return { ok: true, amount, code: t };
 +}
@@ -661,7 +681,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
  function mergeLibraries(local, remote) {
    local = local || {}; remote = remote || {};
    const lTime = local.updatedAt || "";
-@@ -2442,6 +2683,8 @@
+@@ -2442,6 +2697,8 @@
    return {
      looms: [...looms.values()],
      weaves: [...weaves.values()],
@@ -670,7 +690,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
      boxPrefs,
      graveyard: [...graves].map(([name, deletedAt]) => ({ name, deletedAt })),
      updatedAt: rTime > lTime ? rTime : lTime
-@@ -2505,6 +2748,28 @@
+@@ -2505,6 +2762,28 @@
      cloud.auth = authMod.getAuth(cloud.app);
      cloud.db = dbMod.getFirestore(cloud.app);
      cloud.mod = { ...authMod, ...dbMod };
@@ -699,7 +719,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
      cloud.ready = true;
      return true;
    } catch (err) {
-@@ -2554,10 +2819,40 @@
+@@ -2554,10 +2833,40 @@
  
  /* ---------- what this device holds, in one shape ---------- */
  
@@ -740,7 +760,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
      boxPrefs: state.boxPrefs,
      graveyard: state.graveyard || [],
      updatedAt: state.libraryUpdatedAt || ""
-@@ -2568,9 +2863,11 @@
+@@ -2568,9 +2877,11 @@
    state.looms = lib.looms || [];
    state.weaves = (lib.weaves || []).map(reviveWeave);
    state.boxPrefs = lib.boxPrefs || {};
@@ -752,7 +772,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
  }
  
  let syncTimer = null;
-@@ -2863,6 +3160,16 @@
+@@ -2863,6 +3174,16 @@
  
  // A returning visitor is already past the sign-in screen, so ask Google
  // quietly for a fresh token to talk to the shared store with.
@@ -769,7 +789,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
  async function reconnectCloud() {
    const clientId = CLIENT_ID_IS_BUILT_IN ? DEFAULT_CLIENT_ID : ((el("#clientId").value || "").trim());
    if (!clientId || (typeof navigator !== "undefined" && navigator.onLine === false)) {
-@@ -2899,6 +3206,10 @@
+@@ -2899,6 +3220,10 @@
    await doAutoSave();
    try { if (window.google && window.google.accounts && window.google.accounts.id)
            window.google.accounts.id.disableAutoSelect(); } catch {}
@@ -780,7 +800,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    state.account = null; state.accountKey = "local";
    if (hasStore) { try { await store.delete(ACCOUNT_KEY); } catch {} }
    memAccount = null;
-@@ -3111,8 +3422,12 @@
+@@ -3111,8 +3436,12 @@
  const clutchAt = (segs) => (segs || []).findIndex(s => s && s.role === "clutch");
  const clutchSeg = () => state.segments[clutchAt(state.segments)] || null;
  
@@ -795,7 +815,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
  function applyClutchGroup(side) {
    const segs = state.segments;
    const at = clutchAt(segs);
-@@ -3122,7 +3437,7 @@
+@@ -3122,7 +3451,7 @@
    seg.role = "clutch";
    seg.kind = "empty";
    if (!seg.count || seg.count < 1) seg.count = CLUTCH_PINS;
@@ -804,7 +824,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    return seg;
  }
  
-@@ -3291,7 +3606,7 @@
+@@ -3291,7 +3620,7 @@
    const pitch = zoom === "fit"
      ? Math.max(4, Math.min(24, (Math.max(260, host.clientWidth - 28) - 40) / cols))
      : parseFloat(zoom);
@@ -813,7 +833,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    const W = GUT + cols * pitch + 8, H = RULE + PINS_PER_COLUMN * pitch + FOOT;
  
    host.innerHTML = `<div class="board-wrap"><canvas id="${canvasId}"${interactive ? ' tabindex="0"' : ""}
-@@ -3449,14 +3764,6 @@
+@@ -3449,14 +3778,6 @@
      }
    });
  
@@ -828,7 +848,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    /* ---- a scale along the foot, so the shape of the loom is readable ---- */
    const fy = RULE + PINS_PER_COLUMN * pitch + 7;
    let at = 0;
-@@ -3474,6 +3781,41 @@
+@@ -3474,6 +3795,41 @@
      ctx.strokeRect(GUT + (at / T) * (cols * pitch) + 0.5, fy + 0.5, Math.max(1, ((T - at) / T) * (cols * pitch) - 1), 5);
    }
  
@@ -870,7 +890,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    return { pitch, T, owners, W, H, spans, bounds, cols, GUT, RULE, cx, cy, xy };
  }
  
-@@ -3562,7 +3904,7 @@
+@@ -3562,7 +3918,7 @@
    const sg = state.segments[idx];
    if (!sg) return n;
    if (sg.kind === "achu") return Math.max(2, Math.round(n / 2) * 2);
@@ -879,7 +899,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
      const wv = weaveById(sg.weave);
      if (wv && wv.pins) return Math.max(wv.pins, Math.round(n / wv.pins) * wv.pins);
    }
-@@ -3689,7 +4031,7 @@
+@@ -3689,7 +4045,7 @@
    const sg = state.segments[idx];
    if (!sg) return 1;
    if (sg.kind === "achu") return 2;
@@ -888,7 +908,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    return 1;
  }
  
-@@ -3779,7 +4121,13 @@
+@@ -3779,7 +4135,13 @@
      host.innerHTML = `<div class="wl-empty">Nothing uploaded. The built-in satins and twills are always in the Locking row.</div>`;
      return;
    }
@@ -903,7 +923,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
      <div class="wl-item">
        <canvas data-weave="${esc(w.id)}" role="img" aria-label="The ${esc(w.name)} weave, ${w.pins} pins"></canvas>
        <div style="flex:1;min-width:0">
-@@ -3857,18 +4205,24 @@
+@@ -3857,18 +4219,24 @@
    state.segments.forEach((sg, i) => {
      const from = at, to = at + (sg.count || 0) - 1; at += (sg.count || 0);
      let content;
@@ -937,7 +957,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
          </select></div>`;
      } else {
        const note = (sg.role === "clutch" && companyHasClutch(state.company))
-@@ -3956,7 +4310,7 @@
+@@ -3956,7 +4324,7 @@
    const seg = clutchSeg();
    if (note) note.textContent =
        side === "none" ? "No pins set aside. Say which end only if this loom really gives pins up to a clutch."
@@ -946,7 +966,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
      : "The group has been removed. Pick an end again to put it back.";
  }
  
-@@ -3966,7 +4320,7 @@
+@@ -3966,7 +4334,7 @@
    let clutchMsg = "";
    if (companyHasClutch(state.company) && normalClutch(state.clutch) !== "none") {
      const seg = applyClutchGroup(state.clutch);
@@ -955,7 +975,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    } else if (removeClutchGroup(true)) {
      clutchMsg = " Clutch group removed.";
    }
-@@ -3986,7 +4340,7 @@
+@@ -3986,7 +4354,7 @@
      msg = removeClutchGroup(false) ? "Clutch group removed." : "No clutch pins.";
    } else {
      const seg = applyClutchGroup(state.clutch);
@@ -964,7 +984,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    }
    state.built = null; state.builtBorder = null;
    renderLoomScreen(); scheduleSave();
-@@ -4047,7 +4401,12 @@
+@@ -4047,7 +4415,12 @@
      s.kind = t.value;
      if (s.kind !== "empty") delete s.role;      // it has been made into something else
      if (s.kind === "locking" && !s.weave) { s.weave = "satin:8:3"; s.count = 8; }
@@ -978,7 +998,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
      forgetSideHighlights();
      if (s.kind === "achu" && !s.count) s.count = 4;
      if (s.kind === "box" && !s.count) s.count = 4;
-@@ -4156,7 +4515,7 @@
+@@ -4156,7 +4529,7 @@
      const idx = state.segments.indexOf(sg);
      let jump = 1;
      if (sg.kind === "achu") jump = 2;
@@ -987,7 +1007,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
        const wv = weaveById(sg.weave);
        jump = wv && wv.pins ? wv.pins : 1;
      }
-@@ -4523,7 +4882,7 @@
+@@ -4523,7 +4896,7 @@
    const wefts = filledWefts();
    let html = "";
  
@@ -996,7 +1016,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    if (lockSeg) {
      const lw = weaveById(lockSeg.weave);
      const n = lockSeg.count;
-@@ -4873,6 +5232,7 @@
+@@ -4873,6 +5246,7 @@
      state.builtBorder = compose("border");
      renderBorderPreview();
      el("#downloadBorder").disabled = false;
@@ -1004,7 +1024,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
      notify("Border file built.");
    } catch (err) { alert("Could not combine the border: " + err.message); }
  };
-@@ -4922,8 +5282,9 @@
+@@ -4922,8 +5296,9 @@
        const p = (y * w + x) * 4;
        const up = b.bits[sy * b.width + sx];
        let r, g, bl;
@@ -1016,7 +1036,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
        img.data[p] = r; img.data[p+1] = g; img.data[p+2] = bl; img.data[p+3] = 255;
      }
    }
-@@ -4931,11 +5292,28 @@
+@@ -4931,11 +5306,28 @@
    if (borderZoom === "fit") { cv.style.width = "100%"; cv.style.height = "auto"; }
    el("#borderDims").textContent =
      `${b.width} pins × ${b.height} lines${step > 1 ? ` · preview reduced ${step}×` : ""}`;
@@ -1045,7 +1065,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    const bytes = encodeBMP1(b.bits, b.width, b.height, state.opts.blackIsIndexZero);
    const safe = (state.loomName || "loom").replace(/[^A-Za-z0-9_-]+/g, "_").replace(/^_|_$/g, "");
    const url = URL.createObjectURL(new Blob([bytes], { type: "image/bmp" }));
-@@ -5002,7 +5380,8 @@
+@@ -5002,7 +5394,8 @@
    5: [122,78,134],  // locking
    6: [82,115,126],  // body
    7: [185,195,200], // empty
@@ -1055,7 +1075,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
  };
  let pvStep = 1;
  
-@@ -5013,7 +5392,7 @@
+@@ -5013,7 +5406,7 @@
    const H = ref ? ref.height : 0;
    const perShuttle = (state.opts.stackMode === "interleave" && normalBoxMotion(state.boxMotion) === "4x1") ? 2 : 1;
    const lines = !H ? 0 : (state.opts.stackMode === "overlay" ? H : H * Math.max(1, K));
@@ -1064,7 +1084,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    const lw = lockSeg ? weaveById(lockSeg.weave) : null;
    const cell = (k, v, sm, full) =>
      `<div class="cell"><div class="k">${k}</div>
-@@ -5079,6 +5458,7 @@
+@@ -5079,6 +5472,7 @@
    el("#pvLegend").innerHTML = !state.pvColour ? "" :
      [...used].map(k => `<span><i style="background:${KINDS[k].colour};border-radius:0"></i>${KINDS[k].label}</span>`).join("");
    el("#download").disabled = false;
@@ -1072,7 +1092,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
  }
  
  function applyZoom() {
-@@ -5115,6 +5495,7 @@
+@@ -5115,6 +5509,7 @@
  
  el("#download").onclick = () => {
    const b = state.built; if (!b) return;
@@ -1080,7 +1100,7 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    const bytes = encodeBMP1(b.bits, b.width, b.height, state.opts.blackIsIndexZero);
    const safe = (state.loomName || "loom").replace(/[^A-Za-z0-9_-]+/g, "_").replace(/^_|_$/g, "");
    const url = URL.createObjectURL(new Blob([bytes], { type: "image/bmp" }));
-@@ -5216,12 +5597,14 @@
+@@ -5216,12 +5611,14 @@
    await loadLooms();
    await loadWeaves();
    await loadBoxPrefs();
@@ -1098,14 +1118,14 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/index.html ../pinmap/inde
    // If anything would not read, that is the first thing to say, and it is said
 diff -ru -x node_modules -x .git -x core.mjs ../verify/tests/extract.mjs ../pinmap/tests/extract.mjs
 --- ../verify/tests/extract.mjs	2026-08-03 11:34:51.545163124 +0000
-+++ ../pinmap/tests/extract.mjs	2026-08-04 05:51:03.817168892 +0000
++++ ../pinmap/tests/extract.mjs	2026-08-04 05:59:44.598186728 +0000
 @@ -61,6 +61,9 @@
    mirrorBits, flipBits, invertBits, state, KINDS, DEFAULT_LAYOUT, labelFor,
    mergeLibraries, newerOf, normalBoxMotion, normalClutch, clutchSideOf,
    COMPANIES, COMPANY_BASE, companyById, companyHasClutch, CLUTCH_PINS,
 +  SRITEX_BOX,
 +  freshCredits, creditsLeft, mergeCredits,
-+  makeCode, readCode, codeCheck, CREDITS_ON_JOINING, COST_PER_FILE,
++  makeCode, makeCodes, readCode, codeCheck, newSerial, CREDITS_ON_JOINING, COST_PER_FILE,
    freshWefts, filledWefts, borderSlots, bodySlots,
    WEFT_SLOTS, WEFT_NAMES, totalPins, allocated
  };
@@ -1402,3 +1422,4 @@ diff -ru -x node_modules -x .git -x core.mjs ../verify/tests/ui/20-inputs.mjs ..
 Only in ../pinmap/tests/ui: 21-border-mono.mjs
 Only in ../pinmap/tests/ui: 22-board-ends.mjs
 Only in ../pinmap/tests/ui: 23-credits.mjs
+Only in ../pinmap: tools-codes.mjs
