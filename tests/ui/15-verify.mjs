@@ -31,7 +31,14 @@ click($('#signInLocal')); await wait(300);
 click($('#newLoom'));
 setVal($('#loomName'),'Verify'); setVal($('#totalDeclared'),'720');
 // one group, the whole loom is body, so it matches the sample exactly
-click($('#clearSegs')); await wait(200);
+// The app asks in its own dialog now rather than the browser's, so a question
+// has to be answered rather than stubbed away.
+const answerYes = async () => {
+  await wait(60);
+  const y = $('#askYes');
+  if (y && !$('#ask').hidden) { click(y); await wait(150); }
+};
+click($('#clearSegs')); await answerYes(); await wait(200);
 click($('[data-add=body]')); await wait(200);
 setVal($$('#segTable input[type=number]')[0], '720');
 await wait(600);

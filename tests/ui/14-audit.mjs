@@ -245,6 +245,27 @@ console.log('\n== type ==');
   note('long titles are allowed to balance', !/text-wrap:\s*balance/.test(css));
 }
 
+console.log('\n== the app speaks for itself ==');
+{
+  const src = fs.readFileSync(process.argv[2],'utf8');
+  const js = src.split('<script>')[1] || '';
+  // A browser's own alert prints "x.test says" above the words and cannot be
+  // styled at all — it is the first thing that makes a page look like a page
+  // rather than a tool.
+  const natives = (js.match(/(?:^|[^.\w])(alert|confirm|prompt)\s*\(/g) || [])
+    .filter(m => !/accounts/.test(m));
+  note('nothing falls back to the browser\'s own dialogs', natives.length > 0, natives.join(' '));
+  note('there is a dialog of our own', !w.document.getElementById('ask'));
+  note('it is announced as one', (w.document.getElementById('ask')||{}).getAttribute
+       ? w.document.getElementById('ask').getAttribute('role') !== 'dialog' : true);
+  note('escape and enter are handled', !/e\.key === "Escape"/.test(js) || !/e\.key === "Enter"/.test(js));
+  note('focus goes back where it was', !/was && was\.focus/.test(js));
+
+  const css = w.document.querySelector('style').textContent;
+  note('the file buttons are ours, not the operating system\'s',
+       !/::file-selector-button/.test(css));
+}
+
 console.log('\n== result ==');
 if (found.length){ console.log('  '+found.length+' problem(s)'); found.forEach(e=>console.log('   - '+e)); }
 else console.log('  no errors');

@@ -404,6 +404,31 @@
   .whoami { display: flex; align-items: center; gap: 8px; }
   .whoami .nm2 { font-family: var(--mono); font-size: var(--t-small); color: var(--ink-2); }
   .whoami img { width: 20px; height: 20px; border-radius: 50%; }
+  /* A question the app asks, in its own voice rather than the browser's. The
+     grey box a browser puts up prints "x.test says" above the words and cannot
+     be styled at all, which is the first thing that makes a page look like a
+     page rather than a tool. */
+  .ask { position: fixed; inset: 0; background: rgba(20,24,28,0.55); z-index: 60;
+    display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .ask[hidden] { display: none; }
+  .ask-box { background: var(--paper); border: 1px solid var(--ink); max-width: 460px; width: 100%;
+    padding: 22px 24px 18px; box-shadow: 0 18px 48px rgba(20,24,28,0.28); }
+  .ask-box h4 { font-family: var(--mono); font-size: var(--t-small); letter-spacing: var(--track);
+    text-transform: uppercase; color: var(--ink-3); margin: 0 0 10px; }
+  .ask-box p { margin: 0 0 16px; line-height: 1.55; white-space: pre-line; }
+  .ask-box input[type=text] { width: 100%; margin-bottom: 16px; }
+  .ask-acts { display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* The browser's own "Choose File" button is grey OS chrome and looks
+     different in every browser. Make it one of ours. */
+  input[type=file]::file-selector-button {
+    font-family: var(--mono); font-size: var(--t-small); letter-spacing: var(--track);
+    text-transform: uppercase; background: #fff; color: var(--ink); border: 1px solid var(--rule);
+    padding: 6px 11px; margin-right: 10px; cursor: pointer; border-radius: 0;
+    transition: background-color .12s ease, color .12s ease, border-color .12s ease;
+  }
+  input[type=file]:hover::file-selector-button { background: var(--ink-2); border-color: var(--ink-2); color: #fff; }
+
   .viewer {
     position: fixed; inset: 0; background: rgba(20,24,28,0.82); z-index: 60;
     display: flex; flex-direction: column; padding: 18px;
@@ -648,6 +673,18 @@
 </style>
 
 <div id="toast" role="status" aria-live="polite"></div>
+
+<div class="ask" id="ask" hidden role="dialog" aria-modal="true" aria-labelledby="askTitle">
+  <div class="ask-box">
+    <h4 id="askTitle"></h4>
+    <p id="askBody"></p>
+    <input type="text" id="askInput" hidden autocomplete="off" spellcheck="false">
+    <div class="ask-acts">
+      <button class="ghost" id="askNo" hidden>Cancel</button>
+      <button class="solid" id="askYes">OK</button>
+    </div>
+  </div>
+</div>
 
 <div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="Design viewer">
   <div class="viewer-bar">
@@ -1025,7 +1062,7 @@ function labelFor(segs, i) {
   for (let j = 0; j <= i; j++) if (isOne(segs[j])) n++;
   return `${base} ${n}`;
 }
-const BUILD = "2026-08-03.34";      // bump when the file changes, so a stale page shows
+const BUILD = "2026-08-03.35";      // bump when the file changes, so a stale page shows
 /* ============================================================
    Whose software wrote the file
 
@@ -2389,12 +2426,67 @@ function renderCredits() {
 // Spend, or say plainly why not. Every download goes through here.
 function payFor(what) {
   if (spendCredits(COST_PER_FILE)) return true;
-  alert(`No credits left, so the ${what} file cannot be downloaded.\n\n` +
-        `Building, previewing and checking against a file you trust all stay free — ` +
-        `only a finished file costs a credit. Press Recharge to add more.`);
+  say(`No credits left, so the ${what} file cannot be downloaded.\n\n` +
+      `Building, previewing and checking against a file you trust all stay free — ` +
+      `only a finished file costs a credit. Press Recharge to add more.`, "Out of credits");
   renderCredits();
   return false;
 }
+
+/* ------------------------------------------------------------
+   Asking, in the app's own voice
+
+   say()     one button, for something that has gone wrong
+   ask()     two buttons, for something that cannot be undone
+   askText() a box to type in
+
+   All three hand back a promise, so a caller reads much as it did with
+   the browser's own alert and confirm — with an await in front.
+   ------------------------------------------------------------ */
+
+let askClose = null;
+
+function openAsk({ title, body, input, yes, no, danger }) {
+  const host = el("#ask");
+  if (!host) return Promise.resolve(no ? false : undefined);   // nothing to show it in
+  const was = document.activeElement;
+  el("#askTitle").textContent = title;
+  el("#askBody").textContent = body;
+  const box = el("#askInput");
+  box.hidden = !input; box.value = "";
+  if (input) box.placeholder = input.placeholder || "";
+  const yesBtn = el("#askYes"), noBtn = el("#askNo");
+  yesBtn.textContent = yes || "OK";
+  yesBtn.className = danger ? "solid danger" : "solid";
+  noBtn.hidden = !no; noBtn.textContent = no || "Cancel";
+  host.hidden = false;
+  (input ? box : yesBtn).focus();
+
+  return new Promise(resolve => {
+    const done = (v) => {
+      host.hidden = true;
+      document.removeEventListener("keydown", onKey, true);
+      askClose = null;
+      if (was && was.focus) was.focus();     // back where the person was
+      resolve(v);
+    };
+    askClose = () => done(input ? null : (no ? false : undefined));
+    yesBtn.onclick = () => done(input ? (box.value || "") : (no ? true : undefined));
+    noBtn.onclick = askClose;
+    host.onclick = (e) => { if (e.target === host) askClose(); };
+    function onKey(e) {
+      if (e.key === "Escape") { e.preventDefault(); askClose(); }
+      else if (e.key === "Enter" && (input || !no)) { e.preventDefault(); yesBtn.click(); }
+    }
+    document.addEventListener("keydown", onKey, true);
+  });
+}
+
+const say     = (body, title) => openAsk({ title: title || "Just so you know", body });
+const ask     = (body, o = {}) => openAsk({ title: o.title || "Are you sure?", body,
+                                            yes: o.yes || "Yes", no: o.no || "Cancel", danger: o.danger });
+const askText = (body, o = {}) => openAsk({ title: o.title || "", body, yes: o.yes || "Done",
+                                            no: "Cancel", input: { placeholder: o.placeholder || "" } });
 
 function setSaveState(kind) {
   const host = el("#saveState");
@@ -2843,11 +2935,11 @@ function spendCredits(n) {
   return true;
 }
 
-function askForCode() {
-  const raw = prompt("Enter your recharge code:");
+async function askForCode() {
+  const raw = await askText("Enter your recharge code.", { title: "Recharge", placeholder: "PIN-50-AB12X-9QR3" });
   if (raw === null) return;
   const r = readCode(raw);
-  if (!r.ok) { alert(r.why); return; }
+  if (!r.ok) { await say(r.why, "That code did not work"); return; }
   const c = state.credits || (state.credits = freshCredits());
   c.codes = usedCodes().concat(r.code);      // so the same code cannot be used twice
   grantCredits(r.amount);
@@ -3215,7 +3307,7 @@ async function signOut() {
     : hasStore
       ? "Sign out? Your looms stay on this device and come back when you sign in again."
       : "Sign out? Nothing is being kept on this device, so back up first if you want to keep this work.";
-  if (!confirm(warning)) return;
+  if (!await ask(warning, { title: "Sign out", yes: "Sign out", danger: true })) return;
   clearTimeout(saveTimer);
   await doAutoSave();
   try { if (window.google && window.google.accounts && window.google.accounts.id)
@@ -3411,7 +3503,7 @@ el("#loomList").addEventListener("click", async e => {
   }
   if (act === "exp") { downloadJSON(doc); return; }
   if (act === "del") {
-    if (!confirm(`Delete the pin map for "${doc.name}"?`)) return;
+    if (!await ask(`Delete the pin map for "${doc.name}"?`, { title: "Delete loom", yes: "Delete", danger: true })) return;
     state.looms = state.looms.filter(l => l.name !== name);
     state.graveyard = (state.graveyard || []).filter(g => g.name !== name)
       .concat([{ name, deletedAt: new Date().toISOString() }]);
@@ -3507,7 +3599,7 @@ el("#importFile").onchange = async e => {
   const f = e.target.files && e.target.files[0]; if (!f) return;
   let doc;
   try { doc = JSON.parse(await f.text()); }
-  catch (err) { alert("Could not read that file: " + err.message); e.target.value = ""; return; }
+  catch (err) { say("Could not read that file: " + err.message, "That file would not open"); e.target.value = ""; return; }
 
   if (doc && doc.format === "pinmap.backup") {
     const incoming = Array.isArray(doc.looms) ? doc.looms : [];
@@ -3534,7 +3626,7 @@ el("#importFile").onchange = async e => {
     adoptDoc(doc);
     state.editing = state.looms.some(l => l.name === state.loomName) ? state.loomName : null;
     go("loom");
-  } catch (err) { alert("Could not read that file: " + err.message); }
+  } catch (err) { say("Could not read that file: " + err.message, "That file would not open"); }
   e.target.value = "";
 };
 
@@ -4156,24 +4248,25 @@ function renderWeaveLibrary() {
 el("#addWeave").onclick = async () => {
   const name = el("#weaveName").value.trim();
   const f = el("#weaveFile").files && el("#weaveFile").files[0];
-  if (!name) { alert("Give the weave a name first."); return; }
-  if (!f) { alert("Choose a BMP of the weave."); return; }
+  if (!name) { await say("Give the weave a name first.", "Nearly"); return; }
+  if (!f) { await say("Choose a BMP of the weave.", "Nearly"); return; }
   let img;
   try {
     const buf = await f.arrayBuffer();
     try { img = decodeBMP(buf); }
     catch (err) { err.fromDecoder = true; throw err; }
   } catch (err) {
-    alert(err.fromDecoder ? "Could not read that file: " + err.message
-                          : "Could not read that file — check it is an uncompressed BMP.");
+    await say(err.fromDecoder ? "Could not read that file: " + err.message
+                             : "Could not read that file — check it is an uncompressed BMP.",
+              "That file would not open");
     return;
   }
   if (img.width > 128 || img.height > 128) {
-    alert(`That is ${img.width} × ${img.height}. A weave should be one repeat, no more than 128 either way.`);
+    await say(`That is ${img.width} × ${img.height}. A weave should be one repeat, no more than 128 either way.`, "Too big for a weave");
     return;
   }
   if (state.weaves.some(w => w.name.toLowerCase() === name.toLowerCase()) &&
-      !confirm(`A weave called "${name}" already exists. Add another with the same name?`)) return;
+      !await ask(`A weave called "${name}" already exists. Add another with the same name?`, { title: "Same name" })) return;
 
   state.weaves.push({ id: "w" + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36),
                       name, pins: img.width, kind: "custom",
@@ -4188,7 +4281,7 @@ el("#addWeave").onclick = async () => {
 el("#weaveList").addEventListener("click", async e => {
   const t = e.target.closest("button[data-act=delweave]"); if (!t) return;
   const w = weaveById(t.dataset.id); if (!w) return;
-  if (!confirm(`Remove "${w.name}" from the library?`)) return;
+  if (!await ask(`Remove "${w.name}" from the library?`, { title: "Remove weave", yes: "Remove", danger: true })) return;
   state.weaves = state.weaves.filter(x => x.id !== t.dataset.id);
   state.segments.forEach(sg => { if (sg.weave === t.dataset.id) delete sg.weave; });
   await persistWeaves();
@@ -4281,8 +4374,8 @@ function addSeg(kind) {
 }
 els("[data-add]").forEach(b => b.onclick = () => addSeg(b.dataset.add));
 
-el("#starter").onclick = () => {
-  if (state.segments.length && !confirm("Replace the current groups with the standard order?")) return;
+el("#starter").onclick = async () => {
+  if (state.segments.length && !await ask("Replace the current groups with the standard order?", { title: "Start again", yes: "Replace" })) return;
   applyDefaultLayout();
   if (companyHasClutch(state.company) && state.clutch !== "none") applyClutchGroup(state.clutch);
   state.built = null; state.builtBorder = null; renderLoomScreen();
@@ -4290,15 +4383,15 @@ el("#starter").onclick = () => {
 
 el("#restToBody").onclick = () => {
   const left = (state.totalDeclared || 0) - allocated();
-  if (left <= 0) { alert("There are no spare pins to allocate."); return; }
+  if (left <= 0) { say("There are no spare pins to allocate.", "Nothing spare"); return; }
   const existing = state.segments.find(s => s.kind === "body");
   if (existing) existing.count = (existing.count || 0) + left;
   else state.segments.push({ id: nextId(), kind: "body", count: left });
   state.built = null; state.builtBorder = null; renderLoomScreen();
 };
 
-el("#clearSegs").onclick = () => {
-  if (state.segments.length && !confirm("Remove every group?")) return;
+el("#clearSegs").onclick = async () => {
+  if (state.segments.length && !await ask("Remove every group?", { title: "Clear the pin map", yes: "Remove all", danger: true })) return;
   state.segments = [];
   state.borderFiles = {};
   state.wefts = freshWefts();
@@ -4571,7 +4664,7 @@ el("#saveLoom").onclick = async () => {
   clearTimeout(saveTimer);
   const name = state.loomName.trim();
   const clash = state.looms.find(l => l.name === name && l.name !== state.editing);
-  if (clash && !confirm(`A loom called "${name}" already exists. Replace its pin map?`)) return;
+  if (clash && !await ask(`A loom called "${name}" already exists. Replace its pin map?`, { title: "Same name", yes: "Replace" })) return;
 
   const doc = pinMapDoc();
   const prevIdx = state.looms.findIndex(l => l.name === (state.editing || name));
@@ -4919,9 +5012,9 @@ function renderChips() {
   host.innerHTML = html;
 }
 
-el("#clearFiles").onclick = () => {
+el("#clearFiles").onclick = async () => {
   if (!state.wefts.some(w => w.file)) return;
-  if (!confirm("Remove the body weft files?")) return;
+  if (!await ask("Remove the body weft files?", { title: "Clear files", yes: "Remove", danger: true })) return;
   state.wefts = freshWefts();
   state.built = null;
   renderBodyScreen();
@@ -5248,7 +5341,7 @@ el("#combineBorder").onclick = () => {
     el("#downloadBorder").disabled = false;
     renderCredits();   // and only while there is a credit to spend
     notify("Border file built.");
-  } catch (err) { alert("Could not combine the border: " + err.message); }
+  } catch (err) { say("Could not combine the border: " + err.message, "Could not combine"); }
 };
 
 el("#combineBody").onclick = () => {
@@ -5257,12 +5350,12 @@ el("#combineBody").onclick = () => {
     state.built = compose("body");
     renderPreview();
     notify("Body file built.");
-  } catch (err) { alert("Could not combine the body: " + err.message); }
+  } catch (err) { say("Could not combine the body: " + err.message, "Could not combine"); }
 };
 
-el("#clearBorder").onclick = () => {
+el("#clearBorder").onclick = async () => {
   if (!Object.keys(state.borderFiles).length) return;
-  if (!confirm("Remove the border files?")) return;
+  if (!await ask("Remove the border files?", { title: "Clear files", yes: "Remove", danger: true })) return;
   state.borderFiles = {};
   state.builtBorder = null;
   renderBorderScreen();

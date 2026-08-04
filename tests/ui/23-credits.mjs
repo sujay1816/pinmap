@@ -11,6 +11,10 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const store=new Map();
 let answer=null, alerts=[];
 
+// The app asks in its own dialog now. Type the code in and press the button,
+// the way a weaver would, and read the reply off the screen.
+
+
 function boot(){
   const dom=new JSDOM(fs.readFileSync(process.argv[2],'utf8'),{runScripts:'dangerously',pretendToBeVisual:true,url:'https://x.test/',
     beforeParse(w){
@@ -19,8 +23,7 @@ function boot(){
         createImageData:(a,b)=>({width:a,height:b,data:new Uint8ClampedArray(a*b*4)}),
         measureText:t=>({width:String(t).length*6}),closePath(){},save(){},restore(){},clearRect(){},rect(){},translate(){},rotate(){}});
       w.URL.createObjectURL=()=>'blob:'; w.URL.revokeObjectURL=()=>{}; w.scrollTo=()=>{};
-      w.confirm=()=>true; w.alert=m=>alerts.push(String(m));
-      w.prompt=()=>answer;
+      w.confirm=()=>true;
       w.HTMLElement.prototype.scrollIntoView=function(){};
       w.HTMLAnchorElement.prototype.click=function(){};
       w.storage={ async get(k){ if(!store.has(k)) throw new Error('nothing there'); return {key:k,value:store.get(k)}; },
@@ -125,30 +128,41 @@ console.log('\n== a download with nothing to pay with ==');
 
 console.log('\n== recharging ==');
 {
-  // a code minted for this test; every code issued is a different string
-  answer=CODE_50;
-  click($('#recharge')); await wait(500);
+  const dlg = () => $('#ask');
+  const open = () => dlg() && !dlg().hidden;
+  const type = async (code) => {
+    click($('#recharge')); await wait(300);
+    if (!open()) return false;
+    const box = $('#askInput');
+    box.value = code; box.dispatchEvent(new w.Event('input',{bubbles:true}));
+    click($('#askYes')); await wait(400);
+    return true;
+  };
+  const reply = () => open() ? $('#askBody').textContent : '';
+  const dismiss = async () => { if (open()) { click($('#askYes')); await wait(200); } };
+
+  ok('the recharge box is the app\'s own, not the browser\'s',
+     await type(CODE_50) || !!dlg(), 'no dialog appeared');
+  await dismiss();
   ok('a good code adds its credits', left() === 50, $('#credits').textContent.trim());
   ok('and the download comes back', $('#downloadBorder').disabled === false);
 
-  alerts=[];
-  click($('#recharge')); await wait(400);
-  ok('the same code cannot be used twice', left() === 50 && alerts.some(a=>/already been used/i.test(a)),
-     alerts.join(' | '));
+  await type(CODE_50);
+  ok('the same code cannot be used twice', /already been used/i.test(reply()), reply().slice(0,60));
+  await dismiss();
+  ok('and nothing was added', left() === 50, String(left()));
 
-  alerts=[]; answer=CODE_50.slice(0,-1)+'Z';
-  click($('#recharge')); await wait(400);
-  ok('a mistyped code is refused', left() === 50 && alerts.some(a=>/did not check out/i.test(a)),
-     alerts.join(' | '));
+  await type(CODE_50.slice(0,-1) + 'Z');
+  ok('a mistyped code is refused', /did not check out/i.test(reply()), reply().slice(0,60));
+  await dismiss();
 
-  alerts=[]; answer='hello';
-  click($('#recharge')); await wait(400);
-  ok('and so is nonsense', left() === 50 && alerts.some(a=>/not a recharge code/i.test(a)),
-     alerts.join(' | '));
+  await type('hello');
+  ok('and so is nonsense', /not a recharge code/i.test(reply()), reply().slice(0,60));
+  await dismiss();
 
-  answer=null;                                // pressing cancel
-  click($('#recharge')); await wait(400);
-  ok('cancelling changes nothing', left() === 50, String(left()));
+  click($('#recharge')); await wait(300);
+  click($('#askNo')); await wait(300);
+  ok('cancelling changes nothing', left() === 50 && !open(), String(left()));
 }
 
 console.log('\n== result ==');

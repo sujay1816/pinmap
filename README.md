@@ -324,6 +324,25 @@ session and the app says it was not saved, rather than claiming it was.
 | --- | --- |
 | Looms, weaves, box settings, session | Browser storage, scoped per account |
 
+### Asking, in the app's own voice
+
+There are no `alert`, `confirm` or `prompt` calls left. A browser's own dialog
+prints *"x.test says"* above the words, cannot be styled at all, and is the
+first thing that makes a page look like a page rather than a tool.
+
+Three helpers replace them, all returning a promise so a caller reads much as
+it did with an `await` in front:
+
+- `say(body, title)` — one button, for something that has gone wrong
+- `ask(body, opts)` — two buttons, for something that cannot be undone
+- `askText(body, opts)` — a box to type in
+
+Escape and the backdrop cancel, Enter confirms, and focus goes back to whatever
+opened the dialog. `tests/ui/14-audit.mjs` fails if a native dialog creeps back.
+
+The browser's **Choose File** button is styled the same way, since it is grey
+operating-system chrome otherwise and looks different in every browser.
+
 ### Credits
 
 A credit is spent when a **finished file is downloaded** — the border file and

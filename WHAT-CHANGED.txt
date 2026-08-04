@@ -1,18 +1,16 @@
-Pinmap — build 2026-08-03.34
+Pinmap — build 2026-08-03.35
 ============================
 
-This zip holds only what changed since the credits zip. If you have not
-applied that one yet, use CHANGES.diff, which covers everything since
-build .22 on GitHub.
+This zip holds only what changed since the recharge zip. If you have not
+applied the earlier ones, CHANGES.diff covers everything since build .22
+on GitHub.
 
-  index.html              every recharge code is now a different string
-  README.md               what the codes can and cannot do
-  tools-codes.mjs         NEW: print a batch of codes
-  tests/extract.mjs       exports makeCodes
-  tests/ui/23-credits.mjs mints its own code rather than using a fixed one
+  index.html              21 browser dialogs replaced with the app's own;
+                          Choose File buttons styled
+  README.md               written up
+  tests/extract.mjs       unchanged export list
+  tests/ui/14-audit.mjs   fails if a native dialog creeps back
+  tests/ui/15-verify.mjs  answers the dialog rather than stubbing confirm
+  tests/ui/23-credits.mjs drives the recharge dialog as a weaver would
 
   npm test  ->  473 checks, all passing
-
-PRINT CODES
------------
-  node tools-codes.mjs 50 20     twenty codes worth 50 credits each
