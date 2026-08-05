@@ -12,9 +12,15 @@ const head=t=>console.log('\n== '+t+' ==');
 const str=a=>Array.from(a).join('');
 
 head('the built-in weaves');
-ok('fifteen weaves — fourteen satins and twills, plus the plain', BUILTIN_WEAVES.length === 15, String(BUILTIN_WEAVES.length));
+// fourteen satins and twills, the plain, and the two held
+ok('seventeen weaves', BUILTIN_WEAVES.length === 17, String(BUILTIN_WEAVES.length));
 ok('the plain one is first, and is two pins', BUILTIN_WEAVES[0].pins === 2 && BUILTIN_WEAVES[0].repeat === 2);
-ok('each states its pin count', BUILTIN_WEAVES.every(w => w.pins === w.repeat && w.pins >= 2));
+// A held pin is not woven, so it has no repeat to state — it is all of the
+// group or none of it, whatever the group's width.
+ok('every woven one states its pin count',
+   BUILTIN_WEAVES.filter(w => w.kind !== 'held').every(w => w.pins === w.repeat && w.pins >= 2));
+ok('and the held ones fit any width',
+   BUILTIN_WEAVES.filter(w => w.kind === 'held').every(w => w.pins === 1 && !w.repeat));
 ok('ids are unique and stable',
    new Set(BUILTIN_WEAVES.map(w=>w.id)).size === BUILTIN_WEAVES.length &&
    BUILTIN_WEAVES.some(w => w.id === 'satin:8:3'));

@@ -1,16 +1,13 @@
-Pinmap — build 2026-08-03.35
+Pinmap — build 2026-08-03.36
 ============================
 
-This zip holds only what changed since the recharge zip. If you have not
-applied the earlier ones, CHANGES.diff covers everything since build .22
-on GitHub.
+Only what changed since the polish zip. CHANGES.diff covers everything
+since build .22 on GitHub.
 
-  index.html              21 browser dialogs replaced with the app's own;
-                          Choose File buttons styled
-  README.md               written up
-  tests/extract.mjs       unchanged export list
-  tests/ui/14-audit.mjs   fails if a native dialog creeps back
-  tests/ui/15-verify.mjs  answers the dialog rather than stubbing confirm
-  tests/ui/23-credits.mjs drives the recharge dialog as a weaver would
+  index.html              two built-in held weaves; a held pin now
+                          answers to the pick rather than the design line
+  tests/logic/11.mjs      seventeen built-in weaves now
+  tests/logic/25.mjs      held pins, checked against their file
+  tests/ui/23-credits.mjs a flaky assertion made deterministic
 
-  npm test  ->  473 checks, all passing
+  npm test  ->  478 checks, all passing

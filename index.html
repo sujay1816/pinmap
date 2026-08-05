@@ -1062,7 +1062,7 @@ function labelFor(segs, i) {
   for (let j = 0; j <= i; j++) if (isOne(segs[j])) n++;
   return `${base} ${n}`;
 }
-const BUILD = "2026-08-03.35";      // bump when the file changes, so a stale page shows
+const BUILD = "2026-08-03.36";      // bump when the file changes, so a stale page shows
 /* ============================================================
    Whose software wrote the file
 
@@ -1492,7 +1492,16 @@ const PLAIN_WEAVE = {
   pins: 2, kind: "satin", repeat: 2, step: 1, builtin: true
 };
 
-const BUILTIN_WEAVES = [PLAIN_WEAVE].concat(SATIN_LIBRARY.map(w => ({
+// Some pins are not woven at all — they are held. Sri Tex's own body file keeps
+// one pair up on every line and lifts another on alternate lines. Neither can be
+// said with a satin, and leaving them to an uploaded BMP means every loom needs
+// the same two-pin file before it can be registered. So they are built in.
+const HELD_WEAVES = [
+  { id: "held:up",  name: "Held up, every line",   pins: 1, kind: "held", every: true,  builtin: true },
+  { id: "held:alt", name: "Held up, every other line", pins: 1, kind: "held", every: false, builtin: true }
+];
+
+const BUILTIN_WEAVES = [PLAIN_WEAVE].concat(HELD_WEAVES).concat(SATIN_LIBRARY.map(w => ({
   id: `satin:${w.repeat}:${w.step}`,
   name: satinName(w.repeat, w.step, w.satin),
   pins: w.repeat, kind: "satin", repeat: w.repeat, step: w.step, builtin: true
@@ -1508,6 +1517,15 @@ function weaveById(id) { return allWeaves().find(w => w.id === id) || null; }
 // into a sixteen-end satin.
 function weaveRow(weave, count, rowIndex, warpFaced) {
   if (!weave) return satinRow(count, rowIndex, warpFaced);
+
+  // Held, not woven: every pin of the group, either on every line or on
+  // alternate ones. Whatever the group's width, it is all of it or none.
+  if (weave.kind === "held") {
+    const on = weave.every || (rowIndex % 2 === 0);
+    const row = new Uint8Array(count);
+    if (on !== !!warpFaced) row.fill(1);
+    return row;
+  }
 
   if (weave.kind === "satin") {
     const n = weave.repeat || count;
@@ -1778,7 +1796,11 @@ function compose(target) {
 
       } else if (usesWeave(seg.kind)) {
         if (target !== "body") return;              // a woven group lives in the body file only
-        const r = weaveRow(weaveById(seg.weave), seg.count, lockRowIndex, o.satinWarpFaced);
+        // A woven binding advances with the design; a held pin answers to the
+        // pick it is on. With three wefts on a line the two are not the same.
+        const wv = weaveById(seg.weave);
+        const rowIx = (wv && wv.kind === "held") ? outY : lockRowIndex;
+        const r = weaveRow(wv, seg.count, rowIx, o.satinWarpFaced);
         for (let x = 0; x < seg.count; x++) bits[rowBase + at + x] = r[x];
 
       } else if (seg.kind === "box") {

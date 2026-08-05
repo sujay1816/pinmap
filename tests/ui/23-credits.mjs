@@ -152,7 +152,9 @@ console.log('\n== recharging ==');
   await dismiss();
   ok('and nothing was added', left() === 50, String(left()));
 
-  await type(CODE_50.slice(0,-1) + 'Z');
+  // change the check to something it definitely is not
+  const wrong = CODE_50.slice(0,-1) + (CODE_50.slice(-1) === 'Z' ? 'Y' : 'Z');
+  await type(wrong);
   ok('a mistyped code is refused', /did not check out/i.test(reply()), reply().slice(0,60));
   await dismiss();
 

@@ -7,7 +7,8 @@
 import fs from 'fs';
 import { fileURLToPath as __f } from 'url';
 import { dirname as __d, join as __j } from 'path';
-import { decodeBMP, compose, state, freshWefts, COMPANIES, boxPlan, boxRow, SRITEX_BOX } from '../core.mjs';
+import { decodeBMP, compose, state, freshWefts, COMPANIES, boxPlan, boxRow, SRITEX_BOX,
+         weaveById, weaveRow, BUILTIN_WEAVES } from '../core.mjs';
 let pass=0, fail=0;
 const ok=(n,c,e='')=>{ c?(pass++,console.log('  ok   '+n)):(fail++,console.log('  FAIL '+n+(e?'  -> '+e:''))); };
 const head=t=>console.log('\n== '+t+' ==');
@@ -108,6 +109,36 @@ head('one design on its own');
   const box=y=>{ let t=''; for(let p=11;p<=14;p++) t+=up(y,p)?'1':'0'; return t; };
   ok('with figure, the first half lifts',      box(0)==='1100', box(0));
   ok('and with nothing to weave, still the first half', box(1)==='1100', box(1));
+}
+
+head('pins that are held, not woven');
+{
+  // Sri Tex's own body file keeps one pair up on every line and lifts another
+  // on alternate lines. Neither can be said with a satin.
+  const up  = weaveById('held:up'), alt = weaveById('held:alt');
+  ok('held up lifts every pin, every line',
+     [0,1,2,3].every(r => Array.from(weaveRow(up, 2, r, false)).join('') === '11'));
+  ok('held alternate lifts on every other line',
+     [0,1,2,3].map(r => Array.from(weaveRow(alt, 2, r, false)).join('')).join(' ') === '11 00 11 00');
+  ok('both are offered as built-in weaves',
+     BUILTIN_WEAVES.some(w => w.id === 'held:up') && BUILTIN_WEAVES.some(w => w.id === 'held:alt'));
+
+  // A held pin answers to the pick it is on, not to the design line. With three
+  // wefts to a line the two are not the same, and using the design line gave a
+  // pattern that repeated every six picks instead of every two.
+  state.segments=[{id:'h',kind:'locking',count:2,weave:'held:alt'},
+                  {id:'bd',kind:'body',count:720},{id:'e',kind:'empty',count:846}];
+  state.totalDeclared=1568; state.boxMotion='4x4'; state.weaves=[]; state.boxPrefs={};
+  state.borderFiles={}; state.opts={...sritex.opts, achuOnBody:false, achuInBody:false};
+  state.wefts=freshWefts();
+  const d=(seed)=>{ const b=new Uint8Array(720*6);
+    for(let y=0;y<6;y++) for(let x=0;x<8;x++) b[y*720+x]=(y+seed)%2; return {width:720,height:6,bits:b}; };
+  state.wefts[0].file=d(0); state.wefts[1].file=d(1); state.wefts[2].file=d(0);
+  const b = compose('body');
+  // written mirrored, so the group at pins 1-2 lands at the far columns
+  const pin=(y,p)=>b.bits[y*b.width+(b.width-p)];
+  const got = Array.from({length:6},(_,y)=>pin(y,1)?'#':'.').join('');
+  ok('it alternates on every pick, not every design line', got === '#.#.#.', got);
 }
 
 console.log(`\n${pass} passed, ${fail} failed\n`);
